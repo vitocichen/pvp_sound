@@ -1,0 +1,289 @@
+---@type string, Addon
+local _, addon = ...
+local maxAuras = 40
+
+local dispelColours = {
+	[0] = DEBUFF_TYPE_NONE_COLOR,
+	[1] = DEBUFF_TYPE_MAGIC_COLOR,
+	[2] = DEBUFF_TYPE_CURSE_COLOR,
+	[3] = DEBUFF_TYPE_DISEASE_COLOR,
+	[4] = DEBUFF_TYPE_POISON_COLOR,
+	[11] = DEBUFF_TYPE_BLEED_COLOR,
+}
+local dispelColorCurve
+
+local function InitColourCurve()
+	if dispelColorCurve then return end
+	dispelColorCurve = C_CurveUtil.CreateColorCurve()
+	dispelColorCurve:SetType(Enum.LuaCurveType.Step)
+	for type, colour in pairs(dispelColours) do
+		dispelColorCurve:AddPoint(type, colour)
+	end
+end
+
+---@class UnitAuraWatcher
+local M = {}
+addon.Core.UnitAuraWatcher = M
+
+local function NotifyCallbacks(watcher)
+	local callbacks = watcher.State.Callbacks
+	if not callbacks or #callbacks == 0 then return end
+	for _, callback in ipairs(callbacks) do
+		callback(watcher)
+	end
+end
+
+local function MightAffectOurFilters(updateInfo)
+	if not updateInfo then return true end
+	if updateInfo.isFullUpdate then return true end
+	if (updateInfo.addedAuras and #updateInfo.addedAuras > 0)
+		or (updateInfo.updatedAuras and #updateInfo.updatedAuras > 0)
+		or (updateInfo.removedAuraInstanceIDs and #updateInfo.removedAuraInstanceIDs > 0)
+	then
+		return true
+	end
+	return false
+end
+
+local function WatcherFrameOnEvent(frame, event, ...)
+	local watcher = frame.Watcher
+	if not watcher then return end
+	watcher:OnEvent(event, ...)
+end
+
+local Watcher = {}
+Watcher.__index = Watcher
+
+function Watcher:GetUnit()
+	return self.State.Unit
+end
+
+function Watcher:RegisterCallback(callback)
+	if not callback then return end
+	self.State.Callbacks[#self.State.Callbacks + 1] = callback
+end
+
+function Watcher:IsEnabled()
+	return self.State.Enabled
+end
+
+function Watcher:Enable()
+	if self.State.Enabled then return end
+	local frame = self.Frame
+	if not frame then return end
+	frame:RegisterUnitEvent("UNIT_AURA", self.State.Unit)
+	if self.State.Events then
+		for _, event in ipairs(self.State.Events) do
+			frame:RegisterEvent(event)
+		end
+	end
+	self.State.Enabled = true
+end
+
+function Watcher:Disable()
+	if not self.State.Enabled then return end
+	local frame = self.Frame
+	if frame then frame:UnregisterAllEvents() end
+	self.State.Enabled = false
+end
+
+function Watcher:ClearState(notify)
+	local state = self.State
+	state.CcAuraState = {}
+	state.ImportantAuraState = {}
+	state.DefensiveState = {}
+	if notify then NotifyCallbacks(self) end
+end
+
+function Watcher:ForceFullUpdate()
+	self:OnEvent("UNIT_AURA", self.State.Unit, { isFullUpdate = true })
+end
+
+function Watcher:Dispose()
+	local frame = self.Frame
+	if frame then
+		frame:UnregisterAllEvents()
+		frame:SetScript("OnEvent", nil)
+		frame.Watcher = nil
+	end
+	self.Frame = nil
+	self.State.Callbacks = {}
+	self:ClearState(false)
+end
+
+function Watcher:GetCcState()
+	local unit = self.State.Unit
+	if not unit or not UnitExists(unit) or UnitIsDeadOrGhost(unit) then return {} end
+	return self.State.CcAuraState
+end
+
+function Watcher:GetImportantState()
+	local unit = self.State.Unit
+	if not unit or not UnitExists(unit) or UnitIsDeadOrGhost(unit) then return {} end
+	return self.State.ImportantAuraState
+end
+
+function Watcher:GetDefensiveState()
+	local unit = self.State.Unit
+	if not unit or not UnitExists(unit) or UnitIsDeadOrGhost(unit) then return {} end
+	return self.State.DefensiveState
+end
+
+local function IterateAuras(unit, filter, callback)
+	for i = 1, maxAuras do
+		local auraData = C_UnitAuras.GetAuraDataByIndex(unit, i, filter)
+		if not auraData then break end
+
+		local durationInfo = C_UnitAuras.GetAuraDuration(unit, auraData.auraInstanceID)
+		local start = durationInfo and durationInfo:GetStartTime()
+		local duration = durationInfo and durationInfo:GetTotalDuration()
+
+		if start and duration then
+			local dispelColor = C_UnitAuras.GetAuraDispelTypeColor(unit, auraData.auraInstanceID, dispelColorCurve)
+			callback(auraData, start, duration, dispelColor)
+		end
+	end
+end
+
+function Watcher:RebuildStates()
+	local unit = self.State.Unit
+	if not unit then return end
+
+	local interestedIn = self.State.InterestedIn
+	local interestedInDefensives = not interestedIn or (interestedIn and interestedIn.Defensives)
+	local interestedInCC = not interestedIn or (interestedIn and interestedIn.CC)
+	local interestedInImportant = not interestedIn or (interestedIn and interestedIn.Important)
+
+	local ccSpellData = {}
+	local importantSpellData = {}
+	local defensivesSpellData = {}
+	local seen = {}
+
+	if interestedInDefensives then
+		IterateAuras(unit, "HELPFUL|BIG_DEFENSIVE", function(auraData, start, duration, dispelColor)
+			local isDefensive = C_UnitAuras.AuraIsBigDefensive(auraData.spellId)
+			if issecretvalue(isDefensive) or isDefensive then
+				defensivesSpellData[#defensivesSpellData + 1] = {
+					IsDefensive = isDefensive,
+					SpellId = auraData.spellId,
+					SpellName = auraData.name,
+					SpellIcon = auraData.icon,
+					StartTime = start,
+					TotalDuration = duration,
+					DispelColor = dispelColor,
+					AuraInstanceID = auraData.auraInstanceID,
+				}
+			end
+			seen[auraData.auraInstanceID] = true
+		end)
+
+		IterateAuras(unit, "HELPFUL|EXTERNAL_DEFENSIVE", function(auraData, start, duration, dispelColor)
+			if not seen[auraData.auraInstanceID] then
+				defensivesSpellData[#defensivesSpellData + 1] = {
+					IsDefensive = true,
+					SpellId = auraData.spellId,
+					SpellName = auraData.name,
+					SpellIcon = auraData.icon,
+					StartTime = start,
+					TotalDuration = duration,
+					DispelColor = dispelColor,
+					AuraInstanceID = auraData.auraInstanceID,
+				}
+				seen[auraData.auraInstanceID] = true
+			end
+		end)
+	end
+
+	if interestedInCC then
+		IterateAuras(unit, "HARMFUL|CROWD_CONTROL", function(auraData, start, duration, dispelColor)
+			local isCC = C_Spell.IsSpellCrowdControl(auraData.spellId)
+			if issecretvalue(isCC) or isCC then
+				ccSpellData[#ccSpellData + 1] = {
+					IsCC = isCC,
+					SpellId = auraData.spellId,
+					SpellName = auraData.name,
+					SpellIcon = auraData.icon,
+					StartTime = start,
+					TotalDuration = duration,
+					DispelColor = dispelColor,
+					AuraInstanceID = auraData.auraInstanceID,
+				}
+			end
+			seen[auraData.auraInstanceID] = true
+		end)
+	end
+
+	if interestedInImportant then
+		IterateAuras(unit, "HELPFUL|IMPORTANT", function(auraData, start, duration, dispelColor)
+			if not seen[auraData.auraInstanceID] then
+				local isImportant = C_Spell.IsSpellImportant(auraData.spellId)
+				if issecretvalue(isImportant) or isImportant then
+					importantSpellData[#importantSpellData + 1] = {
+						IsImportant = isImportant,
+						SpellId = auraData.spellId,
+						SpellName = auraData.name,
+						SpellIcon = auraData.icon,
+						StartTime = start,
+						TotalDuration = duration,
+						DispelColor = dispelColor,
+						AuraInstanceID = auraData.auraInstanceID,
+					}
+				end
+				seen[auraData.auraInstanceID] = true
+			end
+		end)
+	end
+
+	local state = self.State
+	state.CcAuraState = ccSpellData
+	state.ImportantAuraState = importantSpellData
+	state.DefensiveState = defensivesSpellData
+end
+
+function Watcher:OnEvent(event, ...)
+	local state = self.State
+
+	if event == "UNIT_AURA" then
+		local unit, updateInfo = ...
+		if unit and unit ~= state.Unit then return end
+		if not MightAffectOurFilters(updateInfo) then return end
+	elseif event == "ARENA_OPPONENT_UPDATE" then
+		local unit = ...
+		if unit ~= state.Unit then return end
+	end
+
+	if not state.Unit then return end
+
+	self:RebuildStates()
+	NotifyCallbacks(self)
+end
+
+function M:New(unit, events, interestedIn)
+	if not unit then error("unit must not be nil") end
+
+	local watcher = setmetatable({
+		Frame = nil,
+		State = {
+			Unit = unit,
+			Events = events,
+			Enabled = false,
+			Callbacks = {},
+			CcAuraState = {},
+			ImportantAuraState = {},
+			DefensiveState = {},
+			InterestedIn = interestedIn,
+		},
+	}, Watcher)
+
+	local frame = CreateFrame("Frame")
+	frame.Watcher = watcher
+	frame:SetScript("OnEvent", WatcherFrameOnEvent)
+
+	watcher.Frame = frame
+	watcher:Enable()
+	watcher:ForceFullUpdate()
+
+	return watcher
+end
+
+InitColourCurve()
