@@ -150,7 +150,7 @@ function Watcher:RebuildStates()
 	if not unit then return end
 
 	local interestedIn = self.State.InterestedIn
-	local interestedInDefensives = not interestedIn or (interestedIn and interestedIn.Defensives)
+	local interestedInDefensives = not interestedIn or (interestedIn and interestedIn.Defensive)
 	local interestedInCC = not interestedIn or (interestedIn and interestedIn.CC)
 	local interestedInImportant = not interestedIn or (interestedIn and interestedIn.Important)
 
