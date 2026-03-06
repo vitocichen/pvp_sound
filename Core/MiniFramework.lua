@@ -486,7 +486,7 @@ function M:WaitForAddonLoad(callback)
 end
 
 function M:GetSavedVars(defaults)
-	local name = addonName .. "DB"
+	local name = "PVPSoundDB"  -- Match .toc SavedVariables declaration
 	local vars = _G[name] or {}
 	_G[name] = vars
 	if defaults then
@@ -496,7 +496,7 @@ function M:GetSavedVars(defaults)
 end
 
 function M:ResetSavedVars(defaults)
-	local name = addonName .. "DB"
+	local name = "PVPSoundDB"  -- Match .toc SavedVariables declaration
 	local vars = _G[name] or {}
 	NilKeys(vars)
 	if defaults then
