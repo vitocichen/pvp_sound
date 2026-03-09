@@ -1,0 +1,9 @@
+package-as: PVP_Sound
+
+ignore:
+  - .git
+  - .gitignore
+  - .pkgmeta
+  - README.md
+  - "*.zip"
+  - icon.svg

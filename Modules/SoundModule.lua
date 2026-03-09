@@ -21,13 +21,10 @@ local currentDefensiveAuras = {}
 local previousFriendlyCCAuras = {}
 local currentFriendlyCCAuras = {}
 
--- Cached TTS settings
+-- Cached TTS settings (global)
 local cachedVoiceID
 local cachedTTSVolume
 local cachedTTSSpeechRate
-local cachedTTSImportantEnabled
-local cachedTTSDefensiveEnabled
-local cachedTTSCCMode -- "Off", "Self", "All"
 
 -- Watchers
 local arenaWatchers
@@ -46,12 +43,15 @@ addon.Modules.SoundModule = M
 local function AnnounceTTS(spellName, spellType)
 	if not spellName then return end
 
+	local zone = moduleUtil:GetZoneConfig()
+	if not zone then return end
+
 	local enabled = false
-	if spellType == "important" and cachedTTSImportantEnabled then
+	if spellType == "important" and zone.Important then
 		enabled = true
-	elseif spellType == "defensive" and cachedTTSDefensiveEnabled then
+	elseif spellType == "defensive" and zone.Defensive then
 		enabled = true
-	elseif spellType == "cc" and cachedTTSCCMode ~= "Off" then
+	elseif spellType == "cc" and zone.CCMode and zone.CCMode ~= "Off" then
 		enabled = true
 	end
 
@@ -108,6 +108,18 @@ local function ProcessFriendlyCCData(watcher)
 	end
 end
 
+local function GetCCMode()
+	local zone = moduleUtil:GetZoneConfig()
+	if not zone then return "Off" end
+	return zone.CCMode or "Off"
+end
+
+local function GetTargetFocusOnly()
+	local zone = moduleUtil:GetZoneConfig()
+	if not zone then return true end
+	return zone.TargetFocusOnly ~= false
+end
+
 local function OnAuraDataChanged()
 	if paused then return end
 	if not moduleUtil:IsEnabled() then return end
@@ -129,7 +141,24 @@ local function OnAuraDataChanged()
 
 	-- Process enemy watchers (World/BG)
 	if instanceType == "pvp" or not inInstance then
-		local targetFocusOnly = db.TargetFocusOnly ~= false
+		local targetFocusOnly = GetTargetFocusOnly()
+		if targetFocusOnly then
+			for _, pair in ipairs({ { targetWatcher, "target" }, { focusWatcher, "focus" } }) do
+				local watcher, unit = pair[1], pair[2]
+				if watcher and UnitExists(unit) and units:IsEnemy(unit) then
+					ProcessEnemyWatcherData(watcher)
+				end
+			end
+		else
+			for _, watcher in pairs(nameplateWatchers) do
+				ProcessEnemyWatcherData(watcher)
+			end
+		end
+	end
+
+	-- Process enemy watchers (PvE)
+	if instanceType == "party" or instanceType == "raid" then
+		local targetFocusOnly = GetTargetFocusOnly()
 		if targetFocusOnly then
 			for _, pair in ipairs({ { targetWatcher, "target" }, { focusWatcher, "focus" } }) do
 				local watcher, unit = pair[1], pair[2]
@@ -145,12 +174,13 @@ local function OnAuraDataChanged()
 	end
 
 	-- Process friendly CC watchers
-	if cachedTTSCCMode ~= "Off" then
-		if cachedTTSCCMode == "Self" then
+	local ccMode = GetCCMode()
+	if ccMode ~= "Off" then
+		if ccMode == "Self" then
 			if selfCCWatcher then
 				ProcessFriendlyCCData(selfCCWatcher)
 			end
-		elseif cachedTTSCCMode == "All" then
+		elseif ccMode == "All" then
 			if selfCCWatcher then
 				ProcessFriendlyCCData(selfCCWatcher)
 			end
@@ -273,7 +303,8 @@ end
 local function RebuildFriendlyWatchers()
 	DisposeFriendlyWatchers()
 
-	if cachedTTSCCMode ~= "All" then return end
+	local ccMode = GetCCMode()
+	if ccMode ~= "All" then return end
 
 	local ccFilter = { CC = true }
 	local friendlyUnits = units:FriendlyUnits()
@@ -313,6 +344,8 @@ local function EnableDisable()
 	end
 
 	local inInstance, instanceType = IsInInstance()
+	local ccMode = GetCCMode()
+	local targetFocusOnly = GetTargetFocusOnly()
 
 	-- Arena watchers
 	if instanceType == "arena" then
@@ -325,9 +358,8 @@ local function EnableDisable()
 		end
 	end
 
-	-- World/BG watchers
-	if instanceType == "pvp" or not inInstance then
-		local targetFocusOnly = db.TargetFocusOnly ~= false
+	-- World/BG/PvE watchers (target/focus or nameplate)
+	if instanceType == "pvp" or instanceType == "party" or instanceType == "raid" or not inInstance then
 		if targetFocusOnly then
 			EnableTargetFocusWatchers()
 			ClearNamePlateWatchers()
@@ -336,14 +368,16 @@ local function EnableDisable()
 			RebuildNameplateWatchers()
 		end
 	else
-		ClearNamePlateWatchers()
-		DisableTargetFocusWatchers()
+		if instanceType ~= "arena" then
+			ClearNamePlateWatchers()
+			DisableTargetFocusWatchers()
+		end
 	end
 
 	-- Friendly CC watchers
-	if cachedTTSCCMode ~= "Off" then
+	if ccMode ~= "Off" then
 		if selfCCWatcher then selfCCWatcher:Enable() end
-		if cachedTTSCCMode == "All" then
+		if ccMode == "All" then
 			RebuildFriendlyWatchers()
 		else
 			DisposeFriendlyWatchers()
@@ -356,15 +390,15 @@ local function EnableDisable()
 	ScheduleAuraDataUpdate()
 end
 
-function M:Refresh()
+local function CacheTTSSettings()
 	local tts = db.TTS or {}
 	cachedVoiceID = tts.VoiceID or (C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0)) or 0
 	cachedTTSVolume = tts.Volume or 100
 	cachedTTSSpeechRate = tts.SpeechRate or 0
-	cachedTTSImportantEnabled = tts.Important and tts.Important.Enabled or false
-	cachedTTSDefensiveEnabled = tts.Defensive and tts.Defensive.Enabled or false
-	cachedTTSCCMode = tts.CC and tts.CC.Mode or "Off"
+end
 
+function M:Refresh()
+	CacheTTSSettings()
 	EnableDisable()
 end
 
@@ -372,13 +406,7 @@ function M:Init()
 	local mini = addon.Core.Framework
 	db = mini:GetSavedVars()
 
-	local tts = db.TTS or {}
-	cachedVoiceID = tts.VoiceID or (C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0)) or 0
-	cachedTTSVolume = tts.Volume or 100
-	cachedTTSSpeechRate = tts.SpeechRate or 0
-	cachedTTSImportantEnabled = tts.Important and tts.Important.Enabled or false
-	cachedTTSDefensiveEnabled = tts.Defensive and tts.Defensive.Enabled or false
-	cachedTTSCCMode = tts.CC and tts.CC.Mode or "Off"
+	CacheTTSSettings()
 
 	-- Initialize arena watchers (enemy important/defensive)
 	local enemyFilter = { Defensive = true, Important = true }
@@ -417,7 +445,7 @@ function M:Init()
 		elseif event == "NAME_PLATE_UNIT_ADDED" then
 			if moduleUtil:IsEnabled() then
 				local inInstance, instanceType = IsInInstance()
-				if instanceType == "pvp" or not inInstance then
+				if instanceType ~= "arena" and not GetTargetFocusOnly() then
 					OnNamePlateAdded(unitToken)
 				end
 			end
@@ -426,7 +454,8 @@ function M:Init()
 		elseif event == "ZONE_CHANGED_NEW_AREA" then
 			EnableDisable()
 		elseif event == "GROUP_ROSTER_UPDATE" then
-			if cachedTTSCCMode == "All" and moduleUtil:IsEnabled() then
+			local ccMode = GetCCMode()
+			if ccMode == "All" and moduleUtil:IsEnabled() then
 				RebuildFriendlyWatchers()
 			end
 		end

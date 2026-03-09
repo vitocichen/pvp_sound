@@ -7,24 +7,22 @@ if GetLocale() ~= "zhCN" then
 end
 
 L:SetStrings({
-	-- General
-	["PVP Sound - TTS voice announcements for PvP spells."] = "PVP Sound - PvP技能TTS语音播报。",
+	-- General / Home
+	["addon_description"] = "一款PVP语音播报插件，可以播报PVP战斗中的防御技能/重要buff技能/控制技能语音等。",
 	["Author: DK-姜世离（燃烧之刃）"] = "作者：DK-姜世离（燃烧之刃）",
 	["General"] = "常规",
-	["Settings:"] = "设置：",
-	["Enable in:"] = "启用于：",
-	["World"] = "开放世界",
-	["Arena"] = "竞技场",
-	["Battlegrounds"] = "战场和团队",
-	["PvE"] = "PvE",
-	["Enable this module in the open world."] = "在开放世界中启用。",
-	["Enable this module in arena."] = "在竞技场中启用。",
-	["Enable this module in battlegrounds."] = "在战场中启用。",
-	["Enable this module in PvE."] = "在PvE中启用。",
+
+	-- Home page introduction
+	["home_intro_1"] = "PVP Sound 实时监控敌方增益/减益效果/被控制效果，通过TTS语音播报PvP中的重要技能。",
+	["home_intro_2"] = "支持三种播报类型：",
+	["home_intro_3"] = "|cFF00FF00重要法术|r — 进攻性技能，如复仇之怒、自由之手、操控时间等。",
+	["home_intro_4"] = "|cFF00BFFF防御法术|r — 防御性技能，如保护之手、暗影斗篷、无敌、冰箱等。",
+	["home_intro_5"] = "|cFFFF6060友方被控|r — 施加在你或队友身上的控制技能（窒息、制裁、变羊、闷棍等）。",
+	["home_intro_6"] = "每种区域（野外、竞技场、战场、PvE）都有独立的设置 — 请在上方的标签页中分别配置。",
+	["home_intro_7"] = "输入 |cFFFFD100/pvpsound|r 或 |cFFFFD100/ps|r 打开设置面板，|cFFFFD100/ps test|r 可测试TTS语音输出。",
 	["Reset"] = "重置",
 	["Are you sure you wish to reset to factory settings?"] = "您确定要重置为出厂设置吗？",
 	["Settings reset to default."] = "设置已重置为默认值。",
-	["Can't apply settings during combat."] = "战斗中无法应用设置。",
 	["Can't do that during combat."] = "战斗中无法执行该操作。",
 	["Test"] = "测试",
 
@@ -35,8 +33,15 @@ L:SetStrings({
 	["TTS Volume"] = "TTS音量",
 	["TTS Speech Rate"] = "TTS语速",
 
-	-- Announce categories
-	["Announce Categories"] = "播报分类",
+	-- Zone names
+	["World"] = "野外",
+	["Arena"] = "竞技场",
+	["Battlegrounds"] = "战场",
+	["PvE"] = "PvE",
+
+	-- Zone settings
+	["Enabled"] = "启用",
+	["Enable announcements in this zone."] = "在此区域中启用语音播报。",
 	["Important Spells"] = "重要法术（进攻技能）",
 	["Announce important (offensive) spell names via TTS when enemies cast them."] = "当敌人施放重要进攻技能时，用TTS语音播报技能名称。",
 	["Defensive Spells"] = "防御法术",
@@ -47,7 +52,7 @@ L:SetStrings({
 	["Self Only"] = "仅自己",
 	["Self + Party"] = "自己+队友",
 	["Target/Focus Only"] = "仅目标/焦点",
-	["Only monitor your target and focus in battlegrounds and the open world."] = "在战场和开放世界中仅监控你的目标和焦点。",
+	["Only monitor your target and focus instead of all enemy nameplates."] = "仅监控你的目标和焦点，而不是所有敌方姓名板。",
 
 	-- Misc
 	["Important"] = "重要",

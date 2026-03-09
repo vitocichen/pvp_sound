@@ -9,29 +9,42 @@ local horizontalSpacing = mini.HorizontalSpacing
 local db
 
 local dbDefaults = {
-	Version = 1,
-
-	Enabled = {
-		World = true,
-		Arena = true,
-		BattleGrounds = true,
-		PvE = false,
-	},
-
-	TargetFocusOnly = true,
+	Version = 2,
 
 	TTS = {
 		VoiceID = false,
 		Volume = 100,
 		SpeechRate = 5,
-		Important = {
+	},
+
+	Zones = {
+		World = {
 			Enabled = true,
+			Important = true,
+			Defensive = true,
+			CCMode = "Self",
+			TargetFocusOnly = true,
 		},
-		Defensive = {
+		Arena = {
 			Enabled = true,
+			Important = true,
+			Defensive = true,
+			CCMode = "Self",
+			TargetFocusOnly = false,
 		},
-		CC = {
-			Mode = "Self",
+		BattleGrounds = {
+			Enabled = true,
+			Important = true,
+			Defensive = true,
+			CCMode = "Self",
+			TargetFocusOnly = true,
+		},
+		PvE = {
+			Enabled = false,
+			Important = true,
+			Defensive = true,
+			CCMode = "Off",
+			TargetFocusOnly = true,
 		},
 	},
 }
@@ -42,183 +55,152 @@ function M:Apply()
 	addon:Refresh()
 end
 
-function M:Init()
-	db = mini:GetSavedVars(dbDefaults)
+-- Migrate old v1 format to v2
+local function MigrateV1(savedDb)
+	if not savedDb or savedDb.Version == 2 then return end
 
-	-- Clean up any garbage from old versions
-	mini:CleanTable(db, dbDefaults, true, true)
+	local oldEnabled = savedDb.Enabled or {}
+	local oldTTS = savedDb.TTS or {}
+	local oldImportant = oldTTS.Important and oldTTS.Important.Enabled
+	local oldDefensive = oldTTS.Defensive and oldTTS.Defensive.Enabled
+	local oldCCMode = oldTTS.CC and oldTTS.CC.Mode or "Off"
+	local oldTargetFocusOnly = savedDb.TargetFocusOnly
 
-	local scroll = CreateFrame("ScrollFrame", nil, nil, "UIPanelScrollFrameTemplate")
-	scroll.name = addonName
+	if oldImportant == nil then oldImportant = true end
+	if oldDefensive == nil then oldDefensive = true end
+	if oldTargetFocusOnly == nil then oldTargetFocusOnly = true end
 
-	local category = mini:AddCategory(scroll)
-	if not category then return end
-
-	local panel = CreateFrame("Frame", nil, scroll)
-	local width, height = mini:SettingsSize()
-	panel:SetWidth(width)
-	panel:SetHeight(height * 2)
-	scroll:SetScrollChild(panel)
-
-	scroll:EnableMouseWheel(true)
-	scroll:SetScript("OnMouseWheel", function(scrollSelf, delta)
-		local step = 20
-		local current = scrollSelf:GetVerticalScroll()
-		local max = scrollSelf:GetVerticalScrollRange()
-		if delta > 0 then
-			scrollSelf:SetVerticalScroll(math.max(current - step, 0))
+	local zones = {}
+	for _, zoneKey in ipairs({ "World", "Arena", "BattleGrounds", "PvE" }) do
+		local zoneEnabled
+		if oldEnabled[zoneKey] ~= nil then
+			zoneEnabled = oldEnabled[zoneKey]
 		else
-			scrollSelf:SetVerticalScroll(math.min(current + step, max))
+			zoneEnabled = dbDefaults.Zones[zoneKey].Enabled
 		end
-	end)
+		zones[zoneKey] = {
+			Enabled = zoneEnabled,
+			Important = oldImportant,
+			Defensive = oldDefensive,
+			CCMode = oldCCMode,
+			TargetFocusOnly = (zoneKey == "Arena") and false or oldTargetFocusOnly,
+		}
+	end
+
+	savedDb.Enabled = nil
+	savedDb.TargetFocusOnly = nil
+	if savedDb.TTS then
+		savedDb.TTS.Important = nil
+		savedDb.TTS.Defensive = nil
+		savedDb.TTS.CC = nil
+	end
+
+	savedDb.Zones = zones
+	savedDb.Version = 2
+end
+
+-- ==================== Shared helpers ====================
+
+local voiceItems = {}
+local voiceNameById = {}
+
+local function BuildVoiceList()
+	if #voiceItems > 0 then return end
+	local voices = C_VoiceChat and C_VoiceChat.GetTtsVoices and C_VoiceChat.GetTtsVoices() or nil
+	if voices then
+		for _, v in ipairs(voices) do
+			if v and v.voiceID ~= nil then
+				voiceItems[#voiceItems + 1] = v.voiceID
+				voiceNameById[v.voiceID] = v.name or tostring(v.voiceID)
+			end
+		end
+		table.sort(voiceItems, function(a, b)
+			return (voiceNameById[a] or tostring(a)) < (voiceNameById[b] or tostring(b))
+		end)
+	end
+	if #voiceItems == 0 then
+		local fallback = C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0) or 0
+		voiceItems = { fallback }
+		voiceNameById[fallback] = tostring(fallback)
+	end
+end
+
+local function AutoSelectVoice()
+	if db.TTS.VoiceID and db.TTS.VoiceID ~= false then return end
+	for id, name in pairs(voiceNameById) do
+		if name and name:lower():find("xiaoxiao") then
+			db.TTS.VoiceID = id
+			return
+		end
+	end
+end
+
+local function EnsureTtsOptions()
+	if not db.TTS then
+		db.TTS = { Volume = 100, SpeechRate = 0 }
+	end
+	if db.TTS.SpeechRate == nil then
+		db.TTS.SpeechRate = 0
+	end
+end
+
+local function DoTest()
+	local voiceId = db.TTS and db.TTS.VoiceID or (C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0)) or 0
+	local vol = db.TTS and db.TTS.Volume or 100
+	local rate = db.TTS and db.TTS.SpeechRate or 0
+	C_VoiceChat.SpeakText(voiceId, "PVP Sound Test", rate, vol, true)
+end
+
+-- ==================== Build Home Tab ====================
+
+local function BuildHomeTab(content)
+	-- Introduction
+	local introBlock = mini:TextBlock({
+		Parent = content,
+		Lines = {
+			L["home_intro_1"],
+			" ",
+			L["home_intro_2"],
+			L["home_intro_3"],
+			L["home_intro_4"],
+			L["home_intro_5"],
+			" ",
+			L["home_intro_6"],
+			" ",
+			L["home_intro_7"],
+		},
+	})
+	introBlock:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
 
 	local columns = 4
 	local columnWidth = mini:ColumnWidth(columns, 0, 0)
 
-	-- ==================== Title ====================
-	local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-	local version = C_AddOns.GetAddOnMetadata(addonName, "Version")
-	title:SetPoint("TOPLEFT", 0, -verticalSpacing)
-	title:SetText(string.format("%s - %s", addonName, version))
-
-	local lines = mini:TextBlock({
-		Parent = panel,
-		Lines = {
-			L["PVP Sound - TTS voice announcements for PvP spells."],
-			L["Author: DK-姜世离（燃烧之刃）"],
-		},
-	})
-	lines:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
-
-	-- ==================== Enable in: ====================
-	local enabledDivider = mini:Divider({
-		Parent = panel,
-		Text = L["Enable in:"],
-	})
-	enabledDivider:SetPoint("LEFT", panel, "LEFT")
-	enabledDivider:SetPoint("RIGHT", panel, "RIGHT")
-	enabledDivider:SetPoint("TOP", lines, "BOTTOM", 0, -verticalSpacing)
-
-	local enabledWorld = mini:Checkbox({
-		Parent = panel,
-		LabelText = L["World"],
-		Tooltip = L["Enable this module in the open world."],
-		GetValue = function() return db.Enabled.World end,
-		SetValue = function(value)
-			db.Enabled.World = value
-			M:Apply()
-		end,
-	})
-	enabledWorld:SetPoint("TOPLEFT", enabledDivider, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	local enabledArena = mini:Checkbox({
-		Parent = panel,
-		LabelText = L["Arena"],
-		Tooltip = L["Enable this module in arena."],
-		GetValue = function() return db.Enabled.Arena end,
-		SetValue = function(value)
-			db.Enabled.Arena = value
-			M:Apply()
-		end,
-	})
-	enabledArena:SetPoint("LEFT", panel, "LEFT", columnWidth, 0)
-	enabledArena:SetPoint("TOP", enabledWorld, "TOP", 0, 0)
-
-	local enabledBG = mini:Checkbox({
-		Parent = panel,
-		LabelText = L["Battlegrounds"],
-		Tooltip = L["Enable this module in battlegrounds."],
-		GetValue = function() return db.Enabled.BattleGrounds end,
-		SetValue = function(value)
-			db.Enabled.BattleGrounds = value
-			M:Apply()
-		end,
-	})
-	enabledBG:SetPoint("LEFT", panel, "LEFT", columnWidth * 2, 0)
-	enabledBG:SetPoint("TOP", enabledWorld, "TOP", 0, 0)
-
-	local enabledPvE = mini:Checkbox({
-		Parent = panel,
-		LabelText = L["PvE"],
-		Tooltip = L["Enable this module in PvE."],
-		GetValue = function() return db.Enabled.PvE end,
-		SetValue = function(value)
-			db.Enabled.PvE = value
-			M:Apply()
-		end,
-	})
-	enabledPvE:SetPoint("LEFT", panel, "LEFT", columnWidth * 3, 0)
-	enabledPvE:SetPoint("TOP", enabledWorld, "TOP", 0, 0)
-
 	-- ==================== TTS Settings ====================
 	local ttsDivider = mini:Divider({
-		Parent = panel,
+		Parent = content,
 		Text = L["TTS Settings"],
 	})
-	ttsDivider:SetPoint("LEFT", panel, "LEFT")
-	ttsDivider:SetPoint("RIGHT", panel, "RIGHT")
-	ttsDivider:SetPoint("TOP", enabledWorld, "BOTTOM", 0, -verticalSpacing)
+	ttsDivider:SetPoint("LEFT", content, "LEFT")
+	ttsDivider:SetPoint("RIGHT", content, "RIGHT")
+	ttsDivider:SetPoint("TOP", introBlock, "BOTTOM", 0, -verticalSpacing)
 
 	local ttsIntro = mini:TextBlock({
-		Parent = panel,
+		Parent = content,
 		Lines = {
 			L["You must choose a voice in your language for this to work."],
 		},
 	})
 	ttsIntro:SetPoint("TOPLEFT", ttsDivider, "BOTTOMLEFT", 0, -verticalSpacing)
 
-	local function EnsureTtsOptions()
-		if not db.TTS then
-			db.TTS = { Volume = 100, SpeechRate = 0 }
-		end
-		if db.TTS.SpeechRate == nil then
-			db.TTS.SpeechRate = 0
-		end
-	end
-
-	-- Build voice list
-	local voiceItems = {}
-	local voiceNameById = {}
-	do
-		local voices = C_VoiceChat and C_VoiceChat.GetTtsVoices and C_VoiceChat.GetTtsVoices() or nil
-		if voices then
-			for _, v in ipairs(voices) do
-				if v and v.voiceID ~= nil then
-					voiceItems[#voiceItems + 1] = v.voiceID
-					voiceNameById[v.voiceID] = v.name or tostring(v.voiceID)
-				end
-			end
-			table.sort(voiceItems, function(a, b)
-				return (voiceNameById[a] or tostring(a)) < (voiceNameById[b] or tostring(b))
-			end)
-		end
-	end
-
-	if #voiceItems == 0 then
-		local fallback = C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0) or 0
-		voiceItems = { fallback }
-		voiceNameById[fallback] = tostring(fallback)
-	end
-
-	-- Auto-select xiaoxiao voice as default if user hasn't chosen one
-	if not db.TTS.VoiceID or db.TTS.VoiceID == false then
-		for id, name in pairs(voiceNameById) do
-			if name and name:lower():find("xiaoxiao") then
-				db.TTS.VoiceID = id
-				break
-			end
-		end
-	end
-
 	-- Voice dropdown
 	local voiceLabel = mini:TextLine({
-		Parent = panel,
+		Parent = content,
 		Text = L["Voice"],
 	})
 	voiceLabel:SetPoint("TOPLEFT", ttsIntro, "BOTTOMLEFT", 0, -verticalSpacing)
 
 	local voiceDropdown = mini:Dropdown({
-		Parent = panel,
+		Parent = content,
 		Items = voiceItems,
 		Width = 240,
 		GetValue = function()
@@ -236,13 +218,13 @@ function M:Init()
 			return voiceNameById[value] or tostring(value)
 		end,
 	})
-	voiceDropdown:SetPoint("LEFT", panel, "LEFT", columnWidth, 0)
+	voiceDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
 	voiceDropdown:SetPoint("TOP", voiceLabel, "TOP", 0, 8)
 	voiceDropdown:SetWidth(200)
 
 	-- Volume slider
 	local volumeSlider = mini:Slider({
-		Parent = panel,
+		Parent = content,
 		Min = 0,
 		Max = 100,
 		Width = (columnWidth * 2) - horizontalSpacing,
@@ -264,7 +246,7 @@ function M:Init()
 
 	-- Speech Rate slider
 	local speechRateSlider = mini:Slider({
-		Parent = panel,
+		Parent = content,
 		Min = -5,
 		Max = 5,
 		Width = (columnWidth * 2) - horizontalSpacing,
@@ -285,135 +267,17 @@ function M:Init()
 	})
 	speechRateSlider.Slider:SetPoint("LEFT", volumeSlider.Slider, "RIGHT", horizontalSpacing, 0)
 
-	-- ==================== Announce Categories ====================
-	local categDivider = mini:Divider({
-		Parent = panel,
-		Text = L["Announce Categories"],
-	})
-	categDivider:SetPoint("LEFT", panel, "LEFT")
-	categDivider:SetPoint("RIGHT", panel, "RIGHT")
-	categDivider:SetPoint("TOP", volumeSlider.Slider, "BOTTOM", 0, -verticalSpacing * 2)
-
-	-- Important spells checkbox
-	local importantChk = mini:Checkbox({
-		Parent = panel,
-		LabelText = L["Important Spells"],
-		Tooltip = L["Announce important (offensive) spell names via TTS when enemies cast them."],
-		GetValue = function()
-			return db.TTS and db.TTS.Important and db.TTS.Important.Enabled or false
-		end,
-		SetValue = function(value)
-			EnsureTtsOptions()
-			if not db.TTS.Important then
-				db.TTS.Important = { Enabled = false }
-			end
-			db.TTS.Important.Enabled = value
-			if value then
-				local voiceId = db.TTS.VoiceID or (C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0)) or 0
-				local vol = db.TTS.Volume or 100
-				local rate = db.TTS.SpeechRate or 0
-				C_VoiceChat.SpeakText(voiceId, L["Important"], rate, vol, true)
-			end
-			M:Apply()
-		end,
-	})
-	importantChk:SetPoint("TOPLEFT", categDivider, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	-- Defensive spells checkbox
-	local defensiveChk = mini:Checkbox({
-		Parent = panel,
-		LabelText = L["Defensive Spells"],
-		Tooltip = L["Announce defensive spell names via TTS when enemies cast them."],
-		GetValue = function()
-			return db.TTS and db.TTS.Defensive and db.TTS.Defensive.Enabled or false
-		end,
-		SetValue = function(value)
-			EnsureTtsOptions()
-			if not db.TTS.Defensive then
-				db.TTS.Defensive = { Enabled = false }
-			end
-			db.TTS.Defensive.Enabled = value
-			if value then
-				local voiceId = db.TTS.VoiceID or (C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0)) or 0
-				local vol = db.TTS.Volume or 100
-				local rate = db.TTS.SpeechRate or 0
-				C_VoiceChat.SpeakText(voiceId, L["Defensive"], rate, vol, true)
-			end
-			M:Apply()
-		end,
-	})
-	defensiveChk:SetPoint("TOPLEFT", importantChk, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	-- Friendly CC mode
-	local ccModeLabel = mini:TextLine({
-		Parent = panel,
-		Text = L["Friendly CC"],
-		Tooltip = L["Announce CC on self or party via TTS."],
-	})
-	ccModeLabel:SetPoint("TOPLEFT", defensiveChk, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	local ccModeItems = { "Off", "Self", "All" }
-	local ccModeDropdown = mini:Dropdown({
-		Parent = panel,
-		Items = ccModeItems,
-		Width = 160,
-		GetValue = function()
-			return db.TTS and db.TTS.CC and db.TTS.CC.Mode or "Off"
-		end,
-		SetValue = function(value)
-			EnsureTtsOptions()
-			if not db.TTS.CC then
-				db.TTS.CC = { Mode = "Off" }
-			end
-			db.TTS.CC.Mode = value
-
-			if value ~= "Off" then
-				local voiceId = db.TTS.VoiceID or (C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0)) or 0
-				local vol = db.TTS.Volume or 100
-				local rate = db.TTS.SpeechRate or 0
-				local testText = value == "Self" and L["Self Only"] or L["Self + Party"]
-				C_VoiceChat.SpeakText(voiceId, testText, rate, vol, true)
-			end
-			M:Apply()
-		end,
-		GetText = function(value)
-			if value == "Off" then return L["Off"]
-			elseif value == "Self" then return L["Self Only"]
-			else return L["Self + Party"]
-			end
-		end,
-	})
-	ccModeDropdown:SetPoint("LEFT", panel, "LEFT", columnWidth, 0)
-	ccModeDropdown:SetPoint("TOP", ccModeLabel, "TOP", 0, 8)
-	ccModeDropdown:SetWidth(160)
-
-	-- ==================== Miscellaneous ====================
-	local miscDivider = mini:Divider({
-		Parent = panel,
-		Text = L["Settings:"],
-	})
-	miscDivider:SetPoint("LEFT", panel, "LEFT")
-	miscDivider:SetPoint("RIGHT", panel, "RIGHT")
-	miscDivider:SetPoint("TOP", ccModeLabel, "BOTTOM", 0, -verticalSpacing * 2)
-
-	local targetFocusOnlyChk = mini:Checkbox({
-		Parent = panel,
-		LabelText = L["Target/Focus Only"],
-		Tooltip = L["Only monitor your target and focus in battlegrounds and the open world."],
-		GetValue = function()
-			return db.TargetFocusOnly ~= false
-		end,
-		SetValue = function(value)
-			db.TargetFocusOnly = value
-			M:Apply()
-		end,
-	})
-	targetFocusOnlyChk:SetPoint("TOPLEFT", miscDivider, "BOTTOMLEFT", 0, -verticalSpacing)
+	-- Test button
+	local testBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	testBtn:SetSize(120, 26)
+	testBtn:SetPoint("TOPLEFT", volumeSlider.Slider, "BOTTOMLEFT", 0, -verticalSpacing * 2)
+	testBtn:SetText(L["Test"])
+	testBtn:SetScript("OnClick", DoTest)
 
 	-- Reset button
-	local resetBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+	local resetBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
 	resetBtn:SetSize(120, 26)
-	resetBtn:SetPoint("TOPLEFT", targetFocusOnlyChk, "BOTTOMLEFT", 0, -verticalSpacing * 2)
+	resetBtn:SetPoint("LEFT", testBtn, "RIGHT", horizontalSpacing, 0)
 	resetBtn:SetText(L["Reset"])
 	resetBtn:SetScript("OnClick", function()
 		if InCombatLockdown() then
@@ -425,27 +289,203 @@ function M:Init()
 			OnYes = function()
 				mini:ResetSavedVars(dbDefaults)
 				db = mini:GetSavedVars()
-				panel:MiniRefresh()
 				addon:Refresh()
 				mini:Notify(L["Settings reset to default."])
 			end,
 		})
 	end)
+end
 
-	-- Test button
-	local testBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-	testBtn:SetSize(120, 26)
-	testBtn:SetPoint("RIGHT", panel, "RIGHT", -horizontalSpacing, 0)
-	testBtn:SetPoint("TOP", title, "TOP", 0, 0)
-	testBtn:SetText(L["Test"])
-	testBtn:SetScript("OnClick", function()
-		local voiceId = db.TTS and db.TTS.VoiceID or (C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0)) or 0
-		local vol = db.TTS and db.TTS.Volume or 100
-		local rate = db.TTS and db.TTS.SpeechRate or 0
-		C_VoiceChat.SpeakText(voiceId, "PVP Sound Test", rate, vol, true)
+-- ==================== Build Zone Tab ====================
+
+local function BuildZoneTab(content, zoneKey)
+	local columns = 4
+	local columnWidth = mini:ColumnWidth(columns, 0, 0)
+
+	local function GetZone()
+		return db.Zones[zoneKey]
+	end
+
+	-- Enabled checkbox
+	local enabledChk = mini:Checkbox({
+		Parent = content,
+		LabelText = L["Enabled"],
+		Tooltip = L["Enable announcements in this zone."],
+		GetValue = function() return GetZone().Enabled end,
+		SetValue = function(value)
+			GetZone().Enabled = value
+			M:Apply()
+		end,
+	})
+	enabledChk:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+
+	-- Important Spells
+	local importantChk = mini:Checkbox({
+		Parent = content,
+		LabelText = L["Important Spells"],
+		Tooltip = L["Announce important (offensive) spell names via TTS when enemies cast them."],
+		GetValue = function() return GetZone().Important end,
+		SetValue = function(value)
+			GetZone().Important = value
+			M:Apply()
+		end,
+	})
+	importantChk:SetPoint("TOPLEFT", enabledChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	-- Defensive Spells
+	local defensiveChk = mini:Checkbox({
+		Parent = content,
+		LabelText = L["Defensive Spells"],
+		Tooltip = L["Announce defensive spell names via TTS when enemies cast them."],
+		GetValue = function() return GetZone().Defensive end,
+		SetValue = function(value)
+			GetZone().Defensive = value
+			M:Apply()
+		end,
+	})
+	defensiveChk:SetPoint("TOPLEFT", importantChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	-- Friendly CC dropdown
+	local ccModeLabel = mini:TextLine({
+		Parent = content,
+		Text = L["Friendly CC"],
+		Tooltip = L["Announce CC on self or party via TTS."],
+	})
+	ccModeLabel:SetPoint("TOPLEFT", defensiveChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	local ccModeItems = { "Off", "Self", "All" }
+	local ccModeDropdown = mini:Dropdown({
+		Parent = content,
+		Items = ccModeItems,
+		Width = 160,
+		GetValue = function()
+			return GetZone().CCMode or "Off"
+		end,
+		SetValue = function(value)
+			GetZone().CCMode = value
+			M:Apply()
+		end,
+		GetText = function(value)
+			if value == "Off" then return L["Off"]
+			elseif value == "Self" then return L["Self Only"]
+			else return L["Self + Party"]
+			end
+		end,
+	})
+	ccModeDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+	ccModeDropdown:SetPoint("TOP", ccModeLabel, "TOP", 0, 8)
+	ccModeDropdown:SetWidth(160)
+
+	-- TargetFocusOnly (not for Arena)
+	if zoneKey ~= "Arena" then
+		local targetFocusChk = mini:Checkbox({
+			Parent = content,
+			LabelText = L["Target/Focus Only"],
+			Tooltip = L["Only monitor your target and focus instead of all enemy nameplates."],
+			GetValue = function() return GetZone().TargetFocusOnly ~= false end,
+			SetValue = function(value)
+				GetZone().TargetFocusOnly = value
+				M:Apply()
+			end,
+		})
+		targetFocusChk:SetPoint("TOPLEFT", ccModeLabel, "BOTTOMLEFT", 0, -verticalSpacing)
+	end
+end
+
+-- ==================== Init ====================
+
+function M:Init()
+	local rawDb = mini:GetSavedVars()
+	MigrateV1(rawDb)
+
+	db = mini:GetSavedVars(dbDefaults)
+	mini:CleanTable(db, dbDefaults, true, true)
+
+	BuildVoiceList()
+	AutoSelectVoice()
+
+	-- ==================== Main scroll panel ====================
+	local scroll = CreateFrame("ScrollFrame", nil, nil, "UIPanelScrollFrameTemplate")
+	scroll.name = addonName
+
+	local category = mini:AddCategory(scroll)
+	if not category then return end
+
+	local panel = CreateFrame("Frame", nil, scroll)
+	local width, height = mini:SettingsSize()
+	panel:SetWidth(width)
+	panel:SetHeight(height * 3)
+	scroll:SetScrollChild(panel)
+
+	scroll:EnableMouseWheel(true)
+	scroll:SetScript("OnMouseWheel", function(scrollSelf, delta)
+		local step = 30
+		local current = scrollSelf:GetVerticalScroll()
+		local max = scrollSelf:GetVerticalScrollRange()
+		if delta > 0 then
+			scrollSelf:SetVerticalScroll(math.max(current - step, 0))
+		else
+			scrollSelf:SetVerticalScroll(math.min(current + step, max))
+		end
 	end)
 
-	-- Confirm popup
+	-- ==================== Title ====================
+	local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+	local version = C_AddOns.GetAddOnMetadata(addonName, "Version")
+	title:SetPoint("TOPLEFT", 0, -verticalSpacing)
+	title:SetText(string.format("%s - %s", addonName, version))
+
+	local lines = mini:TextBlock({
+		Parent = panel,
+		Lines = {
+			L["addon_description"],
+			L["Author: DK-姜世离（燃烧之刃）"],
+		},
+	})
+	lines:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+
+	-- ==================== Tabs ====================
+	local tabsPanel = CreateFrame("Frame", nil, panel)
+	tabsPanel:SetPoint("TOPLEFT", lines, "BOTTOMLEFT", 0, -verticalSpacing)
+	tabsPanel:SetPoint("RIGHT", panel, "RIGHT", 0, 0)
+	tabsPanel:SetPoint("BOTTOM", panel, "BOTTOM", 0, verticalSpacing * 2)
+
+	local tabController = mini:CreateTabs({
+		Parent = tabsPanel,
+		InitialKey = "Home",
+		ContentInsets = { Top = verticalSpacing },
+		Tabs = {
+			{
+				Key = "Home",
+				Title = addonName,
+				Build = function(content) BuildHomeTab(content) end,
+			},
+			{
+				Key = "World",
+				Title = L["World"],
+				Build = function(content) BuildZoneTab(content, "World") end,
+			},
+			{
+				Key = "Arena",
+				Title = L["Arena"],
+				Build = function(content) BuildZoneTab(content, "Arena") end,
+			},
+			{
+				Key = "BattleGrounds",
+				Title = L["Battlegrounds"],
+				Build = function(content) BuildZoneTab(content, "BattleGrounds") end,
+			},
+			{
+				Key = "PvE",
+				Title = L["PvE"],
+				Build = function(content) BuildZoneTab(content, "PvE") end,
+			},
+		},
+	})
+
+	M.TabController = tabController
+
+	-- ==================== Confirm popup ====================
 	StaticPopupDialogs["PVPSOUND_CONFIRM"] = {
 		text = "%s",
 		button1 = YES,
@@ -465,25 +505,16 @@ function M:Init()
 		hideOnEscape = true,
 	}
 
-	-- Slash commands
+	-- ==================== Slash commands ====================
 	SLASH_PVPSOUND1 = "/pvpsound"
 	SLASH_PVPSOUND2 = "/ps"
 
 	SlashCmdList.PVPSOUND = function(msg)
 		msg = msg and msg:lower():match("^%s*(.-)%s*$") or ""
 		if msg == "test" then
-			local voiceId = db.TTS and db.TTS.VoiceID or (C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0)) or 0
-			local vol = db.TTS and db.TTS.Volume or 100
-			local rate = db.TTS and db.TTS.SpeechRate or 0
-			C_VoiceChat.SpeakText(voiceId, "PVP Sound Test", rate, vol, true)
+			DoTest()
 			return
 		end
-		mini:OpenSettings(category, panel)
+		mini:OpenSettings(category, scroll)
 	end
-
-	panel:HookScript("OnShow", function()
-		if panel.MiniRefresh then
-			panel:MiniRefresh()
-		end
-	end)
 end

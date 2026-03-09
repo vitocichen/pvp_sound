@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <!-- 背景渐变 -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <!-- 红色PVP渐变 -->
+    <linearGradient id="pvpGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e63946"/>
+      <stop offset="100%" style="stop-color:#b71c1c"/>
+    </linearGradient>
+    <!-- 金色音波渐变 -->
+    <linearGradient id="soundGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#ffd700"/>
+      <stop offset="100%" style="stop-color:#ffaa00"/>
+    </linearGradient>
+    <!-- 发光效果 -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="400" height="400" rx="40" fill="url(#bgGrad)"/>
+  
+  <!-- 外圈装饰 -->
+  <circle cx="200" cy="200" r="170" fill="none" stroke="#e63946" stroke-width="3" opacity="0.3"/>
+  <circle cx="200" cy="200" r="160" fill="none" stroke="#ffd700" stroke-width="1" opacity="0.2"/>
+  
+  <!-- 剑交叉图案 (PVP象征) -->
+  <g transform="translate(200, 200)" opacity="0.15">
+    <!-- 左剑 -->
+    <path d="M-80,-80 L-20,-20 L-25,-10 L-90,-75 Z" fill="#e63946"/>
+    <path d="M-20,-20 L-10,-25 L-75,-90 L-80,-80 Z" fill="#e63946"/>
+    <!-- 右剑 -->
+    <path d="M80,-80 L20,-20 L25,-10 L90,-75 Z" fill="#e63946"/>
+    <path d="M20,-20 L10,-25 L75,-90 L80,-80 Z" fill="#e63946"/>
+  </g>
+  
+  <!-- 中心喇叭/扬声器图标 -->
+  <g transform="translate(200, 200)" filter="url(#glow)">
+    <!-- 喇叭主体 -->
+    <path d="M-50,30 L-50,-30 L-20,-30 L30,-70 L30,70 L-20,30 Z" fill="url(#pvpGrad)"/>
+    <!-- 喇叭高光 -->
+    <path d="M-45,25 L-45,-25 L-22,-25 L-22,25 Z" fill="#ff6b6b" opacity="0.4"/>
+  </g>
+  
+  <!-- 音波 -->
+  <g transform="translate(200, 200)" filter="url(#glow)">
+    <!-- 第一层音波 -->
+    <path d="M50,-45 Q75,0 50,45" fill="none" stroke="url(#soundGrad)" stroke-width="8" stroke-linecap="round"/>
+    <!-- 第二层音波 -->
+    <path d="M75,-60 Q110,0 75,60" fill="none" stroke="url(#soundGrad)" stroke-width="6" stroke-linecap="round" opacity="0.7"/>
+    <!-- 第三层音波 -->
+    <path d="M100,-75 Q145,0 100,75" fill="none" stroke="url(#soundGrad)" stroke-width="4" stroke-linecap="round" opacity="0.4"/>
+  </g>
+  
+  <!-- PVP 文字 -->
+  <text x="200" y="340" text-anchor="middle" font-family="Arial Black, sans-serif" font-size="48" font-weight="bold" fill="url(#pvpGrad)" filter="url(#glow)">PVP</text>
+  
+  <!-- SOUND 文字 -->
+  <text x="200" y="375" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#ffd700" letter-spacing="8">SOUND</text>
+</svg>

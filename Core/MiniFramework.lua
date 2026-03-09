@@ -3,7 +3,6 @@ local L = addon.L
 local loader = CreateFrame("Frame")
 local loaded = false
 local onLoadCallbacks = {}
-local dropDownId = 1
 local sliderId = 1
 local dialog
 
@@ -204,6 +203,197 @@ function M:AddCategory(panel)
 		return panel
 	end
 	return nil
+end
+
+function M:CreateTabs(options)
+	assert(options and options.Parent, "CreateTabs: options.Parent required")
+	assert(options.Tabs and #options.Tabs > 0, "CreateTabs: options.Tabs required")
+
+	local parent = options.Parent
+	local tabHeight = options.TabHeight or 22
+	local tabMinWidth = options.TabMinWidth or 80
+	local tabSpacing = options.TabSpacing or 6
+	local stripHeight = options.StripHeight or 28
+
+	local insets = options.ContentInsets or {}
+	local insetL = insets.Left or 0
+	local insetR = insets.Right or 0
+	local insetT = insets.Top or 10
+	local insetB = insets.Bottom or 10
+
+	local strip = CreateFrame("Frame", nil, parent, "BackdropTemplate")
+	strip:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, 0)
+	strip:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, 0)
+	strip:SetHeight(stripHeight)
+
+	local body = CreateFrame("Frame", nil, parent)
+	body:SetPoint("TOPLEFT", strip, "BOTTOMLEFT", insetL, -insetT)
+	body:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -insetR, insetB)
+
+	local tabs = {}
+	local keyToIndex = {}
+	local selectedKey
+
+	local function GetIndex(keyOrIndex)
+		if type(keyOrIndex) == "number" then
+			return keyOrIndex
+		end
+		if type(keyOrIndex) == "string" then
+			return keyToIndex[keyOrIndex]
+		end
+	end
+
+	local function SizeToText(btn)
+		local fs = btn.Text
+		local w = tabMinWidth
+		if fs and fs.GetUnboundedStringWidth then
+			w = math.max(tabMinWidth, fs:GetUnboundedStringWidth() + 26)
+		elseif fs and fs.GetStringWidth then
+			w = math.max(tabMinWidth, fs:GetStringWidth() + 26)
+		end
+		btn:SetWidth(w)
+	end
+
+	local normalR, normalG, normalB = GameFontNormal:GetTextColor()
+
+	local function SetSelected(btn, isSelected)
+		if isSelected then
+			btn:SetBackdropColor(0.14, 0.14, 0.14, 0.92)
+			btn:SetBackdropBorderColor(0.9, 0.75, 0.2, 0.9)
+			btn.Text:SetTextColor(1, 1, 1, 1)
+			btn.BottomEdge:Hide()
+			btn.BottomLeftCorner:Hide()
+			btn.BottomRightCorner:Hide()
+			btn.Highlight:SetAlpha(0)
+		else
+			btn:SetBackdropColor(0.08, 0.08, 0.08, 0.65)
+			btn:SetBackdropBorderColor(0, 0, 0, 0.55)
+			btn.Text:SetTextColor(normalR, normalG, normalB, 1)
+			btn.BottomEdge:Show()
+			btn.BottomLeftCorner:Show()
+			btn.BottomRightCorner:Show()
+			btn.Highlight:SetAlpha(0.08)
+		end
+	end
+
+	local controller = {}
+
+	function controller.GetSelected(_)
+		return selectedKey
+	end
+
+	function controller.GetContent(_, keyOrIndex)
+		local i = GetIndex(keyOrIndex)
+		return i and tabs[i] and tabs[i].Content
+	end
+
+	function controller.GetTabButton(_, keyOrIndex)
+		local i = GetIndex(keyOrIndex)
+		return i and tabs[i] and tabs[i].Button
+	end
+
+	function controller.Select(_, keyOrIndex)
+		local i = GetIndex(keyOrIndex)
+		if not i or not tabs[i] then
+			return
+		end
+
+		selectedKey = tabs[i].Key
+
+		for j = 1, #tabs do
+			local isSel = (j == i)
+			tabs[j].Content:SetShown(isSel)
+			SetSelected(tabs[j].Button, isSel)
+		end
+
+		if options.OnTabChanged then
+			options.OnTabChanged(selectedKey, i)
+		end
+	end
+
+	controller.Tabs = tabs
+
+	local prev
+	for i, def in ipairs(options.Tabs) do
+		assert(def.Key and def.Key ~= "", "CreateTabs: each tab needs Key")
+		assert(not keyToIndex[def.Key], "CreateTabs: duplicate Key: " .. def.Key)
+
+		local btn = CreateFrame("Button", nil, strip, "BackdropTemplate")
+		btn:SetHeight(tabHeight)
+		btn:SetBackdrop({
+			bgFile = "Interface\\Buttons\\WHITE8X8",
+			edgeFile = "Interface\\Buttons\\WHITE8X8",
+			edgeSize = 1,
+		})
+
+		btn.Text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+		btn.Text:SetPoint("CENTER", btn, "CENTER", 0, 0)
+		btn.Text:SetText(def.Title or def.Key)
+
+		btn.Highlight = btn:CreateTexture(nil, "HIGHLIGHT")
+		btn.Highlight:SetAllPoints(btn)
+		btn.Highlight:SetColorTexture(1, 1, 1, 1)
+
+		btn.BottomEdge = btn:CreateTexture(nil, "OVERLAY")
+		btn.BottomEdge:SetColorTexture(0, 0, 0, 0.55)
+		btn.BottomEdge:SetHeight(1)
+		btn.BottomEdge:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 1, 0)
+		btn.BottomEdge:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", -1, 0)
+
+		btn.BottomLeftCorner = btn:CreateTexture(nil, "OVERLAY")
+		btn.BottomLeftCorner:SetColorTexture(0, 0, 0, 0.55)
+		btn.BottomLeftCorner:SetSize(1, 1)
+		btn.BottomLeftCorner:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 0, 0)
+
+		btn.BottomRightCorner = btn:CreateTexture(nil, "OVERLAY")
+		btn.BottomRightCorner:SetColorTexture(0, 0, 0, 0.55)
+		btn.BottomRightCorner:SetSize(1, 1)
+		btn.BottomRightCorner:SetPoint("BOTTOMRIGHT", btn, "BOTTOMRIGHT", 0, 0)
+
+		SizeToText(btn)
+
+		if not prev then
+			btn:SetPoint("BOTTOMLEFT", strip, "BOTTOMLEFT", 0, 1)
+		else
+			btn:SetPoint("LEFT", prev, "RIGHT", tabSpacing, 0)
+		end
+
+		prev = btn
+
+		local content = CreateFrame("Frame", nil, body)
+		content:SetAllPoints(body)
+		content:Hide()
+
+		local tab = { Key = def.Key, Title = def.Title or def.Key, Button = btn, Content = content }
+		tabs[i] = tab
+		keyToIndex[def.Key] = i
+
+		btn:SetScript("OnClick", function()
+			controller:Select(i)
+		end)
+
+		if type(def.Build) == "function" then
+			def.Build(content)
+		end
+	end
+
+	local initialIndex = 1
+	if options.InitialKey and keyToIndex[options.InitialKey] then
+		initialIndex = keyToIndex[options.InitialKey]
+	end
+
+	for i = 1, #tabs do
+		local isSel = (i == initialIndex)
+		tabs[i].Content:SetShown(isSel)
+		SetSelected(tabs[i].Button, isSel)
+	end
+	selectedKey = tabs[initialIndex].Key
+
+	if options.OnTabChanged then
+		options.OnTabChanged(selectedKey, initialIndex)
+	end
+
+	return controller
 end
 
 function M:TextLine(options)
