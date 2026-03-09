@@ -36,6 +36,9 @@ local focusWatcher
 local friendlyWatchers = {}
 local selfCCWatcher
 
+-- Cast bar tracking
+local castFrame
+
 ---@class SoundModule
 local M = {}
 addon.Modules.SoundModule = M
@@ -118,6 +121,60 @@ local function GetTargetFocusOnly()
 	local zone = moduleUtil:GetZoneConfig()
 	if not zone then return true end
 	return zone.TargetFocusOnly ~= false
+end
+
+local function AnnounceCast(spellName)
+	if not spellName then return end
+	pcall(function()
+		local speechRate = cachedTTSSpeechRate or 0
+		C_VoiceChat.SpeakText(cachedVoiceID, spellName, speechRate, cachedTTSVolume, true)
+	end)
+end
+
+local function CheckTargetCast()
+	if not moduleUtil:IsEnabled() then return end
+	if paused or inPrepRoom then return end
+
+	local zone = moduleUtil:GetZoneConfig()
+	if not zone or not zone.CastBar then return end
+
+	if not UnitExists("target") or not units:IsEnemy("target") then return end
+
+	local spellName = UnitCastingInfo("target")
+	if not spellName then
+		spellName = UnitChannelInfo("target")
+	end
+	if spellName then
+		AnnounceCast(spellName)
+	end
+end
+
+local function OnCastEvent(unit, spellID)
+	if unit ~= "target" then return end
+	if not moduleUtil:IsEnabled() then return end
+	if paused or inPrepRoom then return end
+
+	local zone = moduleUtil:GetZoneConfig()
+	if not zone or not zone.CastBar then return end
+
+	if not UnitExists("target") or not units:IsEnemy("target") then return end
+
+	-- Get spell name: try C_Spell first, fall back to UnitCastingInfo/UnitChannelInfo
+	local spellName
+	if spellID then
+		spellName = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellID)
+	end
+	if not spellName then
+		spellName = UnitCastingInfo("target")
+	end
+	if not spellName then
+		spellName = UnitChannelInfo("target")
+	end
+	if not spellName then
+		spellName = tostring(spellID or "cast")
+	end
+
+	AnnounceCast(spellName)
 end
 
 local function OnAuraDataChanged()
@@ -458,6 +515,19 @@ function M:Init()
 			if ccMode == "All" and moduleUtil:IsEnabled() then
 				RebuildFriendlyWatchers()
 			end
+		end
+	end)
+
+	-- Cast bar frame: detect target casting via events
+	castFrame = CreateFrame("Frame")
+	castFrame:RegisterEvent("UNIT_SPELLCAST_START")
+	castFrame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
+	castFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
+	castFrame:SetScript("OnEvent", function(_, event, unit, castGUID, spellID)
+		if event == "PLAYER_TARGET_CHANGED" then
+			CheckTargetCast()
+		else
+			OnCastEvent(unit, spellID)
 		end
 	end)
 

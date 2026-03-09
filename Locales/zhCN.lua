@@ -51,6 +51,8 @@ L:SetStrings({
 	["Off"] = "关闭",
 	["Self Only"] = "仅自己",
 	["Self + Party"] = "自己+队友",
+	["Target Cast Bar"] = "目标读条播报",
+	["Announce your target's spell casts via TTS."] = "当目标施放非瞬发法术时，用TTS语音播报法术名称。",
 	["Target/Focus Only"] = "仅目标/焦点",
 	["Only monitor your target and focus instead of all enemy nameplates."] = "仅监控你的目标和焦点，而不是所有敌方姓名板。",
 

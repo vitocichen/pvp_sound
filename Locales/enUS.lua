@@ -47,6 +47,8 @@ L:SetDefaultStrings({
 	["Off"] = "Off",
 	["Self Only"] = "Self Only",
 	["Self + Party"] = "Self + Party",
+	["Target Cast Bar"] = "Target Cast Bar",
+	["Announce your target's spell casts via TTS."] = "Announce your target's spell casts via TTS.",
 	["Target/Focus Only"] = "Target/Focus Only",
 	["Only monitor your target and focus instead of all enemy nameplates."] = "Only monitor your target and focus instead of all enemy nameplates.",
 

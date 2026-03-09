@@ -22,6 +22,7 @@ local dbDefaults = {
 			Enabled = true,
 			Important = true,
 			Defensive = true,
+			CastBar = true,
 			CCMode = "Self",
 			TargetFocusOnly = true,
 		},
@@ -29,6 +30,7 @@ local dbDefaults = {
 			Enabled = true,
 			Important = true,
 			Defensive = true,
+			CastBar = true,
 			CCMode = "Self",
 			TargetFocusOnly = false,
 		},
@@ -36,6 +38,7 @@ local dbDefaults = {
 			Enabled = true,
 			Important = true,
 			Defensive = true,
+			CastBar = true,
 			CCMode = "Self",
 			TargetFocusOnly = true,
 		},
@@ -43,6 +46,7 @@ local dbDefaults = {
 			Enabled = false,
 			Important = true,
 			Defensive = true,
+			CastBar = true,
 			CCMode = "Off",
 			TargetFocusOnly = true,
 		},
@@ -345,13 +349,26 @@ local function BuildZoneTab(content, zoneKey)
 	})
 	defensiveChk:SetPoint("TOPLEFT", importantChk, "BOTTOMLEFT", 0, -verticalSpacing)
 
+	-- Cast Bar
+	local castBarChk = mini:Checkbox({
+		Parent = content,
+		LabelText = L["Target Cast Bar"],
+		Tooltip = L["Announce your target's spell casts via TTS."],
+		GetValue = function() return GetZone().CastBar end,
+		SetValue = function(value)
+			GetZone().CastBar = value
+			M:Apply()
+		end,
+	})
+	castBarChk:SetPoint("TOPLEFT", defensiveChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
 	-- Friendly CC dropdown
 	local ccModeLabel = mini:TextLine({
 		Parent = content,
 		Text = L["Friendly CC"],
 		Tooltip = L["Announce CC on self or party via TTS."],
 	})
-	ccModeLabel:SetPoint("TOPLEFT", defensiveChk, "BOTTOMLEFT", 0, -verticalSpacing)
+	ccModeLabel:SetPoint("TOPLEFT", castBarChk, "BOTTOMLEFT", 0, -verticalSpacing)
 
 	local ccModeItems = { "Off", "Self", "All" }
 	local ccModeDropdown = mini:Dropdown({
