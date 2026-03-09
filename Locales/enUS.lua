@@ -28,6 +28,7 @@ L:SetDefaultStrings({
 	["You must choose a voice in your language for this to work."] = "You must choose a voice in your language for this to work.",
 	["TTS Volume"] = "TTS Volume",
 	["TTS Speech Rate"] = "TTS Speech Rate",
+	["Cast Interval"] = "Cast Interval",
 
 	-- Zone names
 	["World"] = "World",

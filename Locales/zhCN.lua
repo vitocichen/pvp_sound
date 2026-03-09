@@ -32,6 +32,7 @@ L:SetStrings({
 	["You must choose a voice in your language for this to work."] = "必须选择与你的语言匹配的语音才能使其生效。",
 	["TTS Volume"] = "TTS音量",
 	["TTS Speech Rate"] = "TTS语速",
+	["Cast Interval"] = "读条播报间隔",
 
 	-- Zone names
 	["World"] = "野外",

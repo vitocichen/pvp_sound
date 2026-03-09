@@ -15,6 +15,8 @@ local dbDefaults = {
 		VoiceID = false,
 		Volume = 100,
 		SpeechRate = 5,
+		CastMinDuration = 1.0,
+		CastInterval = 0.0,
 	},
 
 	Zones = {
@@ -271,10 +273,35 @@ local function BuildHomeTab(content)
 	})
 	speechRateSlider.Slider:SetPoint("LEFT", volumeSlider.Slider, "RIGHT", horizontalSpacing, 0)
 
+	-- Cast Interval slider
+	local castIntervalSlider = mini:Slider({
+		Parent = content,
+		Min = 0,
+		Max = 5,
+		Width = (columnWidth * 2) - horizontalSpacing,
+		Step = 0.5,
+		LabelText = L["Cast Interval"],
+		GetValue = function()
+			EnsureTtsOptions()
+			return db.TTS.CastInterval or 0
+		end,
+		SetValue = function(v)
+			EnsureTtsOptions()
+			local newValue = tonumber(string.format("%.1f", v)) or 0
+			if newValue < 0 then newValue = 0 end
+			if newValue > 5 then newValue = 5 end
+			if db.TTS.CastInterval ~= newValue then
+				db.TTS.CastInterval = newValue
+				M:Apply()
+			end
+		end,
+	})
+	castIntervalSlider.Slider:SetPoint("TOPLEFT", volumeSlider.Slider, "BOTTOMLEFT", 0, -verticalSpacing * 3)
+
 	-- Test button
 	local testBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
 	testBtn:SetSize(120, 26)
-	testBtn:SetPoint("TOPLEFT", volumeSlider.Slider, "BOTTOMLEFT", 0, -verticalSpacing * 2)
+	testBtn:SetPoint("TOPLEFT", castIntervalSlider.Slider, "BOTTOMLEFT", 0, -verticalSpacing * 2)
 	testBtn:SetText(L["Test"])
 	testBtn:SetScript("OnClick", DoTest)
 

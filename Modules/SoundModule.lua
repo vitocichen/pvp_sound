@@ -25,6 +25,7 @@ local currentFriendlyCCAuras = {}
 local cachedVoiceID
 local cachedTTSVolume
 local cachedTTSSpeechRate
+local cachedCastInterval
 
 -- Watchers
 local arenaWatchers
@@ -38,6 +39,7 @@ local selfCCWatcher
 
 -- Cast bar tracking
 local castFrame
+local lastCastAnnounceTime = 0
 
 ---@class SoundModule
 local M = {}
@@ -125,6 +127,14 @@ end
 
 local function AnnounceCast(spellName)
 	if not spellName then return end
+
+	-- Interval check
+	local now = GetTime()
+	if cachedCastInterval and cachedCastInterval > 0 then
+		if now - lastCastAnnounceTime < cachedCastInterval then return end
+	end
+	lastCastAnnounceTime = now
+
 	pcall(function()
 		local speechRate = cachedTTSSpeechRate or 0
 		C_VoiceChat.SpeakText(cachedVoiceID, spellName, speechRate, cachedTTSVolume, true)
@@ -144,9 +154,9 @@ local function CheckTargetCast()
 	if not spellName then
 		spellName = UnitChannelInfo("target")
 	end
-	if spellName then
-		AnnounceCast(spellName)
-	end
+	if not spellName then return end
+
+	AnnounceCast(spellName)
 end
 
 local function OnCastEvent(unit, spellID)
@@ -159,7 +169,7 @@ local function OnCastEvent(unit, spellID)
 
 	if not UnitExists("target") or not units:IsEnemy("target") then return end
 
-	-- Get spell name: try C_Spell first, fall back to UnitCastingInfo/UnitChannelInfo
+	-- Get spell name
 	local spellName
 	if spellID then
 		spellName = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellID)
@@ -452,6 +462,7 @@ local function CacheTTSSettings()
 	cachedVoiceID = tts.VoiceID or (C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0)) or 0
 	cachedTTSVolume = tts.Volume or 100
 	cachedTTSSpeechRate = tts.SpeechRate or 0
+	cachedCastInterval = tts.CastInterval or 0
 end
 
 function M:Refresh()
