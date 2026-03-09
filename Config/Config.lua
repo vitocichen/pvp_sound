@@ -25,6 +25,7 @@ local dbDefaults = {
 			Important = true,
 			Defensive = true,
 			CastBar = true,
+			InterruptAlert = true,
 			CCMode = "Self",
 			TargetFocusOnly = true,
 		},
@@ -33,6 +34,7 @@ local dbDefaults = {
 			Important = true,
 			Defensive = true,
 			CastBar = true,
+			InterruptAlert = true,
 			CCMode = "Self",
 			TargetFocusOnly = false,
 		},
@@ -41,6 +43,7 @@ local dbDefaults = {
 			Important = true,
 			Defensive = true,
 			CastBar = true,
+			InterruptAlert = true,
 			CCMode = "Self",
 			TargetFocusOnly = true,
 		},
@@ -49,6 +52,7 @@ local dbDefaults = {
 			Important = true,
 			Defensive = true,
 			CastBar = true,
+			InterruptAlert = true,
 			CCMode = "Off",
 			TargetFocusOnly = true,
 		},
@@ -389,13 +393,26 @@ local function BuildZoneTab(content, zoneKey)
 	})
 	castBarChk:SetPoint("TOPLEFT", defensiveChk, "BOTTOMLEFT", 0, -verticalSpacing)
 
+	-- Interrupt Alert
+	local interruptChk = mini:Checkbox({
+		Parent = content,
+		LabelText = L["Interrupt Alert"],
+		Tooltip = L["Announce via TTS when you successfully interrupt an enemy cast."],
+		GetValue = function() return GetZone().InterruptAlert end,
+		SetValue = function(value)
+			GetZone().InterruptAlert = value
+			M:Apply()
+		end,
+	})
+	interruptChk:SetPoint("TOPLEFT", castBarChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
 	-- Friendly CC dropdown
 	local ccModeLabel = mini:TextLine({
 		Parent = content,
 		Text = L["Friendly CC"],
 		Tooltip = L["Announce CC on self or party via TTS."],
 	})
-	ccModeLabel:SetPoint("TOPLEFT", castBarChk, "BOTTOMLEFT", 0, -verticalSpacing)
+	ccModeLabel:SetPoint("TOPLEFT", interruptChk, "BOTTOMLEFT", 0, -verticalSpacing)
 
 	local ccModeItems = { "Off", "Self", "All" }
 	local ccModeDropdown = mini:Dropdown({
@@ -416,8 +433,7 @@ local function BuildZoneTab(content, zoneKey)
 			end
 		end,
 	})
-	ccModeDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
-	ccModeDropdown:SetPoint("TOP", ccModeLabel, "TOP", 0, 8)
+	ccModeDropdown:SetPoint("TOPLEFT", ccModeLabel, "BOTTOMLEFT", 0, -verticalSpacing + 4)
 	ccModeDropdown:SetWidth(160)
 
 	-- TargetFocusOnly (not for Arena)
@@ -432,7 +448,7 @@ local function BuildZoneTab(content, zoneKey)
 				M:Apply()
 			end,
 		})
-		targetFocusChk:SetPoint("TOPLEFT", ccModeLabel, "BOTTOMLEFT", 0, -verticalSpacing)
+		targetFocusChk:SetPoint("TOPLEFT", ccModeDropdown, "BOTTOMLEFT", 0, -verticalSpacing * 1.5)
 	end
 end
 

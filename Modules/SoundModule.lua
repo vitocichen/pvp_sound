@@ -40,6 +40,7 @@ local selfCCWatcher
 -- Cast bar tracking
 local castFrame
 local lastCastAnnounceTime = 0
+local lastInterruptAnnounceTime = 0
 
 ---@class SoundModule
 local M = {}
@@ -185,6 +186,28 @@ local function OnCastEvent(unit, spellID)
 	end
 
 	AnnounceCast(spellName)
+end
+
+local function OnCastInterrupted(unit)
+	if unit ~= "target" then return end
+	if not moduleUtil:IsEnabled() then return end
+	if paused or inPrepRoom then return end
+
+	local zone = moduleUtil:GetZoneConfig()
+	if not zone or not zone.InterruptAlert then return end
+
+	if not UnitExists("target") or not units:IsEnemy("target") then return end
+
+	-- Throttle: at most once per second
+	local now = GetTime()
+	if now - lastInterruptAnnounceTime < 1 then return end
+	lastInterruptAnnounceTime = now
+
+	local text = addon.L["Interrupted"] or "Interrupted"
+	pcall(function()
+		local speechRate = cachedTTSSpeechRate or 0
+		C_VoiceChat.SpeakText(cachedVoiceID, text, speechRate, cachedTTSVolume, true)
+	end)
 end
 
 local function OnAuraDataChanged()
@@ -529,14 +552,18 @@ function M:Init()
 		end
 	end)
 
-	-- Cast bar frame: detect target casting via events
+	-- Cast bar frame: detect target casting and interrupts via events
 	castFrame = CreateFrame("Frame")
 	castFrame:RegisterEvent("UNIT_SPELLCAST_START")
 	castFrame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
+	castFrame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
+	castFrame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 	castFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
 	castFrame:SetScript("OnEvent", function(_, event, unit, castGUID, spellID)
 		if event == "PLAYER_TARGET_CHANGED" then
 			CheckTargetCast()
+		elseif event == "UNIT_SPELLCAST_INTERRUPTED" or event == "UNIT_SPELLCAST_CHANNEL_STOP" then
+			OnCastInterrupted(unit)
 		else
 			OnCastEvent(unit, spellID)
 		end

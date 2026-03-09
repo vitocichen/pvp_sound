@@ -520,7 +520,10 @@ function M:Checkbox(options)
 		checkbox:SetScript("OnEnter", function(chkSelf)
 			GameTooltip:SetOwner(chkSelf, "ANCHOR_RIGHT")
 			local tooltipTitle = options.LabelText
-			if not tooltipTitle or tooltipTitle:match("^%s*$") then
+			if tooltipTitle then
+				tooltipTitle = tooltipTitle:gsub("|c%x%x%x%x%x%x%x%x.-|r", ""):match("^%s*(.-)%s*$")
+			end
+			if not tooltipTitle or tooltipTitle == "" then
 				tooltipTitle = "Information"
 			end
 			GameTooltip:SetText(tooltipTitle, 1, 0.82, 0)
