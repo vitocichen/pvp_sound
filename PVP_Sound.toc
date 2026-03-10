@@ -7,6 +7,7 @@
 ## Version: 1.0.2
 ## SavedVariables: PVPSoundDB
 ## IconTexture: Interface\Icons\Spell_Holy_MindSooth
+## X-Curse-Project-ID: 1479674
 
 Namespace.lua
 
