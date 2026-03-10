@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+      - "[0-9]*"
 
 jobs:
   release:
@@ -19,7 +20,8 @@ jobs:
       - name: Generate changelog from commits
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
-          echo "# ${TAG_NAME}" > CHANGELOG.md
+          VERSION=${TAG_NAME#v}
+          echo "# ${VERSION}" > CHANGELOG.md
           echo "" >> CHANGELOG.md
           PREV_TAG=$(git tag --sort=-creatordate | sed -n '2p')
           if [ -n "$PREV_TAG" ]; then
@@ -31,4 +33,4 @@ jobs:
       - name: Package and release
         uses: BigWigsMods/packager@v2
         with:
-          args: -g retail -n "{package-name}"
+          args: -g retail -n "{project-version}"
