@@ -1,8 +1,8 @@
 ## Interface: 120001
 ## Title: PVP Sound
-## Notes: TTS voice announcements for PvP CC, defensive, and important spells.
+## Notes: TTS voice announcements for PvP important, defensive, CC spells, cast bar monitoring, and interrupt alerts.
 ## Title-zhCN: PVP Sound - PvP语音播报
-## Notes-zhCN: PvP技能TTS语音播报，支持重要技能、防御技能和控制技能播报。
+## Notes-zhCN: PvP技能TTS语音播报，支持重要技能、防御技能、控制技能、读条监控和打断提醒。
 ## Author: DK-姜世离（燃烧之刃）
 ## Version: 1.0.3
 ## SavedVariables: PVPSoundDB
