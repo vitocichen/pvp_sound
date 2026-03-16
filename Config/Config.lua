@@ -9,7 +9,7 @@ local horizontalSpacing = mini.HorizontalSpacing
 local db
 
 local dbDefaults = {
-	Version = 5,
+	Version = 6,
 
 	TTS = {
 		VoiceID = false,
@@ -44,7 +44,9 @@ local dbDefaults = {
 			CastBarTargetOnly = true,
 			InterruptAlert = true,
 			HealerCC = true,
+			HealerCCMode = "TTS",
 			HealerCCText = "治疗被控",
+			HealerCCSoundFile = "夏一可_控制成功.ogg",
 		},
 		BattleGrounds = {
 			Enabled = true,
@@ -177,6 +179,56 @@ local function MigrateV4(savedDb)
 	end
 
 	savedDb.Version = 5
+end
+
+-- Migrate v5 format to v6: add HealerCCMode and HealerCCSoundFile
+local function MigrateV5(savedDb)
+	if not savedDb or not savedDb.Version or savedDb.Version >= 6 then return end
+
+	if savedDb.Zones and savedDb.Zones.Arena then
+		local arena = savedDb.Zones.Arena
+		if arena.HealerCCMode == nil then
+			arena.HealerCCMode = "TTS"
+		end
+		if arena.HealerCCSoundFile == nil then
+			arena.HealerCCSoundFile = "夏一可_控制成功.ogg"
+		end
+	end
+
+	savedDb.Version = 6
+end
+
+-- ==================== Sound files ====================
+
+local soundFiles = {}
+local mediaPath = "Interface\\AddOns\\PVP_Sound\\Media\\"
+
+local function BuildSoundFileList()
+	if #soundFiles > 0 then return end
+	-- Hardcoded list of available sound files in Media folder
+	local files = {
+		"PS_Alert.ogg",
+		"PS_Chime.ogg",
+		"PS_Error.ogg",
+		"PS_Horn.ogg",
+		"PS_Impact.ogg",
+		"PS_Ping.ogg",
+		"PS_Pop.ogg",
+		"PS_Radar.ogg",
+		"PS_Shock.ogg",
+		"PS_Swoosh.ogg",
+		"PS_Warm.ogg",
+		"夏一可_控制成功.ogg",
+	}
+	for _, f in ipairs(files) do
+		soundFiles[#soundFiles + 1] = f
+	end
+end
+
+local function PreviewSoundFile(fileName)
+	if not fileName then return end
+	local path = mediaPath .. fileName
+	PlaySoundFile(path, "Master")
 end
 
 -- ==================== Shared helpers ====================
@@ -475,11 +527,10 @@ local function BuildZoneTab(content, zoneKey)
 				end
 			end,
 		})
-		monitorRangeDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
-		monitorRangeDropdown:SetPoint("TOP", monitorRangeLabel, "TOP", 0, 8)
+		monitorRangeDropdown:SetPoint("TOPLEFT", monitorRangeLabel, "BOTTOMLEFT", 0, -verticalSpacing * 0.5)
 		monitorRangeDropdown:SetWidth(200)
 
-		importantLastElement = monitorRangeLabel
+		importantLastElement = monitorRangeDropdown
 	end
 
 	-- Important Spells checkbox
@@ -656,12 +707,43 @@ local function BuildZoneTab(content, zoneKey)
 		})
 		healerCCChk:SetPoint("TOPLEFT", healerCCDivider, "BOTTOMLEFT", 0, -verticalSpacing)
 
+		-- Mode: TTS or Sound File
+		local healerCCModeLabel = mini:TextLine({
+			Parent = content,
+			Text = L["Healer CC Mode"],
+		})
+		healerCCModeLabel:SetPoint("TOPLEFT", healerCCChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+		local healerCCModeItems = { "TTS", "Sound" }
+		local healerCCModeDropdown = mini:Dropdown({
+			Parent = content,
+			Items = healerCCModeItems,
+			Width = 160,
+			GetValue = function()
+				return GetZone().HealerCCMode or "TTS"
+			end,
+			SetValue = function(value)
+				GetZone().HealerCCMode = value
+				M:Apply()
+				-- Refresh to show/hide TTS text vs sound file controls
+				if content.MiniRefresh then content:MiniRefresh() end
+			end,
+			GetText = function(value)
+				if value == "TTS" then return L["TTS Mode"]
+				else return L["Sound File Mode"]
+				end
+			end,
+		})
+		healerCCModeDropdown:SetPoint("TOPLEFT", healerCCModeLabel, "BOTTOMLEFT", 0, -verticalSpacing * 0.5)
+		healerCCModeDropdown:SetWidth(160)
+
+		-- TTS text input (shown when mode == TTS)
 		local healerCCTextLabel = mini:TextLine({
 			Parent = content,
 			Text = L["Healer CC TTS Text"],
 			Tooltip = L["The text to speak when enemy healer is CCed."],
 		})
-		healerCCTextLabel:SetPoint("TOPLEFT", healerCCChk, "BOTTOMLEFT", 0, -verticalSpacing)
+		healerCCTextLabel:SetPoint("TOPLEFT", healerCCModeDropdown, "BOTTOMLEFT", 0, -verticalSpacing)
 
 		local healerCCTextBox = mini:EditBox({
 			Parent = content,
@@ -676,6 +758,66 @@ local function BuildZoneTab(content, zoneKey)
 		})
 		healerCCTextBox:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
 		healerCCTextBox:SetPoint("TOP", healerCCTextLabel, "TOP", 0, 4)
+
+		-- Sound file dropdown (shown when mode == Sound)
+		local soundFileLabel = mini:TextLine({
+			Parent = content,
+			Text = L["Healer CC Sound File"],
+		})
+		soundFileLabel:SetPoint("TOPLEFT", healerCCModeDropdown, "BOTTOMLEFT", 0, -verticalSpacing)
+
+		local soundFileDropdown = mini:Dropdown({
+			Parent = content,
+			Items = soundFiles,
+			Width = 200,
+			GetValue = function()
+				return GetZone().HealerCCSoundFile or "夏一可_控制成功.ogg"
+			end,
+			SetValue = function(value)
+				GetZone().HealerCCSoundFile = value
+				M:Apply()
+			end,
+			GetText = function(value)
+				return value and value:gsub("%.ogg$", "") or ""
+			end,
+		})
+		soundFileDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+		soundFileDropdown:SetPoint("TOP", soundFileLabel, "TOP", 0, 8)
+		soundFileDropdown:SetWidth(200)
+
+		-- Preview button (always visible)
+		local previewBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+		previewBtn:SetSize(80, 22)
+		previewBtn:SetPoint("LEFT", healerCCModeDropdown, "RIGHT", horizontalSpacing, 0)
+		previewBtn:SetText(L["Preview"])
+		previewBtn:SetScript("OnClick", function()
+			local mode = GetZone().HealerCCMode or "TTS"
+			if mode == "Sound" then
+				PreviewSoundFile(GetZone().HealerCCSoundFile or "夏一可_控制成功.ogg")
+			else
+				local voiceId = db.TTS and db.TTS.VoiceID or 0
+				local vol = db.TTS and db.TTS.Volume or 100
+				local rate = db.TTS and db.TTS.SpeechRate or 0
+				local text = GetZone().HealerCCText or "治疗被控"
+				C_VoiceChat.SpeakText(voiceId, text, rate, vol, true)
+			end
+		end)
+
+		-- Show/hide based on mode
+		local function RefreshHealerCCMode()
+			local mode = GetZone().HealerCCMode or "TTS"
+			local isTTS = (mode == "TTS")
+			healerCCTextLabel:SetShown(isTTS)
+			healerCCTextBox:SetShown(isTTS)
+			soundFileLabel:SetShown(not isTTS)
+			soundFileDropdown:SetShown(not isTTS)
+		end
+
+		RefreshHealerCCMode()
+
+		content.OnMiniRefresh = function()
+			RefreshHealerCCMode()
+		end
 	end
 end
 
@@ -687,12 +829,14 @@ function M:Init()
 	MigrateV2(rawDb)
 	MigrateV3(rawDb)
 	MigrateV4(rawDb)
+	MigrateV5(rawDb)
 
 	db = mini:GetSavedVars(dbDefaults)
 	mini:CleanTable(db, dbDefaults, true, true)
 
 	BuildVoiceList()
 	AutoSelectVoice()
+	BuildSoundFileList()
 
 	-- ==================== Main scroll panel ====================
 	local scroll = CreateFrame("ScrollFrame", nil, nil, "UIPanelScrollFrameTemplate")

@@ -502,6 +502,43 @@ function M:Dropdown(options)
 	error("Failed to create a dropdown control - requires modern WoW client")
 end
 
+function M:EditBox(options)
+	if not options or not options.Parent or not options.GetValue or not options.SetValue then
+		error("EditBox - invalid options.")
+	end
+
+	local box = CreateFrame("EditBox", nil, options.Parent, "InputBoxTemplate")
+	box:SetSize(options.Width or 200, 20)
+	box:SetFontObject("GameFontWhite")
+	box:SetAutoFocus(false)
+	box:SetText(options.GetValue() or "")
+	box:SetJustifyH("LEFT")
+	box:SetCursorPosition(0)
+
+	box:SetScript("OnTextChanged", function(boxSelf, userInput)
+		if not userInput then return end
+		local value = boxSelf:GetText()
+		options.SetValue(value)
+	end)
+
+	box:SetScript("OnEnterPressed", function(boxSelf)
+		boxSelf:ClearFocus()
+	end)
+
+	box:SetScript("OnEscapePressed", function(boxSelf)
+		boxSelf:SetText(options.GetValue() or "")
+		boxSelf:ClearFocus()
+	end)
+
+	function box.MiniRefresh(boxSelf)
+		boxSelf:SetText(options.GetValue() or "")
+		boxSelf:SetCursorPosition(0)
+	end
+
+	AddControlForRefresh(options.Parent, box)
+	return box
+end
+
 function M:Checkbox(options)
 	if not options or not options.Parent or not options.GetValue or not options.SetValue then
 		error("Checkbox - invalid options.")

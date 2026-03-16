@@ -119,12 +119,21 @@ local function ProcessFriendlyCCData(watcher)
 	end
 end
 
-local function AnnounceHealerCC(text)
-	if not text then return end
-	pcall(function()
-		local speechRate = cachedTTSSpeechRate or 0
-		C_VoiceChat.SpeakText(cachedVoiceID, text, speechRate, cachedTTSVolume, true)
-	end)
+local function AnnounceHealerCC(zone)
+	if not zone then return end
+	local mode = zone.HealerCCMode or "TTS"
+	if mode == "Sound" then
+		local fileName = zone.HealerCCSoundFile or "夏一可_控制成功.ogg"
+		local path = "Interface\\AddOns\\PVP_Sound\\Media\\" .. fileName
+		pcall(PlaySoundFile, path, "Master")
+	else
+		local text = zone.HealerCCText or "治疗被控"
+		if not text or text == "" then return end
+		pcall(function()
+			local speechRate = cachedTTSSpeechRate or 0
+			C_VoiceChat.SpeakText(cachedVoiceID, text, speechRate, cachedTTSVolume, true)
+		end)
+	end
 end
 
 local function ProcessHealerCCData(watcher)
@@ -138,8 +147,7 @@ local function ProcessHealerCCData(watcher)
 			if not currentHealerCCAuras[data.AuraInstanceID]
 				and not previousHealerCCAuras[data.AuraInstanceID] then
 				local zone = moduleUtil:GetZoneConfig()
-				local healerCCText = zone and zone.HealerCCText or "治疗被控"
-				AnnounceHealerCC(healerCCText)
+				AnnounceHealerCC(zone)
 			end
 			currentHealerCCAuras[data.AuraInstanceID] = true
 		end

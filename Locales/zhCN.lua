@@ -51,7 +51,7 @@ L:SetStrings({
 	-- Section 1: Important Spells
 	["Important Spells Section"] = "重要技能语音",
 	["Enable important and defensive spell announcements."] = "启用重要进攻技能和防御技能的语音播报。",
-	["Important Monitor Range"] = "监控范围 |cFF00BFFF（建议选仅目标/焦点，否则播报会非常频繁）|r",
+	["Important Monitor Range"] = "监控范围 |cFF00BFFF（建议选仅目标/焦点）|r",
 	["Target/Focus Only Short"] = "仅目标/焦点",
 	["Important Spells"] = "重要法术（进攻技能）",
 	["Announce important (offensive) spell names via TTS when enemies cast them."] = "当敌人施放重要进攻技能时，用TTS语音播报技能名称。",
@@ -77,14 +77,19 @@ L:SetStrings({
 
 	-- Section 4: Interrupt
 	["Interrupt Section"] = "打断监控 |cFF00BFFF（只能判断目标施法是否停止，无法区分被打断还是自行取消）|r",
-	["Announce via TTS when you successfully interrupt an enemy cast."] = "当目标施法停止时播报打断成功。",
+	["Announce via TTS when you successfully interrupt an enemy cast."] = "当目标被打断或停止施法时播报。",
 	["Interrupted"] = "打断成功",
 
 	-- Section 5: Healer CC
 	["Healer CC Section"] = "治疗被控语音",
 	["Announce via TTS when the enemy healer is crowd controlled."] = "当友方治疗被控制时，用TTS语音播报。",
+	["Healer CC Mode"] = "播报方式",
+	["TTS Mode"] = "TTS语音",
+	["Sound File Mode"] = "自定义音效",
 	["Healer CC TTS Text"] = "TTS播报文本",
 	["The text to speak when enemy healer is CCed."] = "当友方治疗被控制时播报的文本。",
+	["Healer CC Sound File"] = "音效文件",
+	["Preview"] = "试听",
 
 	-- Misc
 	["Important"] = "重要",

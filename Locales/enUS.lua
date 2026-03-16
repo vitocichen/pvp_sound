@@ -47,7 +47,7 @@ L:SetDefaultStrings({
 	-- Section 1: Important Spells
 	["Important Spells Section"] = "Important Spells",
 	["Enable important and defensive spell announcements."] = "Enable important and defensive spell announcements.",
-	["Important Monitor Range"] = "Monitor Range |cFF00BFFF(Recommended: Target/Focus to avoid excessive announcements)|r",
+	["Important Monitor Range"] = "Monitor Range |cFF00BFFF(Recommend: Target/Focus)|r",
 	["Target/Focus Only Short"] = "Target/Focus Only",
 	["Important Spells"] = "Important Spells",
 	["Announce important (offensive) spell names via TTS when enemies cast them."] = "Announce important (offensive) spell names via TTS when enemies cast them.",
@@ -73,14 +73,19 @@ L:SetDefaultStrings({
 
 	-- Section 4: Interrupt
 	["Interrupt Section"] = "Interrupt Alert |cFF00BFFF(Detects cast stop only, not actual interrupt)|r",
-	["Announce via TTS when you successfully interrupt an enemy cast."] = "Announces when your target's cast is stopped.",
+	["Announce via TTS when you successfully interrupt an enemy cast."] = "Announces when your target is interrupted or stops casting.",
 	["Interrupted"] = "Interrupted",
 
 	-- Section 5: Healer CC
 	["Healer CC Section"] = "Healer CC",
 	["Announce via TTS when the enemy healer is crowd controlled."] = "Announce via TTS when the friendly healer is crowd controlled.",
+	["Healer CC Mode"] = "Alert Mode",
+	["TTS Mode"] = "TTS Voice",
+	["Sound File Mode"] = "Sound File",
 	["Healer CC TTS Text"] = "TTS Text",
 	["The text to speak when enemy healer is CCed."] = "The text to speak when the friendly healer is CCed.",
+	["Healer CC Sound File"] = "Sound File",
+	["Preview"] = "Preview",
 
 	-- Misc
 	["Important"] = "Important",
