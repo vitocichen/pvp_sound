@@ -42,23 +42,47 @@ L:SetStrings({
 
 	-- Zone settings
 	["Enabled"] = "启用",
+	["Enabled (Master)"] = "启用（总开关）",
+	["Master switch: enable all announcements in this zone."] = "总开关：在此区域中启用所有语音播报。",
 	["Enable announcements in this zone."] = "在此区域中启用语音播报。",
+
+	-- Section 1: Important Spells
+	["Important Spells Section"] = "重要技能语音",
+	["Enable important and defensive spell announcements."] = "启用重要进攻技能和防御技能的语音播报。",
+	["Important Monitor Range"] = "监控范围 |cFF00BFFF（建议选仅目标/焦点，否则播报会非常频繁）|r",
+	["Target/Focus Only Short"] = "仅目标/焦点",
 	["Important Spells"] = "重要法术（进攻技能）",
 	["Announce important (offensive) spell names via TTS when enemies cast them."] = "当敌人施放重要进攻技能时，用TTS语音播报技能名称。",
 	["Defensive Spells"] = "防御法术",
 	["Announce defensive spell names via TTS when enemies cast them."] = "当敌人施放防御技能时，用TTS语音播报技能名称。",
-	["Friendly CC"] = "被控制技能语音 |cFF00BFFF（播放控制你的技能的语音）|r",
+	["Only monitor your target and focus instead of all enemy nameplates."] = "仅监控你的目标和焦点，而不是所有敌方姓名板。",
+
+	-- Section 2: CC Spells
+	["CC Spells Section"] = "控制技能语音",
+	["Enable CC spell announcements."] = "启用控制技能语音播报。",
+	["CC Mode"] = "播报范围",
 	["Announce CC on self or party via TTS."] = "当你或队友被控制时用TTS语音播报控制技能名称。",
-	["Off"] = "关闭",
 	["Self Only"] = "仅自己",
 	["Self + Party"] = "自己+队友",
-	["Target Cast Bar"] = "目标读条播报 |cFF00BFFF（开启后可能比较吵，不支持施法时间过滤）|r",
-	["Announce your target's spell casts via TTS."] = "当目标施放非瞬发法术时，用TTS语音播报法术名称。",
-	["Interrupt Alert"] = "打断成功播报 |cFF00BFFF（只能判断目标施法是否停止，无法区分被打断还是自行取消）|r",
+
+	-- Section 3: Cast Bar
+	["CastBar Section"] = "读条监控",
+	["Announce enemy spell casts via TTS."] = "用TTS语音播报敌方施法。",
+	["CastBar Range"] = "监控范围",
+	["Choose which enemies' casts to announce."] = "选择播报哪些敌人的施法。",
+	["Target Only"] = "仅目标",
+	["All Enemies"] = "所有敌人",
+
+	-- Section 4: Interrupt
+	["Interrupt Section"] = "打断监控 |cFF00BFFF（只能判断目标施法是否停止，无法区分被打断还是自行取消）|r",
 	["Announce via TTS when you successfully interrupt an enemy cast."] = "当目标施法停止时播报打断成功。",
 	["Interrupted"] = "打断成功",
-	["Target/Focus Only"] = "仅目标/焦点 |cFF00BFFF（建议开启，否则播报会非常频繁）|r",
-	["Only monitor your target and focus instead of all enemy nameplates."] = "仅监控你的目标和焦点，而不是所有敌方姓名板。",
+
+	-- Section 5: Healer CC
+	["Healer CC Section"] = "治疗被控语音",
+	["Announce via TTS when the enemy healer is crowd controlled."] = "当友方治疗被控制时，用TTS语音播报。",
+	["Healer CC TTS Text"] = "TTS播报文本",
+	["The text to speak when enemy healer is CCed."] = "当友方治疗被控制时播报的文本。",
 
 	-- Misc
 	["Important"] = "重要",

@@ -37,6 +37,11 @@ local focusWatcher
 local friendlyWatchers = {}
 local selfCCWatcher
 
+-- Healer CC watchers (for Arena healer-CC TTS)
+local healerCCWatchers = {}
+local previousHealerCCAuras = {}
+local currentHealerCCAuras = {}
+
 -- Cast bar tracking
 local castFrame
 local lastCastAnnounceTime = 0
@@ -53,11 +58,11 @@ local function AnnounceTTS(spellName, spellType)
 	if not zone then return end
 
 	local enabled = false
-	if spellType == "important" and zone.Important then
+	if spellType == "important" and zone.ImportantEnabled ~= false and zone.Important then
 		enabled = true
-	elseif spellType == "defensive" and zone.Defensive then
+	elseif spellType == "defensive" and zone.ImportantEnabled ~= false and zone.Defensive then
 		enabled = true
-	elseif spellType == "cc" and zone.CCMode and zone.CCMode ~= "Off" then
+	elseif spellType == "cc" and zone.CCEnabled ~= false and zone.CCMode and zone.CCMode ~= "Off" then
 		enabled = true
 	end
 
@@ -114,9 +119,37 @@ local function ProcessFriendlyCCData(watcher)
 	end
 end
 
+local function AnnounceHealerCC(text)
+	if not text then return end
+	pcall(function()
+		local speechRate = cachedTTSSpeechRate or 0
+		C_VoiceChat.SpeakText(cachedVoiceID, text, speechRate, cachedTTSVolume, true)
+	end)
+end
+
+local function ProcessHealerCCData(watcher)
+	local unit = watcher:GetUnit()
+	if not unit or not UnitExists(unit) then return end
+
+	local ccData = watcher:GetCcState()
+
+	for _, data in ipairs(ccData) do
+		if data.AuraInstanceID then
+			if not currentHealerCCAuras[data.AuraInstanceID]
+				and not previousHealerCCAuras[data.AuraInstanceID] then
+				local zone = moduleUtil:GetZoneConfig()
+				local healerCCText = zone and zone.HealerCCText or "治疗被控"
+				AnnounceHealerCC(healerCCText)
+			end
+			currentHealerCCAuras[data.AuraInstanceID] = true
+		end
+	end
+end
+
 local function GetCCMode()
 	local zone = moduleUtil:GetZoneConfig()
 	if not zone then return "Off" end
+	if zone.CCEnabled == false then return "Off" end
 	return zone.CCMode or "Off"
 end
 
@@ -124,6 +157,12 @@ local function GetTargetFocusOnly()
 	local zone = moduleUtil:GetZoneConfig()
 	if not zone then return true end
 	return zone.TargetFocusOnly ~= false
+end
+
+local function GetCastBarTargetOnly()
+	local zone = moduleUtil:GetZoneConfig()
+	if not zone then return true end
+	return zone.CastBarTargetOnly ~= false
 end
 
 local function AnnounceCast(spellName)
@@ -148,6 +187,7 @@ local function CheckTargetCast()
 
 	local zone = moduleUtil:GetZoneConfig()
 	if not zone or not zone.CastBar then return end
+	if not GetCastBarTargetOnly() then return end -- Only used when target-only mode
 
 	if not UnitExists("target") or not units:IsEnemy("target") then return end
 
@@ -161,14 +201,23 @@ local function CheckTargetCast()
 end
 
 local function OnCastEvent(unit, spellID)
-	if unit ~= "target" then return end
 	if not moduleUtil:IsEnabled() then return end
 	if paused or inPrepRoom then return end
 
 	local zone = moduleUtil:GetZoneConfig()
 	if not zone or not zone.CastBar then return end
 
-	if not UnitExists("target") or not units:IsEnemy("target") then return end
+	local castBarTargetOnly = GetCastBarTargetOnly()
+
+	if castBarTargetOnly then
+		-- Only listen to target casts
+		if unit ~= "target" then return end
+		if not UnitExists("target") or not units:IsEnemy("target") then return end
+	else
+		-- Listen to all enemy unit casts (nameplates, arena units, etc.)
+		if not unit or not UnitExists(unit) then return end
+		if not units:IsEnemy(unit) then return end
+	end
 
 	-- Get spell name
 	local spellName
@@ -176,10 +225,10 @@ local function OnCastEvent(unit, spellID)
 		spellName = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellID)
 	end
 	if not spellName then
-		spellName = UnitCastingInfo("target")
+		spellName = UnitCastingInfo(unit)
 	end
 	if not spellName then
-		spellName = UnitChannelInfo("target")
+		spellName = UnitChannelInfo(unit)
 	end
 	if not spellName then
 		spellName = tostring(spellID or "cast")
@@ -219,6 +268,7 @@ local function OnAuraDataChanged()
 	wipe(currentImportantAuras)
 	wipe(currentDefensiveAuras)
 	wipe(currentFriendlyCCAuras)
+	wipe(currentHealerCCAuras)
 
 	local inInstance, instanceType = IsInInstance()
 
@@ -280,10 +330,21 @@ local function OnAuraDataChanged()
 		end
 	end
 
+	-- Process healer CC watchers (Arena only)
+	if instanceType == "arena" then
+		local zone2 = moduleUtil:GetZoneConfig()
+		if zone2 and zone2.HealerCC then
+			for _, watcher in ipairs(healerCCWatchers) do
+				ProcessHealerCCData(watcher)
+			end
+		end
+	end
+
 	-- Swap buffers
 	previousImportantAuras, currentImportantAuras = currentImportantAuras, previousImportantAuras
 	previousDefensiveAuras, currentDefensiveAuras = currentDefensiveAuras, previousDefensiveAuras
 	previousFriendlyCCAuras, currentFriendlyCCAuras = currentFriendlyCCAuras, previousFriendlyCCAuras
+	previousHealerCCAuras, currentHealerCCAuras = currentHealerCCAuras, previousHealerCCAuras
 end
 
 local function ScheduleAuraDataUpdate()
@@ -313,10 +374,14 @@ local function OnMatchStateChanged()
 	for _, watcher in ipairs(friendlyWatchers) do
 		watcher:ClearState(true)
 	end
+	for _, watcher in ipairs(healerCCWatchers) do
+		watcher:ClearState(true)
+	end
 
 	previousImportantAuras = {}
 	previousDefensiveAuras = {}
 	previousFriendlyCCAuras = {}
+	previousHealerCCAuras = {}
 end
 
 local function OnNamePlateAdded(unitToken)
@@ -408,6 +473,34 @@ local function RebuildFriendlyWatchers()
 	end
 end
 
+local function DisposeHealerCCWatchers()
+	for _, watcher in ipairs(healerCCWatchers) do
+		watcher:Dispose()
+	end
+	wipe(healerCCWatchers)
+end
+
+local function RebuildHealerCCWatchers()
+	DisposeHealerCCWatchers()
+
+	local zone = moduleUtil:GetZoneConfig()
+	if not zone or not zone.HealerCC then return end
+
+	-- Only in arena
+	local inInstance, instanceType = IsInInstance()
+	if instanceType ~= "arena" then return end
+
+	-- Find friendly healers (same as mini-cc)
+	local healers = units:FindHealers()
+	local ccFilter = { CC = true }
+
+	for _, healerUnit in ipairs(healers) do
+		local watcher = unitWatcher:New(healerUnit, nil, ccFilter)
+		watcher:RegisterCallback(ScheduleAuraDataUpdate)
+		healerCCWatchers[#healerCCWatchers + 1] = watcher
+	end
+end
+
 local function DisableWatchers()
 	for _, watcher in ipairs(arenaWatchers) do
 		watcher:Disable()
@@ -419,10 +512,12 @@ local function DisableWatchers()
 	if focusWatcher then focusWatcher:Disable() end
 	if selfCCWatcher then selfCCWatcher:Disable() end
 	DisposeFriendlyWatchers()
+	DisposeHealerCCWatchers()
 
 	previousImportantAuras = {}
 	previousDefensiveAuras = {}
 	previousFriendlyCCAuras = {}
+	previousHealerCCAuras = {}
 end
 
 local function EnableDisable()
@@ -442,10 +537,14 @@ local function EnableDisable()
 		for _, watcher in ipairs(arenaWatchers) do
 			watcher:Enable()
 		end
+		-- Build healer CC watchers in arena
+		RebuildHealerCCWatchers()
 	else
 		for _, watcher in ipairs(arenaWatchers) do
 			watcher:Disable()
 		end
+		-- Dispose healer CC watchers outside arena
+		DisposeHealerCCWatchers()
 	end
 
 	-- World/BG/PvE watchers (target/focus or nameplate)
@@ -549,6 +648,11 @@ function M:Init()
 			if ccMode == "All" and moduleUtil:IsEnabled() then
 				RebuildFriendlyWatchers()
 			end
+			-- Refresh healer CC watchers on roster change (arena)
+			local inInst, instType = IsInInstance()
+			if instType == "arena" and moduleUtil:IsEnabled() then
+				RebuildHealerCCWatchers()
+			end
 		end
 	end)
 
@@ -563,7 +667,10 @@ function M:Init()
 		if event == "PLAYER_TARGET_CHANGED" then
 			CheckTargetCast()
 		elseif event == "UNIT_SPELLCAST_INTERRUPTED" or event == "UNIT_SPELLCAST_CHANNEL_STOP" then
-			OnCastInterrupted(unit)
+			-- Interrupt alert only for target
+			if unit == "target" then
+				OnCastInterrupted(unit)
+			end
 		else
 			OnCastEvent(unit, spellID)
 		end

@@ -9,7 +9,7 @@ local horizontalSpacing = mini.HorizontalSpacing
 local db
 
 local dbDefaults = {
-	Version = 2,
+	Version = 5,
 
 	TTS = {
 		VoiceID = false,
@@ -22,39 +22,53 @@ local dbDefaults = {
 	Zones = {
 		World = {
 			Enabled = true,
+			ImportantEnabled = true,
 			Important = true,
 			Defensive = true,
-			CastBar = true,
-			InterruptAlert = true,
-			CCMode = "Self",
 			TargetFocusOnly = true,
+			CCEnabled = true,
+			CCMode = "Self",
+			CastBar = true,
+			CastBarTargetOnly = true,
+			InterruptAlert = true,
 		},
 		Arena = {
 			Enabled = true,
+			ImportantEnabled = true,
 			Important = true,
 			Defensive = true,
-			CastBar = true,
-			InterruptAlert = true,
-			CCMode = "Self",
 			TargetFocusOnly = false,
+			CCEnabled = true,
+			CCMode = "Self",
+			CastBar = true,
+			CastBarTargetOnly = true,
+			InterruptAlert = true,
+			HealerCC = true,
+			HealerCCText = "治疗被控",
 		},
 		BattleGrounds = {
 			Enabled = true,
+			ImportantEnabled = true,
 			Important = true,
 			Defensive = true,
-			CastBar = true,
-			InterruptAlert = true,
-			CCMode = "Self",
 			TargetFocusOnly = true,
+			CCEnabled = true,
+			CCMode = "Self",
+			CastBar = true,
+			CastBarTargetOnly = true,
+			InterruptAlert = true,
 		},
 		PvE = {
 			Enabled = false,
+			ImportantEnabled = true,
 			Important = true,
 			Defensive = true,
-			CastBar = true,
-			InterruptAlert = true,
-			CCMode = "Off",
 			TargetFocusOnly = true,
+			CCEnabled = false,
+			CCMode = "Off",
+			CastBar = true,
+			CastBarTargetOnly = true,
+			InterruptAlert = true,
 		},
 	},
 }
@@ -67,7 +81,7 @@ end
 
 -- Migrate old v1 format to v2
 local function MigrateV1(savedDb)
-	if not savedDb or savedDb.Version == 2 then return end
+	if not savedDb or (savedDb.Version and savedDb.Version >= 2) then return end
 
 	local oldEnabled = savedDb.Enabled or {}
 	local oldTTS = savedDb.TTS or {}
@@ -107,6 +121,62 @@ local function MigrateV1(savedDb)
 
 	savedDb.Zones = zones
 	savedDb.Version = 2
+end
+
+-- Migrate v2 format to v3: add CastBarTargetOnly and HealerCC
+local function MigrateV2(savedDb)
+	if not savedDb or not savedDb.Version or savedDb.Version >= 3 then return end
+
+	if savedDb.Zones then
+		for zoneKey, zone in pairs(savedDb.Zones) do
+			-- Add CastBarTargetOnly (default true = current behavior)
+			if zone.CastBarTargetOnly == nil then
+				zone.CastBarTargetOnly = true
+			end
+			-- Add HealerCC for Arena
+			if zoneKey == "Arena" then
+				if zone.HealerCC == nil then
+					zone.HealerCC = true
+				end
+				if zone.HealerCCText == nil then
+					zone.HealerCCText = "治疗被控"
+				end
+			end
+		end
+	end
+
+	savedDb.Version = 3
+end
+
+-- Migrate v3 format to v4: add ImportantEnabled
+local function MigrateV3(savedDb)
+	if not savedDb or not savedDb.Version or savedDb.Version >= 4 then return end
+
+	if savedDb.Zones then
+		for _, zone in pairs(savedDb.Zones) do
+			if zone.ImportantEnabled == nil then
+				zone.ImportantEnabled = true
+			end
+		end
+	end
+
+	savedDb.Version = 4
+end
+
+-- Migrate v4 format to v5: add CCEnabled
+local function MigrateV4(savedDb)
+	if not savedDb or not savedDb.Version or savedDb.Version >= 5 then return end
+
+	if savedDb.Zones then
+		for _, zone in pairs(savedDb.Zones) do
+			if zone.CCEnabled == nil then
+				-- If CCMode was "Off", set CCEnabled to false; otherwise true
+				zone.CCEnabled = (zone.CCMode ~= "Off")
+			end
+		end
+	end
+
+	savedDb.Version = 5
 end
 
 -- ==================== Shared helpers ====================
@@ -341,11 +411,11 @@ local function BuildZoneTab(content, zoneKey)
 		return db.Zones[zoneKey]
 	end
 
-	-- Enabled checkbox
+	-- Global Enabled checkbox at top (总开关)
 	local enabledChk = mini:Checkbox({
 		Parent = content,
-		LabelText = L["Enabled"],
-		Tooltip = L["Enable announcements in this zone."],
+		LabelText = L["Enabled (Master)"],
+		Tooltip = L["Master switch: enable all announcements in this zone."],
 		GetValue = function() return GetZone().Enabled end,
 		SetValue = function(value)
 			GetZone().Enabled = value
@@ -354,7 +424,63 @@ local function BuildZoneTab(content, zoneKey)
 	})
 	enabledChk:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
 
-	-- Important Spells
+	-- ==================== Section 1: Important Spells ====================
+	local importantDivider = mini:Divider({
+		Parent = content,
+		Text = L["Important Spells Section"],
+	})
+	importantDivider:SetPoint("LEFT", content, "LEFT")
+	importantDivider:SetPoint("RIGHT", content, "RIGHT")
+	importantDivider:SetPoint("TOP", enabledChk, "BOTTOM", 0, -verticalSpacing * 1.5)
+
+	local importantEnabledChk = mini:Checkbox({
+		Parent = content,
+		LabelText = L["Enabled"],
+		Tooltip = L["Enable important and defensive spell announcements."],
+		GetValue = function() return GetZone().ImportantEnabled ~= false end,
+		SetValue = function(value)
+			GetZone().ImportantEnabled = value
+			M:Apply()
+		end,
+	})
+	importantEnabledChk:SetPoint("TOPLEFT", importantDivider, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	-- Monitor Range dropdown (not for Arena — arena always monitors all arena units)
+	local importantLastElement = importantEnabledChk
+	if zoneKey ~= "Arena" then
+		local monitorRangeLabel = mini:TextLine({
+			Parent = content,
+			Text = L["Important Monitor Range"],
+			Tooltip = L["Only monitor your target and focus instead of all enemy nameplates."],
+		})
+		monitorRangeLabel:SetPoint("TOPLEFT", importantEnabledChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+		local monitorRangeItems = { "TargetFocus", "All" }
+		local monitorRangeDropdown = mini:Dropdown({
+			Parent = content,
+			Items = monitorRangeItems,
+			Width = 200,
+			GetValue = function()
+				return GetZone().TargetFocusOnly ~= false and "TargetFocus" or "All"
+			end,
+			SetValue = function(value)
+				GetZone().TargetFocusOnly = (value == "TargetFocus")
+				M:Apply()
+			end,
+			GetText = function(value)
+				if value == "TargetFocus" then return L["Target/Focus Only Short"]
+				else return L["All Enemies"]
+				end
+			end,
+		})
+		monitorRangeDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+		monitorRangeDropdown:SetPoint("TOP", monitorRangeLabel, "TOP", 0, 8)
+		monitorRangeDropdown:SetWidth(200)
+
+		importantLastElement = monitorRangeLabel
+	end
+
+	-- Important Spells checkbox
 	local importantChk = mini:Checkbox({
 		Parent = content,
 		LabelText = L["Important Spells"],
@@ -365,9 +491,9 @@ local function BuildZoneTab(content, zoneKey)
 			M:Apply()
 		end,
 	})
-	importantChk:SetPoint("TOPLEFT", enabledChk, "BOTTOMLEFT", 0, -verticalSpacing)
+	importantChk:SetPoint("TOPLEFT", importantLastElement, "BOTTOMLEFT", 0, -verticalSpacing)
 
-	-- Defensive Spells
+	-- Defensive Spells checkbox (same row as Important)
 	local defensiveChk = mini:Checkbox({
 		Parent = content,
 		LabelText = L["Defensive Spells"],
@@ -378,25 +504,123 @@ local function BuildZoneTab(content, zoneKey)
 			M:Apply()
 		end,
 	})
-	defensiveChk:SetPoint("TOPLEFT", importantChk, "BOTTOMLEFT", 0, -verticalSpacing)
+	defensiveChk:SetPoint("LEFT", importantChk, "RIGHT", 160, 0)
 
-	-- Cast Bar
+	-- ==================== Section 2: CC Spells ====================
+	local ccDivider = mini:Divider({
+		Parent = content,
+		Text = L["CC Spells Section"],
+	})
+	ccDivider:SetPoint("LEFT", content, "LEFT")
+	ccDivider:SetPoint("RIGHT", content, "RIGHT")
+	ccDivider:SetPoint("TOP", importantChk, "BOTTOM", 0, -verticalSpacing * 1.5)
+
+	local ccEnabledChk = mini:Checkbox({
+		Parent = content,
+		LabelText = L["Enabled"],
+		Tooltip = L["Enable CC spell announcements."],
+		GetValue = function() return GetZone().CCEnabled ~= false end,
+		SetValue = function(value)
+			GetZone().CCEnabled = value
+			M:Apply()
+		end,
+	})
+	ccEnabledChk:SetPoint("TOPLEFT", ccDivider, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	local ccModeLabel = mini:TextLine({
+		Parent = content,
+		Text = L["CC Mode"],
+		Tooltip = L["Announce CC on self or party via TTS."],
+	})
+	ccModeLabel:SetPoint("TOPLEFT", ccEnabledChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	local ccModeItems = { "Self", "All" }
+	local ccModeDropdown = mini:Dropdown({
+		Parent = content,
+		Items = ccModeItems,
+		Width = 160,
+		GetValue = function()
+			local mode = GetZone().CCMode or "Self"
+			if mode == "Off" then mode = "Self" end
+			return mode
+		end,
+		SetValue = function(value)
+			GetZone().CCMode = value
+			M:Apply()
+		end,
+		GetText = function(value)
+			if value == "Self" then return L["Self Only"]
+			else return L["Self + Party"]
+			end
+		end,
+	})
+	ccModeDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+	ccModeDropdown:SetPoint("TOP", ccModeLabel, "TOP", 0, 8)
+	ccModeDropdown:SetWidth(160)
+
+	-- ==================== Section 3: Cast Bar ====================
+	local castDivider = mini:Divider({
+		Parent = content,
+		Text = L["CastBar Section"],
+	})
+	castDivider:SetPoint("LEFT", content, "LEFT")
+	castDivider:SetPoint("RIGHT", content, "RIGHT")
+	castDivider:SetPoint("TOP", ccModeLabel, "BOTTOM", 0, -verticalSpacing * 2.5)
+
 	local castBarChk = mini:Checkbox({
 		Parent = content,
-		LabelText = L["Target Cast Bar"],
-		Tooltip = L["Announce your target's spell casts via TTS."],
+		LabelText = L["Enabled"],
+		Tooltip = L["Announce enemy spell casts via TTS."],
 		GetValue = function() return GetZone().CastBar end,
 		SetValue = function(value)
 			GetZone().CastBar = value
 			M:Apply()
 		end,
 	})
-	castBarChk:SetPoint("TOPLEFT", defensiveChk, "BOTTOMLEFT", 0, -verticalSpacing)
+	castBarChk:SetPoint("TOPLEFT", castDivider, "BOTTOMLEFT", 0, -verticalSpacing)
 
-	-- Interrupt Alert
+	-- CastBar range dropdown (Target Only / All Enemies)
+	local castRangeLabel = mini:TextLine({
+		Parent = content,
+		Text = L["CastBar Range"],
+		Tooltip = L["Choose which enemies' casts to announce."],
+	})
+	castRangeLabel:SetPoint("TOPLEFT", castBarChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	local castRangeItems = { "TargetOnly", "All" }
+	local castRangeDropdown = mini:Dropdown({
+		Parent = content,
+		Items = castRangeItems,
+		Width = 160,
+		GetValue = function()
+			return GetZone().CastBarTargetOnly ~= false and "TargetOnly" or "All"
+		end,
+		SetValue = function(value)
+			GetZone().CastBarTargetOnly = (value == "TargetOnly")
+			M:Apply()
+		end,
+		GetText = function(value)
+			if value == "TargetOnly" then return L["Target Only"]
+			else return L["All Enemies"]
+			end
+		end,
+	})
+	castRangeDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+	castRangeDropdown:SetPoint("TOP", castRangeLabel, "TOP", 0, 8)
+	castRangeDropdown:SetWidth(160)
+
+	-- ==================== Section 4: Interrupt Alert ====================
+	local interruptDivider = mini:Divider({
+		Parent = content,
+		Text = L["Interrupt Section"],
+	})
+	interruptDivider:SetPoint("LEFT", content, "LEFT")
+	interruptDivider:SetPoint("RIGHT", content, "RIGHT")
+	interruptDivider:SetPoint("TOP", castRangeLabel, "BOTTOM", 0, -verticalSpacing * 2.5)
+
 	local interruptChk = mini:Checkbox({
 		Parent = content,
-		LabelText = L["Interrupt Alert"],
+		LabelText = L["Enabled"],
 		Tooltip = L["Announce via TTS when you successfully interrupt an enemy cast."],
 		GetValue = function() return GetZone().InterruptAlert end,
 		SetValue = function(value)
@@ -404,51 +628,52 @@ local function BuildZoneTab(content, zoneKey)
 			M:Apply()
 		end,
 	})
-	interruptChk:SetPoint("TOPLEFT", castBarChk, "BOTTOMLEFT", 0, -verticalSpacing)
+	interruptChk:SetPoint("TOPLEFT", interruptDivider, "BOTTOMLEFT", 0, -verticalSpacing)
 
-	-- Friendly CC dropdown
-	local ccModeLabel = mini:TextLine({
-		Parent = content,
-		Text = L["Friendly CC"],
-		Tooltip = L["Announce CC on self or party via TTS."],
-	})
-	ccModeLabel:SetPoint("TOPLEFT", interruptChk, "BOTTOMLEFT", 0, -verticalSpacing)
+	local lastElement = interruptChk
 
-	local ccModeItems = { "Off", "Self", "All" }
-	local ccModeDropdown = mini:Dropdown({
-		Parent = content,
-		Items = ccModeItems,
-		Width = 160,
-		GetValue = function()
-			return GetZone().CCMode or "Off"
-		end,
-		SetValue = function(value)
-			GetZone().CCMode = value
-			M:Apply()
-		end,
-		GetText = function(value)
-			if value == "Off" then return L["Off"]
-			elseif value == "Self" then return L["Self Only"]
-			else return L["Self + Party"]
-			end
-		end,
-	})
-	ccModeDropdown:SetPoint("TOPLEFT", ccModeLabel, "BOTTOMLEFT", 0, -verticalSpacing + 4)
-	ccModeDropdown:SetWidth(160)
-
-	-- TargetFocusOnly (not for Arena)
-	if zoneKey ~= "Arena" then
-		local targetFocusChk = mini:Checkbox({
+	-- ==================== Section 5: Healer CC (Arena only) ====================
+	if zoneKey == "Arena" then
+		local healerCCDivider = mini:Divider({
 			Parent = content,
-			LabelText = L["Target/Focus Only"],
-			Tooltip = L["Only monitor your target and focus instead of all enemy nameplates."],
-			GetValue = function() return GetZone().TargetFocusOnly ~= false end,
+			Text = L["Healer CC Section"],
+		})
+		healerCCDivider:SetPoint("LEFT", content, "LEFT")
+		healerCCDivider:SetPoint("RIGHT", content, "RIGHT")
+		healerCCDivider:SetPoint("TOP", lastElement, "BOTTOM", 0, -verticalSpacing * 1.5)
+
+		local healerCCChk = mini:Checkbox({
+			Parent = content,
+			LabelText = L["Enabled"],
+			Tooltip = L["Announce via TTS when the enemy healer is crowd controlled."],
+			GetValue = function() return GetZone().HealerCC end,
 			SetValue = function(value)
-				GetZone().TargetFocusOnly = value
+				GetZone().HealerCC = value
 				M:Apply()
 			end,
 		})
-		targetFocusChk:SetPoint("TOPLEFT", ccModeDropdown, "BOTTOMLEFT", 0, -verticalSpacing * 1.5)
+		healerCCChk:SetPoint("TOPLEFT", healerCCDivider, "BOTTOMLEFT", 0, -verticalSpacing)
+
+		local healerCCTextLabel = mini:TextLine({
+			Parent = content,
+			Text = L["Healer CC TTS Text"],
+			Tooltip = L["The text to speak when enemy healer is CCed."],
+		})
+		healerCCTextLabel:SetPoint("TOPLEFT", healerCCChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+		local healerCCTextBox = mini:EditBox({
+			Parent = content,
+			Width = 200,
+			GetValue = function()
+				return GetZone().HealerCCText or "治疗被控"
+			end,
+			SetValue = function(value)
+				GetZone().HealerCCText = value
+				M:Apply()
+			end,
+		})
+		healerCCTextBox:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+		healerCCTextBox:SetPoint("TOP", healerCCTextLabel, "TOP", 0, 4)
 	end
 end
 
@@ -457,6 +682,9 @@ end
 function M:Init()
 	local rawDb = mini:GetSavedVars()
 	MigrateV1(rawDb)
+	MigrateV2(rawDb)
+	MigrateV3(rawDb)
+	MigrateV4(rawDb)
 
 	db = mini:GetSavedVars(dbDefaults)
 	mini:CleanTable(db, dbDefaults, true, true)

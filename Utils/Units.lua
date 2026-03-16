@@ -51,3 +51,21 @@ end
 function M:IsEnemy(unitToken)
 	return UnitIsEnemy("player", unitToken)
 end
+
+function M:IsHealer(unit)
+	local role = UnitGroupRolesAssigned(unit)
+	return role == "HEALER"
+end
+
+function M:FindHealers()
+	local friendlyUnits = M:FriendlyUnits()
+	local healers = {}
+
+	for _, unit in ipairs(friendlyUnits) do
+		if M:IsHealer(unit) then
+			healers[#healers + 1] = unit
+		end
+	end
+
+	return healers
+end

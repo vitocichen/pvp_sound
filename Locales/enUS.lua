@@ -38,23 +38,47 @@ L:SetDefaultStrings({
 
 	-- Zone settings
 	["Enabled"] = "Enabled",
+	["Enabled (Master)"] = "Enabled (Master Switch)",
+	["Master switch: enable all announcements in this zone."] = "Master switch: enable all announcements in this zone.",
 	["Enable announcements in this zone."] = "Enable announcements in this zone.",
+
+	-- Section 1: Important Spells
+	["Important Spells Section"] = "Important Spells",
+	["Enable important and defensive spell announcements."] = "Enable important and defensive spell announcements.",
+	["Important Monitor Range"] = "Monitor Range |cFF00BFFF(Recommended: Target/Focus to avoid excessive announcements)|r",
+	["Target/Focus Only Short"] = "Target/Focus Only",
 	["Important Spells"] = "Important Spells",
 	["Announce important (offensive) spell names via TTS when enemies cast them."] = "Announce important (offensive) spell names via TTS when enemies cast them.",
 	["Defensive Spells"] = "Defensive Spells",
 	["Announce defensive spell names via TTS when enemies cast them."] = "Announce defensive spell names via TTS when enemies cast them.",
-	["Friendly CC"] = "Friendly CC |cFF00BFFF(Announces CC spells used on you)|r",
+	["Only monitor your target and focus instead of all enemy nameplates."] = "Only monitor your target and focus instead of all enemy nameplates.",
+
+	-- Section 2: CC Spells
+	["CC Spells Section"] = "CC Spells",
+	["Enable CC spell announcements."] = "Enable CC spell announcements.",
+	["CC Mode"] = "Mode",
 	["Announce CC on self or party via TTS."] = "Announce CC on self or party via TTS.",
-	["Off"] = "Off",
 	["Self Only"] = "Self Only",
 	["Self + Party"] = "Self + Party",
-	["Target Cast Bar"] = "Target Cast Bar |cFF00BFFF(May be noisy; cast time filter not supported)|r",
-	["Announce your target's spell casts via TTS."] = "Announce your target's spell casts via TTS.",
-	["Interrupt Alert"] = "Interrupt Alert |cFF00BFFF(Detects cast stop only, not actual interrupt)|r",
+
+	-- Section 3: Cast Bar
+	["CastBar Section"] = "Cast Bar",
+	["Announce enemy spell casts via TTS."] = "Announce enemy spell casts via TTS.",
+	["CastBar Range"] = "Range",
+	["Choose which enemies' casts to announce."] = "Choose which enemies' casts to announce.",
+	["Target Only"] = "Target Only",
+	["All Enemies"] = "All Enemies",
+
+	-- Section 4: Interrupt
+	["Interrupt Section"] = "Interrupt Alert |cFF00BFFF(Detects cast stop only, not actual interrupt)|r",
 	["Announce via TTS when you successfully interrupt an enemy cast."] = "Announces when your target's cast is stopped.",
 	["Interrupted"] = "Interrupted",
-	["Target/Focus Only"] = "Target/Focus Only |cFF00BFFF(Recommended ON to avoid excessive announcements)|r",
-	["Only monitor your target and focus instead of all enemy nameplates."] = "Only monitor your target and focus instead of all enemy nameplates.",
+
+	-- Section 5: Healer CC
+	["Healer CC Section"] = "Healer CC",
+	["Announce via TTS when the enemy healer is crowd controlled."] = "Announce via TTS when the friendly healer is crowd controlled.",
+	["Healer CC TTS Text"] = "TTS Text",
+	["The text to speak when enemy healer is CCed."] = "The text to speak when the friendly healer is CCed.",
 
 	-- Misc
 	["Important"] = "Important",
