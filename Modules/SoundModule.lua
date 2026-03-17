@@ -39,8 +39,7 @@ local selfCCWatcher
 
 -- Healer CC watchers (for Arena healer-CC TTS)
 local healerCCWatchers = {}
-local previousHealerCCAuras = {}
-local currentHealerCCAuras = {}
+local healerCCActive = false -- true while any healer has CC (like MiniCC's IsVisible)
 
 -- Cast bar tracking
 local castFrame
@@ -138,20 +137,10 @@ end
 
 local function ProcessHealerCCData(watcher)
 	local unit = watcher:GetUnit()
-	if not unit or not UnitExists(unit) then return end
+	if not unit or not UnitExists(unit) then return false end
 
 	local ccData = watcher:GetCcState()
-
-	for _, data in ipairs(ccData) do
-		if data.AuraInstanceID then
-			if not currentHealerCCAuras[data.AuraInstanceID]
-				and not previousHealerCCAuras[data.AuraInstanceID] then
-				local zone = moduleUtil:GetZoneConfig()
-				AnnounceHealerCC(zone)
-			end
-			currentHealerCCAuras[data.AuraInstanceID] = true
-		end
-	end
+	return #ccData > 0
 end
 
 local function GetCCMode()
@@ -276,7 +265,6 @@ local function OnAuraDataChanged()
 	wipe(currentImportantAuras)
 	wipe(currentDefensiveAuras)
 	wipe(currentFriendlyCCAuras)
-	wipe(currentHealerCCAuras)
 
 	local inInstance, instanceType = IsInInstance()
 
@@ -339,11 +327,25 @@ local function OnAuraDataChanged()
 	end
 
 	-- Process healer CC watchers (Arena and BattleGrounds)
-	if instanceType == "arena" or instanceType == "pvp" then
+	-- Skip if player is the healer (no need to alert yourself)
+	if (instanceType == "arena" or instanceType == "pvp") and not units:IsHealer("player") then
 		local zone2 = moduleUtil:GetZoneConfig()
 		if zone2 and zone2.HealerCC then
+			local anyHealerCCed = false
 			for _, watcher in ipairs(healerCCWatchers) do
-				ProcessHealerCCData(watcher)
+				if ProcessHealerCCData(watcher) then
+					anyHealerCCed = true
+				end
+			end
+
+			-- Only announce when transitioning from no-CC to CC (like MiniCC)
+			if anyHealerCCed then
+				if not healerCCActive then
+					healerCCActive = true
+					AnnounceHealerCC(zone2)
+				end
+			else
+				healerCCActive = false
 			end
 		end
 	end
@@ -352,7 +354,6 @@ local function OnAuraDataChanged()
 	previousImportantAuras, currentImportantAuras = currentImportantAuras, previousImportantAuras
 	previousDefensiveAuras, currentDefensiveAuras = currentDefensiveAuras, previousDefensiveAuras
 	previousFriendlyCCAuras, currentFriendlyCCAuras = currentFriendlyCCAuras, previousFriendlyCCAuras
-	previousHealerCCAuras, currentHealerCCAuras = currentHealerCCAuras, previousHealerCCAuras
 end
 
 local function ScheduleAuraDataUpdate()
@@ -389,7 +390,7 @@ local function OnMatchStateChanged()
 	previousImportantAuras = {}
 	previousDefensiveAuras = {}
 	previousFriendlyCCAuras = {}
-	previousHealerCCAuras = {}
+	healerCCActive = false
 end
 
 local function OnNamePlateAdded(unitToken)
@@ -525,7 +526,7 @@ local function DisableWatchers()
 	previousImportantAuras = {}
 	previousDefensiveAuras = {}
 	previousFriendlyCCAuras = {}
-	previousHealerCCAuras = {}
+	healerCCActive = false
 end
 
 local function EnableDisable()
