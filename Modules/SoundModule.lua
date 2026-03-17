@@ -338,8 +338,8 @@ local function OnAuraDataChanged()
 		end
 	end
 
-	-- Process healer CC watchers (Arena only)
-	if instanceType == "arena" then
+	-- Process healer CC watchers (Arena and BattleGrounds)
+	if instanceType == "arena" or instanceType == "pvp" then
 		local zone2 = moduleUtil:GetZoneConfig()
 		if zone2 and zone2.HealerCC then
 			for _, watcher in ipairs(healerCCWatchers) do
@@ -494,9 +494,9 @@ local function RebuildHealerCCWatchers()
 	local zone = moduleUtil:GetZoneConfig()
 	if not zone or not zone.HealerCC then return end
 
-	-- Only in arena
+	-- Only in arena or battlegrounds
 	local inInstance, instanceType = IsInInstance()
-	if instanceType ~= "arena" then return end
+	if instanceType ~= "arena" and instanceType ~= "pvp" then return end
 
 	-- Find friendly healers (same as mini-cc)
 	local healers = units:FindHealers()
@@ -545,13 +545,16 @@ local function EnableDisable()
 		for _, watcher in ipairs(arenaWatchers) do
 			watcher:Enable()
 		end
-		-- Build healer CC watchers in arena
-		RebuildHealerCCWatchers()
 	else
 		for _, watcher in ipairs(arenaWatchers) do
 			watcher:Disable()
 		end
-		-- Dispose healer CC watchers outside arena
+	end
+
+	-- Build healer CC watchers in arena and battlegrounds
+	if instanceType == "arena" or instanceType == "pvp" then
+		RebuildHealerCCWatchers()
+	else
 		DisposeHealerCCWatchers()
 	end
 
@@ -656,9 +659,9 @@ function M:Init()
 			if ccMode == "All" and moduleUtil:IsEnabled() then
 				RebuildFriendlyWatchers()
 			end
-			-- Refresh healer CC watchers on roster change (arena)
+			-- Refresh healer CC watchers on roster change (arena and battlegrounds)
 			local inInst, instType = IsInInstance()
-			if instType == "arena" and moduleUtil:IsEnabled() then
+			if (instType == "arena" or instType == "pvp") and moduleUtil:IsEnabled() then
 				RebuildHealerCCWatchers()
 			end
 		end

@@ -9,7 +9,7 @@ local horizontalSpacing = mini.HorizontalSpacing
 local db
 
 local dbDefaults = {
-	Version = 6,
+	Version = 7,
 
 	TTS = {
 		VoiceID = false,
@@ -59,6 +59,10 @@ local dbDefaults = {
 			CastBar = true,
 			CastBarTargetOnly = true,
 			InterruptAlert = true,
+			HealerCC = true,
+			HealerCCMode = "TTS",
+			HealerCCText = "治疗被控",
+			HealerCCSoundFile = "夏一可_控制成功.ogg",
 		},
 		PvE = {
 			Enabled = false,
@@ -196,6 +200,29 @@ local function MigrateV5(savedDb)
 	end
 
 	savedDb.Version = 6
+end
+
+-- Migrate v6 format to v7: add HealerCC to BattleGrounds
+local function MigrateV6(savedDb)
+	if not savedDb or not savedDb.Version or savedDb.Version >= 7 then return end
+
+	if savedDb.Zones and savedDb.Zones.BattleGrounds then
+		local bg = savedDb.Zones.BattleGrounds
+		if bg.HealerCC == nil then
+			bg.HealerCC = true
+		end
+		if bg.HealerCCMode == nil then
+			bg.HealerCCMode = "TTS"
+		end
+		if bg.HealerCCText == nil then
+			bg.HealerCCText = "治疗被控"
+		end
+		if bg.HealerCCSoundFile == nil then
+			bg.HealerCCSoundFile = "夏一可_控制成功.ogg"
+		end
+	end
+
+	savedDb.Version = 7
 end
 
 -- ==================== Sound files ====================
@@ -685,8 +712,8 @@ local function BuildZoneTab(content, zoneKey)
 
 	local lastElement = interruptChk
 
-	-- ==================== Section 5: Healer CC (Arena only) ====================
-	if zoneKey == "Arena" then
+	-- ==================== Section 5: Healer CC (Arena and BattleGrounds) ====================
+	if zoneKey == "Arena" or zoneKey == "BattleGrounds" then
 		local healerCCDivider = mini:Divider({
 			Parent = content,
 			Text = L["Healer CC Section"],
@@ -830,6 +857,7 @@ function M:Init()
 	MigrateV3(rawDb)
 	MigrateV4(rawDb)
 	MigrateV5(rawDb)
+	MigrateV6(rawDb)
 
 	db = mini:GetSavedVars(dbDefaults)
 	mini:CleanTable(db, dbDefaults, true, true)
