@@ -8,6 +8,7 @@ ignore:
   - .git
   - .gitignore
   - .pkgmeta
+  - .codebuddy
   - README.md
   - CHANGELOG.md
   - "*.zip"
