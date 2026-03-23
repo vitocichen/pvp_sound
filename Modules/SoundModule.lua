@@ -27,6 +27,17 @@ local cachedTTSVolume
 local cachedTTSSpeechRate
 local cachedCastInterval
 
+-- Per-frame announce dedup: in a single OnAuraDataChanged pass, only announce
+-- once per spell-type (important / defensive / cc).
+-- This is needed because AoE abilities (e.g. Earthgrab Totem) produce a NEW
+-- AuraInstanceID on each target, and those IDs are secret-values that cannot
+-- be compared across units.  Since ScheduleAuraDataUpdate merges all watcher
+-- events into one frame via C_Timer.After(0), limiting to one announce per
+-- type per pass effectively deduplicates AoE scenarios.
+local announceThisPassImportant = false
+local announceThisPassDefensive = false
+local announceThisPassCC = false
+
 -- Watchers
 local arenaWatchers
 local nameplateWatchers = {}
@@ -66,6 +77,20 @@ local function AnnounceTTS(spellName, spellType)
 	end
 
 	if not enabled then return end
+
+	-- Per-frame dedup: only the first new aura of each type in a single
+	-- OnAuraDataChanged pass gets announced.  The flags are reset at the
+	-- top of every OnAuraDataChanged call.
+	if spellType == "important" then
+		if announceThisPassImportant then return end
+		announceThisPassImportant = true
+	elseif spellType == "defensive" then
+		if announceThisPassDefensive then return end
+		announceThisPassDefensive = true
+	elseif spellType == "cc" then
+		if announceThisPassCC then return end
+		announceThisPassCC = true
+	end
 
 	pcall(function()
 		local speechRate = cachedTTSSpeechRate or 0
@@ -261,6 +286,11 @@ local function OnAuraDataChanged()
 	if not moduleUtil:IsEnabled() then return end
 
 	if inPrepRoom then return end
+
+	-- Reset per-frame announce flags so each type can announce once this pass
+	announceThisPassImportant = false
+	announceThisPassDefensive = false
+	announceThisPassCC = false
 
 	wipe(currentImportantAuras)
 	wipe(currentDefensiveAuras)
