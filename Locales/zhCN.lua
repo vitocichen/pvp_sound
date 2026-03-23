@@ -91,6 +91,14 @@ L:SetStrings({
 	["Healer CC Sound File"] = "音效文件",
 	["Preview"] = "试听",
 
+	-- Changelog tab
+	["Changelog"] = "更新记录",
+	["changelog_v1.0.0"] = "|cFFFFD100v1.0.0|r — 初版本发布。",
+	["changelog_v1.0.1"] = "|cFFFFD100v1.0.1|r — 新增野外/竞技场/战场/PvE场景区分。",
+	["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — 新增读条和打断监控。",
+	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — 新增治疗被控监控。",
+	["changelog_v1.0.4"] = "|cFFFFD100v1.0.4|r — 修复了技能会重复播放的问题。",
+
 	-- Misc
 	["Important"] = "重要",
 	["Defensive"] = "防御",

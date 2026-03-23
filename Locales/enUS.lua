@@ -87,6 +87,14 @@ L:SetDefaultStrings({
 	["Healer CC Sound File"] = "Sound File",
 	["Preview"] = "Preview",
 
+	-- Changelog tab
+	["Changelog"] = "Changelog",
+	["changelog_v1.0.0"] = "|cFFFFD100v1.0.0|r — Initial release.",
+	["changelog_v1.0.1"] = "|cFFFFD100v1.0.1|r — Added World / Arena / Battlegrounds / PvE zone detection.",
+	["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — Added Cast Bar and Interrupt monitoring.",
+	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — Added Healer CC monitoring.",
+	["changelog_v1.0.4"] = "|cFFFFD100v1.0.4|r — Fixed an issue where spell announcements could be played repeatedly.",
+
 	-- Misc
 	["Important"] = "Important",
 	["Defensive"] = "Defensive",

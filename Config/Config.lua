@@ -482,6 +482,26 @@ local function BuildHomeTab(content)
 	end)
 end
 
+-- ==================== Build Changelog Tab ====================
+
+local function BuildChangelogTab(content)
+	local changelogBlock = mini:TextBlock({
+		Parent = content,
+		Lines = {
+			L["changelog_v1.0.4"],
+			" ",
+			L["changelog_v1.0.3"],
+			" ",
+			L["changelog_v1.0.2"],
+			" ",
+			L["changelog_v1.0.1"],
+			" ",
+			L["changelog_v1.0.0"],
+		},
+	})
+	changelogBlock:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+end
+
 -- ==================== Build Zone Tab ====================
 
 local function BuildZoneTab(content, zoneKey)
@@ -941,6 +961,11 @@ function M:Init()
 				Key = "PvE",
 				Title = L["PvE"],
 				Build = function(content) BuildZoneTab(content, "PvE") end,
+			},
+			{
+				Key = "Changelog",
+				Title = L["Changelog"],
+				Build = function(content) BuildChangelogTab(content) end,
 			},
 		},
 	})
