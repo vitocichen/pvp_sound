@@ -325,6 +325,7 @@ local function BuildHomeTab(content)
 			L["home_intro_5"],
 			L["home_intro_5b"],
 			L["home_intro_5c"],
+			L["home_intro_5d"],
 			" ",
 			L["home_intro_6"],
 			" ",

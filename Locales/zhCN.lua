@@ -14,12 +14,13 @@ L:SetStrings({
 
 	-- Home page introduction
 	["home_intro_1"] = "PVP Sound 实时监控敌方增益/减益/施法/被控制效果，通过TTS语音播报PvP中的重要技能。",
-	["home_intro_2"] = "支持五种播报类型：",
+	["home_intro_2"] = "支持六种播报类型：",
 	["home_intro_3"] = "|cFF00FF00重要法术|r — 进攻性技能，如复仇之怒、自由之手、操控时间等。",
 	["home_intro_4"] = "|cFF00BFFF防御法术|r — 防御性技能，如保护之手、暗影斗篷、无敌、冰箱等。",
 	["home_intro_5"] = "|cFFFF6060友方被控|r — 施加在你或队友身上的控制技能（窒息、制裁、变羊、闷棍等）。",
 	["home_intro_5b"] = "|cFFFFD100读条监控|r — 实时播报敌方施法/引导技能名称。",
 	["home_intro_5c"] = "|cFFFFA500打断提醒|r — 当目标施法停止时播报打断成功。",
+	["home_intro_5d"] = "|cFFFF69B4治疗被控|r — 当治疗被控时候播放提示音效。",
 	["home_intro_6"] = "每种区域（野外、竞技场、战场、PvE）都有独立的设置 — 请在上方的标签页中分别配置。",
 	["home_intro_7"] = "输入 |cFFFFD100/pvpsound|r 或 |cFFFFD100/ps|r 打开设置面板，|cFFFFD100/ps test|r 可测试TTS语音输出。",
 	["Reset"] = "重置",

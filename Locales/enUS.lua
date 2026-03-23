@@ -10,12 +10,13 @@ L:SetDefaultStrings({
 
 	-- Home page introduction
 	["home_intro_1"] = "PVP Sound monitors enemy buffs/debuffs, casts, and CC effects, using Text-to-Speech (TTS) to announce important PvP spells in real time.",
-	["home_intro_2"] = "It supports five announcement categories:",
+	["home_intro_2"] = "It supports six announcement categories:",
 	["home_intro_3"] = "|cFF00FF00Important Spells|r - Offensive abilities such as Avenging Wrath, Blessing of Freedom, Alter Time, etc.",
 	["home_intro_4"] = "|cFF00BFFFDefensive Spells|r - Defensive cooldowns such as Blessing of Protection, Cloak of Shadows, Divine Shield, Ice Block, etc.",
 	["home_intro_5"] = "|cFFFF6060Friendly CC|r - Crowd control effects applied to you or your party (Asphyxiate, Hammer of Justice, Polymorph, Sap, etc.).",
 	["home_intro_5b"] = "|cFFFFD100Cast Bar|r - Announces enemy spell casts and channels in real time.",
 	["home_intro_5c"] = "|cFFFFA500Interrupt Alert|r - Announces when your target's cast is stopped.",
+	["home_intro_5d"] = "|cFFFF69B4Healer CC|r - Plays an alert sound when the healer is crowd controlled.",
 	["home_intro_6"] = "Each zone type (World, Arena, Battlegrounds, PvE) has independent settings — configure them in the tabs above.",
 	["home_intro_7"] = "Use |cFFFFD100/pvpsound|r or |cFFFFD100/ps|r to open this panel, or |cFFFFD100/ps test|r to test TTS output.",
 	["Reset"] = "Reset",
