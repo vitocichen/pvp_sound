@@ -9,7 +9,7 @@ local horizontalSpacing = mini.HorizontalSpacing
 local db
 
 local dbDefaults = {
-	Version = 7,
+	Version = 8,
 
 	TTS = {
 		VoiceID = false,
@@ -27,9 +27,9 @@ local dbDefaults = {
 			Defensive = true,
 			TargetFocusOnly = true,
 			CCEnabled = true,
-			CCMode = "Self",
+			CCMode = "All",
 			CastBar = true,
-			CastBarTargetOnly = true,
+			CastBarTargetOnly = false,
 			InterruptAlert = true,
 		},
 		Arena = {
@@ -39,9 +39,9 @@ local dbDefaults = {
 			Defensive = true,
 			TargetFocusOnly = false,
 			CCEnabled = true,
-			CCMode = "Self",
+			CCMode = "All",
 			CastBar = true,
-			CastBarTargetOnly = true,
+			CastBarTargetOnly = false,
 			InterruptAlert = true,
 			HealerCC = true,
 			HealerCCMode = "TTS",
@@ -55,7 +55,7 @@ local dbDefaults = {
 			Defensive = true,
 			TargetFocusOnly = true,
 			CCEnabled = true,
-			CCMode = "Self",
+			CCMode = "All",
 			CastBar = true,
 			CastBarTargetOnly = true,
 			InterruptAlert = true,
@@ -65,13 +65,13 @@ local dbDefaults = {
 			HealerCCSoundFile = "夏一可_控制成功.ogg",
 		},
 		PvE = {
-			Enabled = false,
+			Enabled = true,
 			ImportantEnabled = true,
 			Important = true,
 			Defensive = true,
 			TargetFocusOnly = true,
-			CCEnabled = false,
-			CCMode = "Off",
+			CCEnabled = true,
+			CCMode = "Self",
 			CastBar = true,
 			CastBarTargetOnly = true,
 			InterruptAlert = true,
@@ -223,6 +223,55 @@ local function MigrateV6(savedDb)
 	end
 
 	savedDb.Version = 7
+end
+
+-- Migrate v7 format to v8: update default CCMode/CastBar/PvE settings
+local function MigrateV7(savedDb)
+	if not savedDb or not savedDb.Version or savedDb.Version >= 8 then return end
+
+	if savedDb.Zones then
+		-- World: CCMode -> All, CastBarTargetOnly -> false
+		if savedDb.Zones.World then
+			local world = savedDb.Zones.World
+			if world.CCMode == "Self" or world.CCMode == "Off" then
+				world.CCMode = "All"
+			end
+			world.CastBarTargetOnly = false
+			-- Ensure CCEnabled is true
+			world.CCEnabled = true
+		end
+
+		-- Arena: CCMode -> All, CastBarTargetOnly -> false, CCEnabled -> true
+		if savedDb.Zones.Arena then
+			local arena = savedDb.Zones.Arena
+			if arena.CCMode == "Self" or arena.CCMode == "Off" then
+				arena.CCMode = "All"
+			end
+			arena.CastBarTargetOnly = false
+			arena.CCEnabled = true
+		end
+
+		-- BattleGrounds: CCMode -> All, CCEnabled -> true
+		if savedDb.Zones.BattleGrounds then
+			local bg = savedDb.Zones.BattleGrounds
+			if bg.CCMode == "Self" or bg.CCMode == "Off" then
+				bg.CCMode = "All"
+			end
+			bg.CCEnabled = true
+		end
+
+		-- PvE: Enabled -> true, CCEnabled -> true, CCMode -> Self (if Off)
+		if savedDb.Zones.PvE then
+			local pve = savedDb.Zones.PvE
+			pve.Enabled = true
+			pve.CCEnabled = true
+			if pve.CCMode == "Off" then
+				pve.CCMode = "Self"
+			end
+		end
+	end
+
+	savedDb.Version = 8
 end
 
 -- ==================== Sound files ====================
@@ -879,6 +928,7 @@ function M:Init()
 	MigrateV4(rawDb)
 	MigrateV5(rawDb)
 	MigrateV6(rawDb)
+	MigrateV7(rawDb)
 
 	db = mini:GetSavedVars(dbDefaults)
 	mini:CleanTable(db, dbDefaults, true, true)
