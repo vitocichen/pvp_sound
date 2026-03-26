@@ -76,6 +76,9 @@ L:SetDefaultStrings({
 	["Interrupt Section"] = "Interrupt Alert |cFF00BFFF(Detects cast stop only, not actual interrupt)|r",
 	["Announce via TTS when you successfully interrupt an enemy cast."] = "Announces when your target is interrupted or stops casting.",
 	["Interrupted"] = "Interrupted",
+	["Interrupt Range"] = "Range",
+	["Choose which enemies' interrupts to announce."] = "Choose which enemies' interrupts to announce.",
+	["Target + Focus"] = "Target + Focus",
 
 	-- Section 5: Healer CC
 	["Healer CC Section"] = "Healer CC",
@@ -94,6 +97,7 @@ L:SetDefaultStrings({
 	["changelog_v1.0.1"] = "|cFFFFD100v1.0.1|r — Added World / Arena / Battlegrounds / PvE zone detection.",
 	["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — Added Cast Bar and Interrupt monitoring.",
 	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — Added Healer CC monitoring.",
+	["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — Fixed cast bar duplicate announcements; added multi-target interrupt alert monitoring.",
 	["changelog_v1.0.4"] = "|cFFFFD100v1.0.4|r — Fixed an issue where spell announcements could be played repeatedly.",
 
 	-- Misc

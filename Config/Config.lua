@@ -31,6 +31,7 @@ local dbDefaults = {
 			CastBar = true,
 			CastBarTargetOnly = false,
 			InterruptAlert = true,
+			InterruptMode = "All",
 		},
 		Arena = {
 			Enabled = true,
@@ -43,6 +44,7 @@ local dbDefaults = {
 			CastBar = true,
 			CastBarTargetOnly = false,
 			InterruptAlert = true,
+			InterruptMode = "Target",
 			HealerCC = true,
 			HealerCCMode = "TTS",
 			HealerCCText = "治疗被控",
@@ -59,6 +61,7 @@ local dbDefaults = {
 			CastBar = true,
 			CastBarTargetOnly = true,
 			InterruptAlert = true,
+			InterruptMode = "Target",
 			HealerCC = true,
 			HealerCCMode = "TTS",
 			HealerCCText = "治疗被控",
@@ -75,6 +78,7 @@ local dbDefaults = {
 			CastBar = true,
 			CastBarTargetOnly = true,
 			InterruptAlert = true,
+			InterruptMode = "Target",
 		},
 	},
 }
@@ -538,6 +542,8 @@ local function BuildChangelogTab(content)
 	local changelogBlock = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v1.0.5"],
+			" ",
 			L["changelog_v1.0.4"],
 			" ",
 			L["changelog_v1.0.3"],
@@ -780,7 +786,37 @@ local function BuildZoneTab(content, zoneKey)
 	})
 	interruptChk:SetPoint("TOPLEFT", interruptDivider, "BOTTOMLEFT", 0, -verticalSpacing)
 
-	local lastElement = interruptChk
+	-- Interrupt Range dropdown
+	local interruptRangeLabel = mini:TextLine({
+		Parent = content,
+		Text = L["Interrupt Range"],
+	})
+	interruptRangeLabel:SetPoint("TOPLEFT", interruptChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	local interruptRangeItems = { "Target", "TargetFocus", "All" }
+	local interruptRangeDropdown = mini:Dropdown({
+		Parent = content,
+		Items = interruptRangeItems,
+		Width = 160,
+		GetValue = function()
+			return GetZone().InterruptMode or "Target"
+		end,
+		SetValue = function(value)
+			GetZone().InterruptMode = value
+			M:Apply()
+		end,
+		GetText = function(value)
+			if value == "Target" then return L["Target Only"]
+			elseif value == "TargetFocus" then return L["Target + Focus"]
+			else return L["All Enemies"]
+			end
+		end,
+	})
+	interruptRangeDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+	interruptRangeDropdown:SetPoint("TOP", interruptRangeLabel, "TOP", 0, 8)
+	interruptRangeDropdown:SetWidth(160)
+
+	local lastElement = interruptRangeLabel
 
 	-- ==================== Section 5: Healer CC (Arena and BattleGrounds) ====================
 	if zoneKey == "Arena" or zoneKey == "BattleGrounds" then

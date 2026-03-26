@@ -80,6 +80,9 @@ L:SetStrings({
 	["Interrupt Section"] = "打断监控 |cFF00BFFF（只能判断目标施法是否停止，无法区分被打断还是自行取消）|r",
 	["Announce via TTS when you successfully interrupt an enemy cast."] = "当目标被打断或停止施法时播报。",
 	["Interrupted"] = "打断成功",
+	["Interrupt Range"] = "监控范围",
+	["Choose which enemies' interrupts to announce."] = "选择监控哪些敌人的施法中断。",
+	["Target + Focus"] = "目标+焦点",
 
 	-- Section 5: Healer CC
 	["Healer CC Section"] = "治疗被控语音",
@@ -98,6 +101,7 @@ L:SetStrings({
 	["changelog_v1.0.1"] = "|cFFFFD100v1.0.1|r — 新增野外/竞技场/战场/PvE场景区分。",
 	["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — 新增读条和打断监控。",
 	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — 新增治疗被控监控。",
+	["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — 修复了读条重复播放的问题，新增多目标的打断成功监控。",
 	["changelog_v1.0.4"] = "|cFFFFD100v1.0.4|r — 修复了技能会重复播放的问题。",
 
 	-- Misc
