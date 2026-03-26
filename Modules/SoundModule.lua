@@ -190,11 +190,12 @@ end
 local function AnnounceCast(spellName)
 	if not spellName then return end
 
-	-- Interval check
+	-- Interval check: always enforce a minimum 0.05s gap to prevent
+	-- duplicate announces from the same cast arriving via multiple
+	-- unitIDs (e.g. "arena2" + "target" + "nameplate7" in the same frame).
 	local now = GetTime()
-	if cachedCastInterval and cachedCastInterval > 0 then
-		if now - lastCastAnnounceTime < cachedCastInterval then return end
-	end
+	local minInterval = cachedCastInterval and cachedCastInterval > 0 and cachedCastInterval or 0.05
+	if now - lastCastAnnounceTime < minInterval then return end
 	lastCastAnnounceTime = now
 
 	pcall(function()
