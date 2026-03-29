@@ -447,6 +447,7 @@ local function BuildHomeTab(content)
 		Parent = content,
 		Items = voiceItems,
 		Width = 240,
+		GridMode = true,
 		GetValue = function()
 			EnsureTtsOptions()
 			return db.TTS.VoiceID or (C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0)) or 0

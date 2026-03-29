@@ -489,6 +489,22 @@ function M:Dropdown(options)
 					options.SetValue(value)
 				end, value)
 			end
+
+			local count = #options.Items
+			if options.GridMode and count > 10 then
+				local columns
+				if count > 36 then columns = 4
+				elseif count > 24 then columns = 3
+				else columns = 2 end
+
+				if MenuConstants and MenuConstants.VerticalGridDirection then
+					rootDescription:SetGridMode(MenuConstants.VerticalGridDirection, columns)
+				end
+
+				local extent = 20
+				local maxRows = 20
+				rootDescription:SetScrollMode(extent * maxRows)
+			end
 		end)
 
 		function dd.MiniRefresh(ddSelf)
