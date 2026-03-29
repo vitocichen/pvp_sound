@@ -75,6 +75,9 @@ L:SetStrings({
 	["Choose which enemies' casts to announce."] = "选择播报哪些敌人的施法。",
 	["Target Only"] = "仅目标",
 	["All Enemies"] = "所有敌人",
+	["Exclude Pets"] = "排除宠物",
+	["Exclude pet and guardian casts (e.g. Water Elemental). Only announce player casts."] = "排除宠物和守护者的施法（如水元素），仅播报玩家施法。",
+	["Exclude pet and guardian interrupts (e.g. Water Elemental). Only announce player interrupts."] = "排除宠物和守护者的打断（如水元素），仅播报玩家打断。",
 
 	-- Section 4: Interrupt
 	["Interrupt Section"] = "打断监控 |cFF00BFFF（只能判断目标施法是否停止，无法区分被打断还是自行取消）|r",
@@ -102,6 +105,7 @@ L:SetStrings({
 	["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — 新增读条和打断监控。",
 	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — 新增治疗被控监控。",
 	["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — 修复了读条重复播放的问题，新增多目标的打断成功监控。",
+	["changelog_v1.0.6"] = "|cFFFFD100v1.0.6|r — 读条监控和打断监控新增「排除宠物」选项，可过滤宠物/守护者（如水元素）的施法。",
 	["changelog_v1.0.4"] = "|cFFFFD100v1.0.4|r — 修复了技能会重复播放的问题。",
 
 	-- Misc

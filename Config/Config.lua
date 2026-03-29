@@ -9,7 +9,7 @@ local horizontalSpacing = mini.HorizontalSpacing
 local db
 
 local dbDefaults = {
-	Version = 8,
+	Version = 9,
 
 	TTS = {
 		VoiceID = false,
@@ -30,8 +30,10 @@ local dbDefaults = {
 			CCMode = "All",
 			CastBar = true,
 			CastBarTargetOnly = false,
+			CastBarExcludePets = false,
 			InterruptAlert = true,
 			InterruptMode = "All",
+			InterruptExcludePets = false,
 		},
 		Arena = {
 			Enabled = true,
@@ -43,8 +45,10 @@ local dbDefaults = {
 			CCMode = "All",
 			CastBar = true,
 			CastBarTargetOnly = false,
+			CastBarExcludePets = true,
 			InterruptAlert = true,
 			InterruptMode = "Target",
+			InterruptExcludePets = true,
 			HealerCC = true,
 			HealerCCMode = "TTS",
 			HealerCCText = "治疗被控",
@@ -60,8 +64,10 @@ local dbDefaults = {
 			CCMode = "All",
 			CastBar = true,
 			CastBarTargetOnly = true,
+			CastBarExcludePets = true,
 			InterruptAlert = true,
 			InterruptMode = "Target",
+			InterruptExcludePets = true,
 			HealerCC = true,
 			HealerCCMode = "TTS",
 			HealerCCText = "治疗被控",
@@ -77,8 +83,10 @@ local dbDefaults = {
 			CCMode = "Self",
 			CastBar = true,
 			CastBarTargetOnly = true,
+			CastBarExcludePets = true,
 			InterruptAlert = true,
 			InterruptMode = "Target",
+			InterruptExcludePets = true,
 		},
 	},
 }
@@ -276,6 +284,26 @@ local function MigrateV7(savedDb)
 	end
 
 	savedDb.Version = 8
+end
+
+-- Migrate v8 format to v9: add CastBarExcludePets and InterruptExcludePets
+local function MigrateV8(savedDb)
+	if not savedDb or not savedDb.Version or savedDb.Version >= 9 then return end
+
+	if savedDb.Zones then
+		for zoneKey, zone in pairs(savedDb.Zones) do
+			-- World defaults to false (include pets/NPCs), others default to true (exclude pets)
+			local defaultExclude = (zoneKey ~= "World")
+			if zone.CastBarExcludePets == nil then
+				zone.CastBarExcludePets = defaultExclude
+			end
+			if zone.InterruptExcludePets == nil then
+				zone.InterruptExcludePets = defaultExclude
+			end
+		end
+	end
+
+	savedDb.Version = 9
 end
 
 -- ==================== Sound files ====================
@@ -542,6 +570,8 @@ local function BuildChangelogTab(content)
 	local changelogBlock = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v1.0.6"],
+			" ",
 			L["changelog_v1.0.5"],
 			" ",
 			L["changelog_v1.0.4"],
@@ -765,6 +795,18 @@ local function BuildZoneTab(content, zoneKey)
 	castRangeDropdown:SetPoint("TOP", castRangeLabel, "TOP", 0, 8)
 	castRangeDropdown:SetWidth(160)
 
+	local castExcludePetsChk = mini:Checkbox({
+		Parent = content,
+		LabelText = L["Exclude Pets"],
+		Tooltip = L["Exclude pet and guardian casts (e.g. Water Elemental). Only announce player casts."],
+		GetValue = function() return GetZone().CastBarExcludePets ~= false end,
+		SetValue = function(value)
+			GetZone().CastBarExcludePets = value
+			M:Apply()
+		end,
+	})
+	castExcludePetsChk:SetPoint("TOPLEFT", castRangeLabel, "BOTTOMLEFT", 0, -verticalSpacing)
+
 	-- ==================== Section 4: Interrupt Alert ====================
 	local interruptDivider = mini:Divider({
 		Parent = content,
@@ -772,7 +814,7 @@ local function BuildZoneTab(content, zoneKey)
 	})
 	interruptDivider:SetPoint("LEFT", content, "LEFT")
 	interruptDivider:SetPoint("RIGHT", content, "RIGHT")
-	interruptDivider:SetPoint("TOP", castRangeLabel, "BOTTOM", 0, -verticalSpacing * 2.5)
+	interruptDivider:SetPoint("TOP", castExcludePetsChk, "BOTTOM", 0, -verticalSpacing * 2.5)
 
 	local interruptChk = mini:Checkbox({
 		Parent = content,
@@ -816,7 +858,19 @@ local function BuildZoneTab(content, zoneKey)
 	interruptRangeDropdown:SetPoint("TOP", interruptRangeLabel, "TOP", 0, 8)
 	interruptRangeDropdown:SetWidth(160)
 
-	local lastElement = interruptRangeLabel
+	local interruptExcludePetsChk = mini:Checkbox({
+		Parent = content,
+		LabelText = L["Exclude Pets"],
+		Tooltip = L["Exclude pet and guardian interrupts (e.g. Water Elemental). Only announce player interrupts."],
+		GetValue = function() return GetZone().InterruptExcludePets ~= false end,
+		SetValue = function(value)
+			GetZone().InterruptExcludePets = value
+			M:Apply()
+		end,
+	})
+	interruptExcludePetsChk:SetPoint("TOPLEFT", interruptRangeLabel, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	local lastElement = interruptExcludePetsChk
 
 	-- ==================== Section 5: Healer CC (Arena and BattleGrounds) ====================
 	if zoneKey == "Arena" or zoneKey == "BattleGrounds" then
@@ -965,6 +1019,7 @@ function M:Init()
 	MigrateV5(rawDb)
 	MigrateV6(rawDb)
 	MigrateV7(rawDb)
+	MigrateV8(rawDb)
 
 	db = mini:GetSavedVars(dbDefaults)
 	mini:CleanTable(db, dbDefaults, true, true)

@@ -242,6 +242,11 @@ local function OnCastEvent(unit, spellID)
 		if not units:IsEnemy(unit) then return end
 	end
 
+	-- Exclude pet/guardian casts if option is enabled
+	if zone.CastBarExcludePets ~= false and UnitIsOtherPlayersPet(unit) then
+		return
+	end
+
 	-- Get spell name
 	local spellName
 	if spellID then
@@ -279,6 +284,11 @@ local function OnCastInterrupted(unit)
 	else -- "All"
 		if not unit or not UnitExists(unit) then return end
 		if not units:IsEnemy(unit) then return end
+	end
+
+	-- Exclude pet/guardian interrupts if option is enabled
+	if zone.InterruptExcludePets ~= false and UnitIsOtherPlayersPet(unit) then
+		return
 	end
 
 	-- Throttle: at most once per second
