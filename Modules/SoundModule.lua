@@ -94,6 +94,7 @@ local function AnnounceTTS(spellName, spellType)
 
 	pcall(function()
 		local speechRate = cachedTTSSpeechRate or 0
+		C_VoiceChat.StopSpeakingText()
 		C_VoiceChat.SpeakText(cachedVoiceID, spellName, speechRate, cachedTTSVolume, true)
 	end)
 end
@@ -200,6 +201,7 @@ local function AnnounceCast(spellName)
 
 	pcall(function()
 		local speechRate = cachedTTSSpeechRate or 0
+		C_VoiceChat.StopSpeakingText()
 		C_VoiceChat.SpeakText(cachedVoiceID, spellName, speechRate, cachedTTSVolume, true)
 	end)
 end
