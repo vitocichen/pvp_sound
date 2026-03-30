@@ -102,7 +102,7 @@ L:SetDefaultStrings({
 	["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — Added Cast Bar and Interrupt monitoring.",
 	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — Added Healer CC monitoring.",
 	["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — Fixed cast bar duplicate announcements; added multi-target interrupt alert monitoring.",
-	["changelog_v1.0.6"] = "|cFFFFD100v1.0.6|r — Added 'Exclude Pets' option for Cast Bar and Interrupt monitoring to filter out pet/guardian casts (e.g. Water Elemental).",
+	["changelog_v1.0.6"] = "|cFFFFD100v1.0.6|r — Added 'Exclude Pets' option for Cast Bar and Interrupt; adapted voice dropdown layout for Mac.",
 	["changelog_v1.0.4"] = "|cFFFFD100v1.0.4|r — Fixed an issue where spell announcements could be played repeatedly.",
 
 	-- Misc
