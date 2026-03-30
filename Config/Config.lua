@@ -399,6 +399,7 @@ local function BuildHomeTab(content)
 		Parent = content,
 		Lines = {
 			L["home_intro_1"],
+			L["home_intro_tts_warning"],
 			" ",
 			L["home_intro_2"],
 			L["home_intro_3"],

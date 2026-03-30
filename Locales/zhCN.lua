@@ -14,6 +14,7 @@ L:SetStrings({
 
 	-- Home page introduction
 	["home_intro_1"] = "PVP Sound 实时监控敌方增益/减益/施法/被控制效果，通过TTS语音播报PvP中的重要技能。",
+	["home_intro_tts_warning"] = "|cFFFF2020注：请关闭系统/其他插件的TTS语音播报，否则会造成重复和延时！！！|r",
 	["home_intro_2"] = "支持六种播报类型：",
 	["home_intro_3"] = "|cFF00FF00重要法术|r — 进攻性技能，如复仇之怒、自由之手、操控时间等。",
 	["home_intro_4"] = "|cFF00BFFF防御法术|r — 防御性技能，如保护之手、暗影斗篷、无敌、冰箱等。",
