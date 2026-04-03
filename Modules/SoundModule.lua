@@ -93,7 +93,7 @@ local function AnnounceTTS(spellName, spellType)
 	end
 
 	pcall(function()
-		local speechRate = cachedTTSSpeechRate or 0
+		local speechRate = cachedTTSSpeechRate or 7
 		C_VoiceChat.SpeakText(cachedVoiceID, spellName, speechRate, cachedTTSVolume, true)
 	end)
 end
@@ -154,7 +154,7 @@ local function AnnounceHealerCC(zone)
 		local text = zone.HealerCCText or "治疗被控"
 		if not text or text == "" then return end
 		pcall(function()
-			local speechRate = cachedTTSSpeechRate or 0
+			local speechRate = cachedTTSSpeechRate or 7
 			C_VoiceChat.SpeakText(cachedVoiceID, text, speechRate, cachedTTSVolume, true)
 		end)
 	end
@@ -199,7 +199,7 @@ local function AnnounceCast(spellName)
 	lastCastAnnounceTime = now
 
 	pcall(function()
-		local speechRate = cachedTTSSpeechRate or 0
+		local speechRate = cachedTTSSpeechRate or 7
 		C_VoiceChat.SpeakText(cachedVoiceID, spellName, speechRate, cachedTTSVolume, true)
 	end)
 end
@@ -298,7 +298,7 @@ local function OnCastInterrupted(unit)
 
 	local text = addon.L["Interrupted"] or "Interrupted"
 	pcall(function()
-		local speechRate = cachedTTSSpeechRate or 0
+		local speechRate = cachedTTSSpeechRate or 7
 		C_VoiceChat.SpeakText(cachedVoiceID, text, speechRate, cachedTTSVolume, true)
 	end)
 end
@@ -647,7 +647,7 @@ local function CacheTTSSettings()
 	local tts = db.TTS or {}
 	cachedVoiceID = tts.VoiceID or (C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0)) or 0
 	cachedTTSVolume = tts.Volume or 100
-	cachedTTSSpeechRate = tts.SpeechRate or 0
+	cachedTTSSpeechRate = tts.SpeechRate or 7
 	cachedCastInterval = tts.CastInterval or 0
 end
 

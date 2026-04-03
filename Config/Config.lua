@@ -14,7 +14,7 @@ local dbDefaults = {
 	TTS = {
 		VoiceID = false,
 		Volume = 100,
-		SpeechRate = 5,
+		SpeechRate = 7,
 		CastMinDuration = 1.0,
 		CastInterval = 0.0,
 	},
@@ -377,17 +377,17 @@ end
 
 local function EnsureTtsOptions()
 	if not db.TTS then
-		db.TTS = { Volume = 100, SpeechRate = 0 }
+		db.TTS = { Volume = 100, SpeechRate = 7 }
 	end
 	if db.TTS.SpeechRate == nil then
-		db.TTS.SpeechRate = 0
+		db.TTS.SpeechRate = 7
 	end
 end
 
 local function DoTest()
 	local voiceId = db.TTS and db.TTS.VoiceID or (C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0)) or 0
 	local vol = db.TTS and db.TTS.Volume or 100
-	local rate = db.TTS and db.TTS.SpeechRate or 0
+	local rate = db.TTS and db.TTS.SpeechRate or 7
 	C_VoiceChat.SpeakText(voiceId, "PVP Sound Test", rate, vol, true)
 end
 
@@ -455,7 +455,7 @@ local function BuildHomeTab(content)
 		SetValue = function(value)
 			EnsureTtsOptions()
 			db.TTS.VoiceID = value
-			local speechRate = db.TTS.SpeechRate or 0
+			local speechRate = db.TTS.SpeechRate or 7
 			C_VoiceChat.SpeakText(value, L["Voice"], speechRate, db.TTS.Volume or 100, true)
 			M:Apply()
 		end,
@@ -467,12 +467,49 @@ local function BuildHomeTab(content)
 	voiceDropdown:SetPoint("TOP", voiceLabel, "TOP", 0, 8)
 	voiceDropdown:SetWidth(200)
 
-	-- Volume slider
+	local voiceHint = content:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	voiceHint:SetText(L["Voice Recommend Hint"])
+	voiceHint:SetPoint("TOPLEFT", voiceLabel, "BOTTOMLEFT", 0, -verticalSpacing * 0.5)
+
+	local tutorialEditBox = CreateFrame("EditBox", nil, content, "InputBoxTemplate")
+	tutorialEditBox:SetSize(280, 20)
+	tutorialEditBox:SetPoint("TOPLEFT", voiceHint, "BOTTOMLEFT", 4, -verticalSpacing * 0.5)
+	tutorialEditBox:SetAutoFocus(false)
+	tutorialEditBox:SetText(L["Voice Tutorial URL"])
+	tutorialEditBox:SetCursorPosition(0)
+	tutorialEditBox:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+	tutorialEditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+	tutorialEditBox:SetScript("OnTextChanged", function(self)
+		self:SetText(L["Voice Tutorial URL"])
+		self:HighlightText()
+	end)
+
+	local copyBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	copyBtn:SetSize(60, 22)
+	copyBtn:SetPoint("LEFT", tutorialEditBox, "RIGHT", horizontalSpacing, 0)
+	copyBtn:SetText(L["Copy"])
+	copyBtn:SetScript("OnClick", function(self)
+		tutorialEditBox:SetText(L["Voice Tutorial URL"])
+		tutorialEditBox:HighlightText()
+		tutorialEditBox:SetFocus()
+		self:SetText(L["Copied"])
+		C_Timer.After(1.5, function() self:SetText(L["Copy"]) end)
+	end)
+
+	-- ---- Volume divider ----
+	local volumeDivider = mini:Divider({
+		Parent = content,
+		Text = L["TTS Volume"],
+	})
+	volumeDivider:SetPoint("LEFT", content, "LEFT")
+	volumeDivider:SetPoint("RIGHT", content, "RIGHT")
+	volumeDivider:SetPoint("TOP", tutorialEditBox, "BOTTOM", 0, -verticalSpacing * 2)
+
 	local volumeSlider = mini:Slider({
 		Parent = content,
 		Min = 0,
 		Max = 100,
-		Width = (columnWidth * 2) - horizontalSpacing,
+		Width = (columnWidth * 3) - horizontalSpacing,
 		Step = 1,
 		LabelText = L["TTS Volume"],
 		GetValue = function()
@@ -487,22 +524,30 @@ local function BuildHomeTab(content)
 			end
 		end,
 	})
-	volumeSlider.Slider:SetPoint("TOPLEFT", voiceLabel, "BOTTOMLEFT", 4, -verticalSpacing * 3)
+	volumeSlider.Slider:SetPoint("TOPLEFT", volumeDivider, "BOTTOMLEFT", 4, -verticalSpacing)
 
-	-- Speech Rate slider
+	-- ---- Speech Rate divider ----
+	local speechRateDivider = mini:Divider({
+		Parent = content,
+		Text = L["TTS Speech Rate"],
+	})
+	speechRateDivider:SetPoint("LEFT", content, "LEFT")
+	speechRateDivider:SetPoint("RIGHT", content, "RIGHT")
+	speechRateDivider:SetPoint("TOP", volumeSlider.Slider, "BOTTOM", 0, -verticalSpacing * 2)
+
 	local speechRateSlider = mini:Slider({
 		Parent = content,
-		Min = -5,
-		Max = 5,
-		Width = (columnWidth * 2) - horizontalSpacing,
+		Min = -10,
+		Max = 10,
+		Width = (columnWidth * 3) - horizontalSpacing,
 		Step = 1,
 		LabelText = L["TTS Speech Rate"],
 		GetValue = function()
 			EnsureTtsOptions()
-			return db.TTS.SpeechRate or 0
+			return db.TTS.SpeechRate or 7
 		end,
 		SetValue = function(v)
-			local newValue = mini:ClampInt(v, -5, 5, 0)
+			local newValue = mini:ClampInt(v, -10, 10, 0)
 			EnsureTtsOptions()
 			if db.TTS.SpeechRate ~= newValue then
 				db.TTS.SpeechRate = newValue
@@ -510,14 +555,26 @@ local function BuildHomeTab(content)
 			end
 		end,
 	})
-	speechRateSlider.Slider:SetPoint("LEFT", volumeSlider.Slider, "RIGHT", horizontalSpacing, 0)
+	speechRateSlider.Slider:SetPoint("TOPLEFT", speechRateDivider, "BOTTOMLEFT", 4, -verticalSpacing)
 
-	-- Cast Interval slider
+	local speechRateHint = content:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	speechRateHint:SetText(L["Speech Rate Recommend Hint"])
+	speechRateHint:SetPoint("TOPLEFT", speechRateSlider.Slider, "BOTTOMLEFT", -4, -verticalSpacing * 1.5)
+
+	-- ---- Cast Interval divider ----
+	local castIntervalDivider = mini:Divider({
+		Parent = content,
+		Text = L["Cast Interval"],
+	})
+	castIntervalDivider:SetPoint("LEFT", content, "LEFT")
+	castIntervalDivider:SetPoint("RIGHT", content, "RIGHT")
+	castIntervalDivider:SetPoint("TOP", speechRateHint, "BOTTOM", 0, -verticalSpacing * 2)
+
 	local castIntervalSlider = mini:Slider({
 		Parent = content,
 		Min = 0,
 		Max = 5,
-		Width = (columnWidth * 2) - horizontalSpacing,
+		Width = (columnWidth * 3) - horizontalSpacing,
 		Step = 0.5,
 		LabelText = L["Cast Interval"],
 		GetValue = function()
@@ -535,12 +592,12 @@ local function BuildHomeTab(content)
 			end
 		end,
 	})
-	castIntervalSlider.Slider:SetPoint("TOPLEFT", volumeSlider.Slider, "BOTTOMLEFT", 0, -verticalSpacing * 3)
+	castIntervalSlider.Slider:SetPoint("TOPLEFT", castIntervalDivider, "BOTTOMLEFT", 4, -verticalSpacing)
 
 	-- Test button
 	local testBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
 	testBtn:SetSize(120, 26)
-	testBtn:SetPoint("TOPLEFT", castIntervalSlider.Slider, "BOTTOMLEFT", 0, -verticalSpacing * 2)
+	testBtn:SetPoint("TOPLEFT", castIntervalSlider.Slider, "BOTTOMLEFT", 0, -verticalSpacing * 2.5)
 	testBtn:SetText(L["Test"])
 	testBtn:SetScript("OnClick", DoTest)
 
@@ -572,6 +629,8 @@ local function BuildChangelogTab(content)
 	local changelogBlock = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v1.0.7"],
+			" ",
 			L["changelog_v1.0.6"],
 			" ",
 			L["changelog_v1.0.5"],
@@ -986,7 +1045,7 @@ local function BuildZoneTab(content, zoneKey)
 			else
 				local voiceId = db.TTS and db.TTS.VoiceID or 0
 				local vol = db.TTS and db.TTS.Volume or 100
-				local rate = db.TTS and db.TTS.SpeechRate or 0
+				local rate = db.TTS and db.TTS.SpeechRate or 7
 				local text = GetZone().HealerCCText or "治疗被控"
 				C_VoiceChat.SpeakText(voiceId, text, rate, vol, true)
 			end

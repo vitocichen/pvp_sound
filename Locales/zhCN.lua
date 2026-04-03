@@ -36,6 +36,11 @@ L:SetStrings({
 	["You must choose a voice in your language for this to work."] = "必须选择与你的语言匹配的语音才能使其生效。",
 	["TTS Volume"] = "TTS音量",
 	["TTS Speech Rate"] = "TTS语速",
+	["Voice Recommend Hint"] = "|cFFFFD100推荐 Xiaoxiao，教程如下：|r",
+	["Voice Tutorial URL"] = "nga.178.com/read.php?tid=45648904",
+	["Copy"] = "复制",
+	["Copied"] = "已复制",
+	["Speech Rate Recommend Hint"] = "|cFFFFD100推荐 Huihui 最低7，Xiaoxiao 最低5，否则会延迟播报|r",
 	["Cast Interval"] = "读条播报间隔",
 
 	-- Zone names
@@ -106,6 +111,7 @@ L:SetStrings({
 	["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — 新增读条和打断监控。",
 	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — 新增治疗被控监控。",
 	["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — 修复了读条重复播放的问题，新增多目标的打断成功监控。",
+	["changelog_v1.0.7"] = "|cFFFFD100v1.0.7|r — TTS语速调节范围扩大至-10~10，推荐Xiaoxiao最低5，Huihui最低7，否则会延时播报。",
 	["changelog_v1.0.6"] = "|cFFFFD100v1.0.6|r — 新增读条/打断的「排除宠物」选项；适配Mac语音选择多列布局。",
 	["changelog_v1.0.4"] = "|cFFFFD100v1.0.4|r — 修复了技能会重复播放的问题。",
 

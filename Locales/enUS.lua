@@ -32,6 +32,11 @@ L:SetDefaultStrings({
 	["You must choose a voice in your language for this to work."] = "You must choose a voice in your language for this to work.",
 	["TTS Volume"] = "TTS Volume",
 	["TTS Speech Rate"] = "TTS Speech Rate",
+	["Voice Recommend Hint"] = "|cFFFFD100Recommend: Xiaoxiao. Tutorial:|r",
+	["Voice Tutorial URL"] = "nga.178.com/read.php?tid=45648904",
+	["Copy"] = "Copy",
+	["Copied"] = "Copied",
+	["Speech Rate Recommend Hint"] = "|cFFFFD100Recommend: Huihui min 7, Xiaoxiao min 5, or TTS may be delayed|r",
 	["Cast Interval"] = "Cast Interval",
 
 	-- Zone names
@@ -102,6 +107,7 @@ L:SetDefaultStrings({
 	["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — Added Cast Bar and Interrupt monitoring.",
 	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — Added Healer CC monitoring.",
 	["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — Fixed cast bar duplicate announcements; added multi-target interrupt alert monitoring.",
+	["changelog_v1.0.7"] = "|cFFFFD100v1.0.7|r — Expanded TTS speech rate range to -10~10. Recommend Xiaoxiao min 5, Huihui min 7, or TTS may be delayed.",
 	["changelog_v1.0.6"] = "|cFFFFD100v1.0.6|r — Added 'Exclude Pets' option for Cast Bar and Interrupt; adapted voice dropdown layout for Mac.",
 	["changelog_v1.0.4"] = "|cFFFFD100v1.0.4|r — Fixed an issue where spell announcements could be played repeatedly.",
 
