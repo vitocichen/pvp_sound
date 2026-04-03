@@ -181,10 +181,71 @@ local function GetTargetFocusOnly()
 	return zone.TargetFocusOnly ~= false
 end
 
-local function GetCastBarTargetOnly()
+local function GetCastBarMode()
 	local zone = moduleUtil:GetZoneConfig()
-	if not zone then return true end
-	return zone.CastBarTargetOnly ~= false
+	if not zone then return "TargetOnly" end
+	local val = zone.CastBarTargetOnly
+	if val == "TargetingMe" then return "TargetingMe" end
+	if val ~= false then return "TargetOnly" end
+	return "All"
+end
+
+local function IsCastTargetingPlayer(unit)
+	-- Method 1: check caster's current target via explicit compound unit tokens
+	if unit == "target" then
+		if UnitExists("targettarget") and UnitIsUnit("targettarget", "player") then
+			return true
+		end
+	elseif unit == "focus" then
+		if UnitExists("focustarget") and UnitIsUnit("focustarget", "player") then
+			return true
+		end
+	else
+		-- arena/nameplate/boss units: try compound token
+		local casterTarget = unit .. "target"
+		if UnitExists(casterTarget) and UnitIsUnit(casterTarget, "player") then
+			return true
+		end
+		-- Also cross-check via "target"/"focus" if this unit matches
+		if UnitExists("target") and UnitIsUnit(unit, "target") then
+			if UnitExists("targettarget") and UnitIsUnit("targettarget", "player") then
+				return true
+			end
+		end
+		if UnitExists("focus") and UnitIsUnit(unit, "focus") then
+			if UnitExists("focustarget") and UnitIsUnit("focustarget", "player") then
+				return true
+			end
+		end
+	end
+
+	-- Method 2: UnitSpellTargetName (catches @focus macro casts where
+	-- the caster's target isn't the player but the spell target is)
+	if UnitSpellTargetName then
+		local playerName = UnitName("player")
+		local name = UnitSpellTargetName(unit)
+		if name and name == playerName then return true end
+		if UnitExists("target") and UnitIsUnit(unit, "target") then
+			name = UnitSpellTargetName("target")
+			if name and name == playerName then return true end
+		end
+		if UnitExists("focus") and UnitIsUnit(unit, "focus") then
+			name = UnitSpellTargetName("focus")
+			if name and name == playerName then return true end
+		end
+	end
+
+	-- Method 3: For NPCs, use threat as heuristic.
+	-- If the player is the mob's primary target (tanking / highest threat),
+	-- the mob's cast is very likely directed at the player.
+	if not UnitIsPlayer(unit) then
+		local threat = UnitThreatSituation("player", unit)
+		if threat and threat >= 2 then
+			return true
+		end
+	end
+
+	return false
 end
 
 local function AnnounceCast(spellName)
@@ -210,9 +271,14 @@ local function CheckTargetCast()
 
 	local zone = moduleUtil:GetZoneConfig()
 	if not zone or not zone.CastBar then return end
-	if not GetCastBarTargetOnly() then return end -- Only used when target-only mode
+
+	local mode = GetCastBarMode()
+	if mode ~= "TargetOnly" and mode ~= "TargetingMe" then return end
 
 	if not UnitExists("target") or not units:IsEnemy("target") then return end
+
+	-- For TargetingMe mode, only announce if the target is casting at the player
+	if mode == "TargetingMe" and not IsCastTargetingPlayer("target") then return end
 
 	local spellName = UnitCastingInfo("target")
 	if not spellName then
@@ -223,31 +289,7 @@ local function CheckTargetCast()
 	AnnounceCast(spellName)
 end
 
-local function OnCastEvent(unit, spellID)
-	if not moduleUtil:IsEnabled() then return end
-	if paused or inPrepRoom then return end
-
-	local zone = moduleUtil:GetZoneConfig()
-	if not zone or not zone.CastBar then return end
-
-	local castBarTargetOnly = GetCastBarTargetOnly()
-
-	if castBarTargetOnly then
-		-- Only listen to target casts
-		if unit ~= "target" then return end
-		if not UnitExists("target") or not units:IsEnemy("target") then return end
-	else
-		-- Listen to all enemy unit casts (nameplates, arena units, etc.)
-		if not unit or not UnitExists(unit) then return end
-		if not units:IsEnemy(unit) then return end
-	end
-
-	-- Exclude pet/guardian casts if option is enabled
-	if zone.CastBarExcludePets ~= false and UnitIsOtherPlayersPet(unit) then
-		return
-	end
-
-	-- Get spell name
+local function GetCastSpellName(unit, spellID)
 	local spellName
 	if spellID then
 		spellName = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellID)
@@ -258,10 +300,54 @@ local function OnCastEvent(unit, spellID)
 	if not spellName then
 		spellName = UnitChannelInfo(unit)
 	end
-	if not spellName then
-		spellName = tostring(spellID or "cast")
+	return spellName
+end
+
+local function OnCastEvent(unit, spellID)
+	if not moduleUtil:IsEnabled() then return end
+	if paused or inPrepRoom then return end
+
+	local zone = moduleUtil:GetZoneConfig()
+	if not zone or not zone.CastBar then return end
+
+	local mode = GetCastBarMode()
+
+	if mode == "TargetOnly" then
+		if unit ~= "target" then return end
+		if not UnitExists("target") or not units:IsEnemy("target") then return end
+	elseif mode == "TargetingMe" then
+		if not unit or not UnitExists(unit) then return end
+		if not units:IsEnemy(unit) then return end
+		if zone.CastBarExcludePets ~= false and UnitIsOtherPlayersPet(unit) then return end
+
+		local spellName = GetCastSpellName(unit, spellID) or tostring(spellID or "cast")
+
+		if IsCastTargetingPlayer(unit) then
+			AnnounceCast(spellName)
+			return
+		end
+
+		-- UnitSpellTargetName may not be populated yet at UNIT_SPELLCAST_START;
+		-- retry after a short delay (similar to InsaneForPvP's OnValueChanged polling).
+		C_Timer.After(0.15, function()
+			if not UnitExists(unit) then return end
+			if not (UnitCastingInfo(unit) or UnitChannelInfo(unit)) then return end
+			if IsCastTargetingPlayer(unit) then
+				AnnounceCast(spellName)
+			end
+		end)
+		return
+	else -- "All"
+		if not unit or not UnitExists(unit) then return end
+		if not units:IsEnemy(unit) then return end
 	end
 
+	-- Exclude pet/guardian casts if option is enabled
+	if zone.CastBarExcludePets ~= false and UnitIsOtherPlayersPet(unit) then
+		return
+	end
+
+	local spellName = GetCastSpellName(unit, spellID) or tostring(spellID or "cast")
 	AnnounceCast(spellName)
 end
 

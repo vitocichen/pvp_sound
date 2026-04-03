@@ -834,20 +834,28 @@ local function BuildZoneTab(content, zoneKey)
 	})
 	castRangeLabel:SetPoint("TOPLEFT", castBarChk, "BOTTOMLEFT", 0, -verticalSpacing)
 
-	local castRangeItems = { "TargetOnly", "All" }
+	local castRangeItems = { "TargetOnly", "TargetingMe", "All" }
 	local castRangeDropdown = mini:Dropdown({
 		Parent = content,
 		Items = castRangeItems,
 		Width = 160,
 		GetValue = function()
-			return GetZone().CastBarTargetOnly ~= false and "TargetOnly" or "All"
+			local val = GetZone().CastBarTargetOnly
+			if val == "TargetingMe" then return "TargetingMe" end
+			if val ~= false then return "TargetOnly" end
+			return "All"
 		end,
 		SetValue = function(value)
-			GetZone().CastBarTargetOnly = (value == "TargetOnly")
+			if value == "TargetingMe" then
+				GetZone().CastBarTargetOnly = "TargetingMe"
+			else
+				GetZone().CastBarTargetOnly = (value == "TargetOnly")
+			end
 			M:Apply()
 		end,
 		GetText = function(value)
 			if value == "TargetOnly" then return L["Target Only"]
+			elseif value == "TargetingMe" then return L["Targeting Me"]
 			else return L["All Enemies"]
 			end
 		end,
