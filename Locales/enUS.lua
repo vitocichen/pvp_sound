@@ -112,6 +112,12 @@ L:SetDefaultStrings({
 	["changelog_v1.0.6"] = "|cFFFFD100v1.0.6|r — Added 'Exclude Pets' option for Cast Bar and Interrupt; adapted voice dropdown layout for Mac.",
 	["changelog_v1.0.4"] = "|cFFFFD100v1.0.4|r — Fixed an issue where spell announcements could be played repeatedly.",
 
+	-- Donate
+	["Donate"] = "Donate",
+	["Donate Popup Title"] = "Support PVP Sound",
+	["Donate Popup Hint"] = "Copy the link and open in your browser to donate:",
+	["Donate Open Hint"] = "|cFF888888Can't open? Find donate.html in the addon folder and double-click it|r",
+
 	-- Misc
 	["Important"] = "Important",
 	["Defensive"] = "Defensive",

@@ -1128,18 +1128,83 @@ function M:Init()
 	title:SetPoint("TOPLEFT", 0, -verticalSpacing)
 	title:SetText(string.format("%s - %s", addonName, version))
 
-	local lines = mini:TextBlock({
+	local descBlock = mini:TextBlock({
 		Parent = panel,
 		Lines = {
 			L["addon_description"],
-			L["Author: DK-姜世离（燃烧之刃）"],
 		},
 	})
-	lines:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+	descBlock:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
+
+	local authorLine = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+	authorLine:SetText(L["Author: DK-姜世离（燃烧之刃）"])
+	authorLine:SetPoint("TOPLEFT", descBlock, "BOTTOMLEFT", 0, -4)
+
+	-- ==================== Donate button ====================
+	local donateBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+	donateBtn:SetSize(80, 22)
+	donateBtn:SetPoint("LEFT", authorLine, "RIGHT", horizontalSpacing, 2)
+	donateBtn:SetText(L["Donate"])
+
+	local donatePopup = CreateFrame("Frame", "PVPSoundDonatePopup", UIParent, "BasicFrameTemplateWithInset")
+	donatePopup:SetSize(440, 140)
+	donatePopup:SetPoint("CENTER")
+	donatePopup:SetFrameStrata("DIALOG")
+	donatePopup:EnableMouse(true)
+	donatePopup:SetMovable(true)
+	donatePopup:RegisterForDrag("LeftButton")
+	donatePopup:SetScript("OnDragStart", donatePopup.StartMoving)
+	donatePopup:SetScript("OnDragStop", donatePopup.StopMovingOrSizing)
+	donatePopup:Hide()
+	donatePopup.TitleText:SetText(L["Donate Popup Title"])
+
+	local donateHint = donatePopup:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	donateHint:SetText(L["Donate Popup Hint"])
+	donateHint:SetPoint("TOP", donatePopup, "TOP", 0, -32)
+
+	local donateURL = "https://vitocichen.github.io/pvp_sound/"
+	local donateEditBox = CreateFrame("EditBox", nil, donatePopup, "InputBoxTemplate")
+	donateEditBox:SetSize(300, 20)
+	donateEditBox:SetPoint("TOP", donateHint, "BOTTOM", -20, -12)
+	donateEditBox:SetAutoFocus(false)
+	donateEditBox:SetText(donateURL)
+	donateEditBox:SetCursorPosition(0)
+	donateEditBox:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+	donateEditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+	donateEditBox:SetScript("OnTextChanged", function(self)
+		self:SetText(donateURL)
+		self:HighlightText()
+	end)
+
+	local donateCopyBtn = CreateFrame("Button", nil, donatePopup, "UIPanelButtonTemplate")
+	donateCopyBtn:SetSize(60, 22)
+	donateCopyBtn:SetPoint("LEFT", donateEditBox, "RIGHT", 8, 0)
+	donateCopyBtn:SetText(L["Copy"])
+	donateCopyBtn:SetScript("OnClick", function(self)
+		donateEditBox:SetText(donateURL)
+		donateEditBox:HighlightText()
+		donateEditBox:SetFocus()
+		self:SetText(L["Copied"])
+		C_Timer.After(1.5, function() self:SetText(L["Copy"]) end)
+	end)
+
+	local donateOpenHint = donatePopup:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	donateOpenHint:SetText(L["Donate Open Hint"])
+	donateOpenHint:SetPoint("TOP", donateEditBox, "BOTTOM", -20, -8)
+
+	donateBtn:SetScript("OnClick", function()
+		if donatePopup:IsShown() then
+			donatePopup:Hide()
+		else
+			donatePopup:Show()
+			donateEditBox:SetText(donateURL)
+			donateEditBox:SetCursorPosition(0)
+		end
+	end)
 
 	-- ==================== Tabs ====================
 	local tabsPanel = CreateFrame("Frame", nil, panel)
-	tabsPanel:SetPoint("TOPLEFT", lines, "BOTTOMLEFT", 0, -verticalSpacing)
+	tabsPanel:SetPoint("TOPLEFT", authorLine, "BOTTOMLEFT", 0, -verticalSpacing)
 	tabsPanel:SetPoint("RIGHT", panel, "RIGHT", 0, 0)
 	tabsPanel:SetPoint("BOTTOM", panel, "BOTTOM", 0, verticalSpacing * 2)
 

@@ -116,6 +116,12 @@ L:SetStrings({
 	["changelog_v1.0.6"] = "|cFFFFD100v1.0.6|r — 新增读条/打断的「排除宠物」选项；适配Mac语音选择多列布局。",
 	["changelog_v1.0.4"] = "|cFFFFD100v1.0.4|r — 修复了技能会重复播放的问题。",
 
+	-- Donate
+	["Donate"] = "打赏支持",
+	["Donate Popup Title"] = "打赏支持",
+	["Donate Popup Hint"] = "复制链接，在浏览器中打开即可扫码打赏：",
+	["Donate Open Hint"] = "|cFF888888打不开？在插件目录下找到 donate.html 双击打开|r",
+
 	-- Misc
 	["Important"] = "重要",
 	["Defensive"] = "防御",

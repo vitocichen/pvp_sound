@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DK-姜世离 - 魔兽世界插件 & 打赏支持</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%);
+    color: #e6edf3;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 16px 60px;
+  }
+  .container {
+    max-width: 780px;
+    width: 100%;
+    text-align: center;
+  }
+  .logo {
+    width: 80px;
+    height: 80px;
+    border-radius: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    background: linear-gradient(90deg, #58a6ff, #bc8cff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .author-tag {
+    font-size: 14px;
+    color: #8b949e;
+    margin-bottom: 24px;
+  }
+  .subtitle {
+    font-size: 15px;
+    color: #8b949e;
+    margin-bottom: 32px;
+    line-height: 1.6;
+  }
+  .heart { color: #f85149; }
+
+  /* QR Cards */
+  .qr-grid {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .qr-card {
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 24px;
+    width: 320px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .qr-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .qr-card.alipay { border-top: 3px solid #1677ff; }
+  .qr-card.wechat { border-top: 3px solid #07c160; }
+  .qr-card h2 {
+    font-size: 18px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .qr-card.alipay h2 { color: #1677ff; }
+  .qr-card.wechat h2 { color: #07c160; }
+  .qr-img {
+    width: 270px;
+    height: 270px;
+    border-radius: 8px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    overflow: hidden;
+  }
+  .qr-img img { width: 100%; height: 100%; object-fit: contain; }
+  .qr-placeholder { color: #666; font-size: 14px; padding: 20px; }
+  .thanks {
+    margin-top: 24px;
+    padding: 16px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #8b949e;
+    line-height: 1.8;
+  }
+
+  /* Divider */
+  .divider {
+    margin: 40px 0 28px;
+    border: none;
+    border-top: 1px solid #30363d;
+  }
+
+  /* Section */
+  .section-header {
+    text-align: left;
+    margin-bottom: 20px;
+  }
+  .section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #e6edf3;
+  }
+  .section-subtitle {
+    font-size: 12px;
+    color: #484f58;
+    margin-top: 4px;
+  }
+
+  /* ===== Addon Table ===== */
+  .addon-table {
+    width: 100%;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    overflow: hidden;
+    text-align: left;
+  }
+  .addon-row {
+    display: flex;
+    align-items: flex-start;
+    padding: 14px 20px;
+    border-bottom: 1px solid #21262d;
+    gap: 14px;
+    transition: background 0.15s;
+  }
+  .addon-row:last-child { border-bottom: none; }
+  .addon-row:hover { background: #161b2288; }
+
+  .addon-num {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+    text-align: center;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    background: #1f6feb33;
+    color: #58a6ff;
+    margin-top: 1px;
+  }
+  .addon-body {
+    flex: 1;
+    min-width: 0;
+  }
+  .addon-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .addon-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #58a6ff;
+  }
+  .badge {
+    font-size: 10px;
+    padding: 1px 7px;
+    border-radius: 8px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+  }
+  .b-retail { background: #1f6feb33; color: #58a6ff; border: 1px solid #1f6feb55; }
+  .b-classic { background: #f0883e22; color: #f0883e; border: 1px solid #f0883e44; }
+  .b-mop { background: #3fb95022; color: #3fb950; border: 1px solid #3fb95044; }
+  .b-titan { background: #bc8cff22; color: #bc8cff; border: 1px solid #bc8cff44; }
+
+  .addon-desc {
+    font-size: 13px;
+    color: #8b949e;
+    line-height: 1.5;
+    margin-bottom: 8px;
+  }
+  .addon-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .link-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    text-decoration: none;
+    padding: 3px 10px;
+    border-radius: 12px;
+    transition: all 0.15s;
+    font-weight: 500;
+  }
+  .link-pill.curse { color: #f16436; background: #f1643612; border: 1px solid #f1643630; }
+  .link-pill.curse:hover { background: #f1643625; border-color: #f16436; }
+  .link-pill.nga { color: #f0883e; background: #f0883e12; border: 1px solid #f0883e30; }
+  .link-pill.nga:hover { background: #f0883e25; border-color: #f0883e; }
+  .link-pill.github { color: #e6edf3; background: #ffffff10; border: 1px solid #ffffff20; }
+  .link-pill.github:hover { background: #ffffff20; border-color: #e6edf3; }
+  .link-pill.baidu { color: #3fb950; background: #3fb95012; border: 1px solid #3fb95030; }
+  .link-pill.baidu:hover { background: #3fb95025; border-color: #3fb950; }
+  .extract-code { font-size: 10px; color: #484f58; margin-left: 2px; }
+
+  /* Sub-versions */
+  .sub-list {
+    margin-top: 8px;
+    padding-left: 0;
+  }
+  .sub-item {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 5px 0;
+    border-top: 1px dashed #30363d44;
+  }
+  .sub-item:first-child { border-top: none; padding-top: 0; }
+  .sub-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #c9d1d9;
+    min-width: 60px;
+  }
+
+  /* Footer */
+  .footer {
+    margin-top: 40px;
+    font-size: 13px;
+    color: #484f58;
+  }
+  .footer a { color: #58a6ff; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 520px) {
+    .qr-card { width: 100%; }
+    .addon-row { flex-direction: column; gap: 6px; }
+    .addon-num { align-self: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ====== Header ====== -->
+  <img class="logo" src="https://raw.githubusercontent.com/vitocichen/pvp_sound/main/PVP_Sound.png" alt="PVP Sound">
+  <h1>DK-姜世离</h1>
+  <div class="author-tag">燃烧之刃 &middot; 魔兽世界插件作者</div>
+
+  <p class="subtitle">
+    如果这些插件对你有帮助，可以请作者喝杯咖啡 <span class="heart">&hearts;</span><br>
+    If you find these addons useful, consider buying the author a coffee!
+  </p>
+
+  <!-- ====== QR Codes ====== -->
+  <div class="qr-grid">
+    <div class="qr-card alipay">
+      <h2>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#1677ff"><path d="M21.422 15.358c-1.985-.761-5.198-2.04-5.198-2.04s.504-1.065.89-2.328c.385-1.263.504-2.822.504-2.822H13.11v-1.56h5.04V5.57h-5.04V3.12h-2.646v2.45H5.31v1.038h5.154v1.56H5.85v1.038h7.95s-.12.942-.36 1.77c-.24.828-.615 1.56-.615 1.56s-3.39-1.44-5.19-1.44c-1.8 0-3.39.84-3.39 2.52 0 1.68 1.38 2.94 3.69 2.94 2.31 0 4.17-1.26 5.49-3.18 0 0 2.115.99 4.62 2.16.42.198.78.366 1.095.51A9.964 9.964 0 0112 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10c0 1.178-.204 2.31-.578 3.358zM7.8 16.598c-1.32 0-1.8-.63-1.8-1.26 0-.63.6-1.2 1.65-1.2 1.05 0 2.97.78 2.97.78s-1.05 1.68-2.82 1.68z"/></svg>
+        支付宝
+      </h2>
+      <div class="qr-img">
+        <img src="jiangshili_alipay.png" alt="支付宝收款码" onerror="this.parentElement.innerHTML='<div class=qr-placeholder>请将 jiangshili_alipay.png<br>放入 docs 文件夹</div>'">
+      </div>
+    </div>
+    <div class="qr-card wechat">
+      <h2>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#07c160"><path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 01.213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 00.167-.054l1.903-1.114a.864.864 0 01.717-.098 10.16 10.16 0 002.837.403c.276 0 .543-.027.811-.05-.857-2.578.157-4.972 1.932-6.446 1.703-1.415 3.882-1.98 5.853-1.838-.576-3.583-4.196-6.348-8.596-6.348zM5.785 5.991c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178A1.17 1.17 0 014.623 7.17c0-.651.52-1.18 1.162-1.18zm5.813 0c.642 0 1.162.529 1.162 1.18a1.17 1.17 0 01-1.162 1.178 1.17 1.17 0 01-1.162-1.178c0-.651.52-1.18 1.162-1.18zm3.875 4.17c-2.114 0-4.031.752-5.388 1.896-1.37 1.158-2.14 2.756-2.14 4.507 0 .97.26 1.903.737 2.745.025.042.025.094.025.14 0 .119-.094.212-.212.212a.233.233 0 01-.12-.039l-1.363-.8a.618.618 0 00-.514-.07 7.26 7.26 0 002.033.29c2.114 0 4.031-.753 5.388-1.898 1.37-1.157 2.14-2.755 2.14-4.506 0-1.752-.77-3.349-2.14-4.507-1.357-1.144-3.274-1.896-5.388-1.896l.942 3.926zm-3.478 2.07c-.46 0-.833-.38-.833-.847s.373-.847.833-.847.833.38.833.847-.373.847-.833.847zm4.167 0c-.46 0-.833-.38-.833-.847s.373-.847.833-.847.833.38.833.847-.373.847-.833.847z"/></svg>
+        微信支付
+      </h2>
+      <div class="qr-img">
+        <img src="jiangshili_wechat.png" alt="微信收款码" onerror="this.parentElement.innerHTML='<div class=qr-placeholder>请将 jiangshili_wechat.png<br>放入 docs 文件夹</div>'">
+      </div>
+    </div>
+  </div>
+
+  <div class="thanks">
+    感谢你的支持！每一份打赏都是对作者持续更新的最大鼓励。<br>
+    Thank you for your support! Every donation encourages the author to keep updating.
+  </div>
+
+  <!-- ====== Addon List ====== -->
+  <hr class="divider">
+
+  <div class="section-header">
+    <div class="section-title">插件作品 / My Addons</div>
+    <div class="section-subtitle">所有插件均免费，欢迎使用和反馈</div>
+  </div>
+
+  <div class="addon-table">
+
+    <!-- 1. PVP Sound -->
+    <div class="addon-row">
+      <div class="addon-num">1</div>
+      <div class="addon-body">
+        <div class="addon-title-row">
+          <span class="addon-name">PVP Sound</span>
+          <span class="badge b-retail">正式服</span>
+        </div>
+        <div class="addon-desc">PvP 语音播报 — TTS 实时播报敌方重要技能、防御技能、控制、读条和打断。</div>
+        <div class="addon-links">
+          <a class="link-pill curse" href="https://www.curseforge.com/wow/addons/pvp-sound-alert" target="_blank">CurseForge</a>
+          <a class="link-pill nga" href="https://bbs.nga.cn/read.php?tid=46391159" target="_blank">NGA</a>
+          <a class="link-pill github" href="https://github.com/vitocichen/pvp_sound" target="_blank">GitHub</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. sArena Reloaded DIY -->
+    <div class="addon-row">
+      <div class="addon-num">2</div>
+      <div class="addon-body">
+        <div class="addon-title-row">
+          <span class="addon-name">sArena Reloaded DIY</span>
+          <span class="badge b-retail">正式服</span>
+        </div>
+        <div class="addon-desc">竞技场框体增强 — 宠物框体、自身递减追踪、DR免疫发光、血条饰品镜像等。</div>
+        <div class="addon-links">
+          <a class="link-pill curse" href="https://www.curseforge.com/wow/addons/sarena-reloaded-diy" target="_blank">CurseForge</a>
+          <a class="link-pill nga" href="https://bbs.nga.cn/read.php?tid=46482381" target="_blank">NGA</a>
+          <a class="link-pill github" href="https://github.com/vitocichen/sarena_reloaded_diy" target="_blank">GitHub</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. PVP Data -->
+    <div class="addon-row">
+      <div class="addon-num">3</div>
+      <div class="addon-body">
+        <div class="addon-title-row">
+          <span class="addon-name">PVP Data</span>
+          <span class="badge b-retail">正式服</span>
+          <span class="badge b-mop">熊猫人</span>
+          <span class="badge b-titan">时光服</span>
+        </div>
+        <div class="addon-desc">PvP 战斗力数据 — 显示玩家等级分、场次、胜率，快速判断对手实力。</div>
+        <div class="sub-list">
+          <div class="sub-item">
+            <span class="sub-label">正式服</span>
+            <a class="link-pill nga" href="https://bbs.nga.cn/read.php?tid=43478385" target="_blank">NGA</a>
+            <a class="link-pill baidu" href="https://pan.baidu.com/s/1FzoN29p_qFZ8O694QysEUA?pwd=nbm2" target="_blank">网盘 <span class="extract-code">nbm2</span></a>
+          </div>
+          <div class="sub-item">
+            <span class="sub-label">熊猫人</span>
+            <a class="link-pill nga" href="https://bbs.nga.cn/read.php?tid=45573350" target="_blank">NGA</a>
+            <a class="link-pill baidu" href="https://pan.baidu.com/s/1BbEjNJo0AcriEi2EbjHdQQ?pwd=798a" target="_blank">网盘 <span class="extract-code">798a</span></a>
+          </div>
+          <div class="sub-item">
+            <span class="sub-label">时光服</span>
+            <a class="link-pill nga" href="https://bbs.nga.cn/read.php?tid=46102723" target="_blank">NGA</a>
+            <a class="link-pill baidu" href="https://pan.baidu.com/s/1LCUid9m78HaWIyK7uqF5FQ?pwd=vyv2" target="_blank">网盘 <span class="extract-code">vyv2</span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. DK Death Grip Fix -->
+    <div class="addon-row">
+      <div class="addon-num">4</div>
+      <div class="addon-body">
+        <div class="addon-title-row">
+          <span class="addon-name">DK 死亡之握修复</span>
+          <span class="badge b-classic">怀旧服</span>
+        </div>
+        <div class="addon-desc">修复插旗环境中死亡之握的冷却时间显示不准确问题。</div>
+        <div class="addon-links">
+          <a class="link-pill nga" href="https://bbs.nga.cn/read.php?tid=46365386" target="_blank">NGA</a>
+          <a class="link-pill baidu" href="https://pan.baidu.com/s/1elwVCKiOWnIvRfzCInSM4A?pwd=72vn" target="_blank">网盘 <span class="extract-code">72vn</span></a>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. GladiatorlosSA2 MoP -->
+    <div class="addon-row">
+      <div class="addon-num">5</div>
+      <div class="addon-body">
+        <div class="addon-title-row">
+          <span class="addon-name">GladiatorlosSA2 夏一可版</span>
+          <span class="badge b-mop">熊猫人</span>
+        </div>
+        <div class="addon-desc">熊猫人 PvP 语音插件 — 夏一可中文语音包版本，竞技场/战场播报敌方关键技能。</div>
+        <div class="addon-links">
+          <a class="link-pill nga" href="https://bbs.nga.cn/read.php?tid=45901818" target="_blank">NGA</a>
+          <a class="link-pill baidu" href="https://pan.baidu.com/s/1GlX4OvHMFcXfQBDGxS6dCw?pwd=cdqf" target="_blank">网盘 <span class="extract-code">cdqf</span></a>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. PlateColor DIY -->
+    <div class="addon-row">
+      <div class="addon-num">6</div>
+      <div class="addon-body">
+        <div class="addon-title-row">
+          <span class="addon-name">PlateColor DIY</span>
+          <span class="badge b-retail">正式服</span>
+        </div>
+        <div class="addon-desc">血条增强 — 集成友方职业图标，优化敌方 PvP 姓名板名字和颜色显示。</div>
+        <div class="addon-links">
+          <a class="link-pill baidu" href="https://pan.baidu.com/s/1eOBFc0macMzn0F_qfEjebg?pwd=5uq9" target="_blank">网盘 <span class="extract-code">5uq9</span></a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ====== Footer ====== -->
+  <div class="footer">
+    <a href="https://github.com/vitocichen/pvp_sound">GitHub</a> &middot;
+    DK-姜世离 &copy; 2025
+  </div>
+
+</div>
+</body>
+</html>
