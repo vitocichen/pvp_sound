@@ -120,7 +120,7 @@ L:SetStrings({
 	["Donate"] = "打赏支持",
 	["Donate Popup Title"] = "打赏支持",
 	["Donate Popup Hint"] = "复制链接，在浏览器中打开即可扫码打赏：",
-	["Donate Open Hint"] = "|cFF888888打不开？在插件目录下找到 donate.html 双击打开|r",
+	["Donate Open Hint"] = "|cFF888888打不开？请尝试使用浏览器直接访问上方网址|r",
 
 	-- Misc
 	["Important"] = "重要",

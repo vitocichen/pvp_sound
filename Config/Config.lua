@@ -1162,7 +1162,7 @@ function M:Init()
 	donateHint:SetText(L["Donate Popup Hint"])
 	donateHint:SetPoint("TOP", donatePopup, "TOP", 0, -32)
 
-	local donateURL = "https://vitocichen.github.io/pvp_sound/"
+	local donateURL = "https://vitocichen.github.io/DK-jiangshili/"
 	local donateEditBox = CreateFrame("EditBox", nil, donatePopup, "InputBoxTemplate")
 	donateEditBox:SetSize(300, 20)
 	donateEditBox:SetPoint("TOP", donateHint, "BOTTOM", -20, -12)

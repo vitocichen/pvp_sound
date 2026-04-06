@@ -116,7 +116,7 @@ L:SetDefaultStrings({
 	["Donate"] = "Donate",
 	["Donate Popup Title"] = "Support PVP Sound",
 	["Donate Popup Hint"] = "Copy the link and open in your browser to donate:",
-	["Donate Open Hint"] = "|cFF888888Can't open? Find donate.html in the addon folder and double-click it|r",
+	["Donate Open Hint"] = "|cFF888888Can't open? Try visiting the URL above in your browser|r",
 
 	-- Misc
 	["Important"] = "Important",
