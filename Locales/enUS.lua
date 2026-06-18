@@ -103,11 +103,13 @@ L:SetDefaultStrings({
 
 	-- Changelog tab
 	["Changelog"] = "Changelog",
+	["PVP Sound - What's New?"] = "PVP Sound - What's New?",
 	["changelog_v1.0.0"] = "|cFFFFD100v1.0.0|r — Initial release.",
 	["changelog_v1.0.1"] = "|cFFFFD100v1.0.1|r — Added World / Arena / Battlegrounds / PvE zone detection.",
 	["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — Added Cast Bar and Interrupt monitoring.",
 	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — Added Healer CC monitoring.",
 	["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — Fixed cast bar duplicate announcements; added multi-target interrupt alert monitoring.",
+	["changelog_v1.0.9"] = "|cFFFFD100v1.0.9|r — 12.0.7 fix: Blizzard removed the IMPORTANT spell whitelist, so offensive buffs can no longer be identified from aura data. Important announcements now read the buff icons Blizzard already curates onto the enemy nameplate, matching the default UI exactly. Defensive/CC announcements are unaffected.\n\n|cffff3030[REQUIRED] Important announcements rely on the default nameplates: in Blizzard's UI options, (1) enable showing enemy nameplates (press V, or check it under Interface > Nameplates), and (2) enable the nameplate 'Enemy Buffs' option. Otherwise offensive spells won't be announced!|r",
 	["changelog_v1.0.8"] = "|cFFFFD100v1.0.8|r — Real-target cast detection only supports 'targeting me' casts; focus/mouseover cast filtering is not possible due to API limitations.",
 	["changelog_v1.0.7"] = "|cFFFFD100v1.0.7|r — Expanded TTS speech rate range to -10~10. Recommend Xiaoxiao min 5, Huihui min 7, or TTS may be delayed.",
 	["changelog_v1.0.6"] = "|cFFFFD100v1.0.6|r — Added 'Exclude Pets' option for Cast Bar and Interrupt; adapted voice dropdown layout for Mac.",

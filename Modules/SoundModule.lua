@@ -27,6 +27,18 @@ local cachedTTSVolume
 local cachedTTSSpeechRate
 local cachedCastInterval
 
+-- Important (offensive) detection via Blizzard's own nameplate buff display.
+-- Since 12.0.7 removed the IMPORTANT aura filter / IsSpellImportant whitelist,
+-- addons can no longer tell which enemy buffs are "important". Blizzard's C++
+-- still curates exactly that set into the enemy nameplate buff icons (the
+-- "Enemy Buffs" option), reading the secret nameplateShowAll flag we cannot.
+-- So we read those already-rendered icons: each shown buff icon exposes a
+-- (never-secret) auraInstanceID and isBuff flag, letting us announce exactly
+-- what the default nameplate shows.
+-- npImportantSeen[unitToken] = { [auraInstanceID] = true }  -- icons already seen
+local npImportantSeen = {}
+local npImportantPending = {}
+
 -- Per-frame announce dedup: in a single OnAuraDataChanged pass, only announce
 -- once per spell-type (important / defensive / cc).
 -- This is needed because AoE abilities (e.g. Earthgrab Totem) produce a NEW
@@ -56,6 +68,9 @@ local healerCCActive = false -- true while any healer has CC (like MiniCC's IsVi
 local castFrame
 local lastCastAnnounceTime = 0
 local lastInterruptAnnounceTime = 0
+
+-- Nameplate buff-icon scanner frame (enemy important detection)
+local npScanFrame
 
 ---@class SoundModule
 local M = {}
@@ -98,22 +113,96 @@ local function AnnounceTTS(spellName, spellType)
 	end)
 end
 
+-- Speak a (possibly secret) aura name. We never branch on the name itself
+-- (that would raise on a secret value); SpeakText accepts the secret and the
+-- game speaks it without exposing the value to Lua.
+local function SpeakImportant(name)
+	pcall(function()
+		local speechRate = cachedTTSSpeechRate or 7
+		C_VoiceChat.SpeakText(cachedVoiceID, name, speechRate, cachedTTSVolume, true)
+	end)
+end
+
+-- Walk an enemy nameplate's AurasFrame and invoke callback(auraInstanceID) for
+-- every currently-shown *buff* icon (isBuff == true) with a readable instance
+-- ID. These are exactly the icons Blizzard's "Enemy Buffs" nameplate option
+-- displays, i.e. the curated important-buff set.
+local function ForEachNameplateBuffIcon(unit, callback)
+	local np = C_NamePlate.GetNamePlateForUnit(unit)
+	if not np then return end
+	local uf = np.UnitFrame
+	if not uf then return end
+	local af = uf.AurasFrame
+	if not af then return end
+
+	local function walk(frame, depth)
+		if depth > 4 or not frame.GetChildren then return end
+		for _, child in ipairs({ frame:GetChildren() }) do
+			if type(child) == "table" and type(child.Icon) == "table" then
+				if child.IsShown and child:IsShown() and child.isBuff == true then
+					local id = child.auraInstanceID
+					if id ~= nil and not issecretvalue(id) then
+						callback(id)
+					end
+				end
+			else
+				walk(child, depth + 1)
+			end
+		end
+	end
+
+	pcall(walk, af, 0)
+end
+
+-- Scan one enemy nameplate's buff icons and announce any newly-shown ones.
+-- allowAnnounce=false seeds the seen-set silently (so pre-existing/persistent
+-- buffs on a freshly-shown nameplate are not announced).
+local function ScanNameplateImportant(unit, allowAnnounce)
+	if paused or inPrepRoom then return end
+	if not UnitExists(unit) then return end
+
+	local current = {}
+	ForEachNameplateBuffIcon(unit, function(id) current[id] = true end)
+
+	local seen = npImportantSeen[unit]
+	npImportantSeen[unit] = current
+
+	if not allowAnnounce or not seen then return end
+
+	local zone = moduleUtil:GetZoneConfig()
+	if not zone or zone.ImportantEnabled == false or not zone.Important then return end
+
+	-- Respect the Target/Focus-only setting (default on), EXCEPT in arena where
+	-- (matching the original behaviour) all enemies are always announced.
+	local _, instanceType = IsInInstance()
+	if instanceType ~= "arena"
+		and zone.TargetFocusOnly ~= false
+		and not (UnitIsUnit(unit, "target") or UnitIsUnit(unit, "focus")) then
+		return
+	end
+
+	for id in pairs(current) do
+		if not seen[id] then
+			local data = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, id)
+			if data then SpeakImportant(data.name) end
+		end
+	end
+end
+
+local function ScheduleNameplateImportantScan(unit, allowAnnounce)
+	if npImportantPending[unit] then return end
+	npImportantPending[unit] = true
+	C_Timer.After(0, function()
+		npImportantPending[unit] = nil
+		ScanNameplateImportant(unit, allowAnnounce)
+	end)
+end
+
 local function ProcessEnemyWatcherData(watcher)
 	local unit = watcher:GetUnit()
 	if not unit or not UnitExists(unit) then return end
 
-	local importantData = watcher:GetImportantState()
 	local defensivesData = watcher:GetDefensiveState()
-
-	for _, data in ipairs(importantData) do
-		if data.AuraInstanceID then
-			if not currentImportantAuras[data.AuraInstanceID]
-				and not previousImportantAuras[data.AuraInstanceID] then
-				AnnounceTTS(data.SpellName, "important")
-			end
-			currentImportantAuras[data.AuraInstanceID] = true
-		end
-	end
 
 	for _, data in ipairs(defensivesData) do
 		if data.AuraInstanceID then
@@ -529,6 +618,8 @@ local function OnMatchStateChanged()
 	previousDefensiveAuras = {}
 	previousFriendlyCCAuras = {}
 	healerCCActive = false
+	wipe(npImportantSeen)
+	wipe(npImportantPending)
 end
 
 local function OnNamePlateAdded(unitToken)
@@ -539,7 +630,7 @@ local function OnNamePlateAdded(unitToken)
 
 	if not units:IsEnemy(unitToken) then return end
 
-	local watcherFilter = { Defensive = true, Important = true }
+	local watcherFilter = { Defensive = true }
 	local watcher = unitWatcher:New(unitToken, nil, watcherFilter)
 	watcher:RegisterCallback(ScheduleAuraDataUpdate)
 	nameplateWatchers[unitToken] = watcher
@@ -665,6 +756,8 @@ local function DisableWatchers()
 	previousDefensiveAuras = {}
 	previousFriendlyCCAuras = {}
 	healerCCActive = false
+	wipe(npImportantSeen)
+	wipe(npImportantPending)
 end
 
 local function EnableDisable()
@@ -748,8 +841,9 @@ function M:Init()
 
 	CacheTTSSettings()
 
-	-- Initialize arena watchers (enemy important/defensive)
-	local enemyFilter = { Defensive = true, Important = true }
+	-- Initialize arena watchers (enemy defensives; important comes from the
+	-- nameplate buff icons via the scanner below).
+	local enemyFilter = { Defensive = true }
 	local arenaEvents = { "ARENA_OPPONENT_UPDATE" }
 	arenaWatchers = {
 		unitWatcher:New("arena1", arenaEvents, enemyFilter),
@@ -820,6 +914,29 @@ function M:Init()
 			OnCastInterrupted(unit)
 		else
 			OnCastEvent(unit, spellID)
+		end
+	end)
+
+	-- Nameplate buff-icon scanner: detects enemy "important" buffs by reading
+	-- the icons Blizzard already curated onto the enemy nameplate.
+	npScanFrame = CreateFrame("Frame")
+	npScanFrame:RegisterEvent("NAME_PLATE_UNIT_ADDED")
+	npScanFrame:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
+	npScanFrame:RegisterEvent("UNIT_AURA")
+	npScanFrame:SetScript("OnEvent", function(_, event, unit)
+		if not moduleUtil:IsEnabled() then return end
+		if event == "NAME_PLATE_UNIT_ADDED" then
+			if units:IsEnemy(unit) then
+				npImportantSeen[unit] = nil
+				ScheduleNameplateImportantScan(unit, false)
+			end
+		elseif event == "NAME_PLATE_UNIT_REMOVED" then
+			npImportantSeen[unit] = nil
+			npImportantPending[unit] = nil
+		elseif event == "UNIT_AURA" then
+			if npImportantSeen[unit] ~= nil then
+				ScheduleNameplateImportantScan(unit, true)
+			end
 		end
 	end)
 

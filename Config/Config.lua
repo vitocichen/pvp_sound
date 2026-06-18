@@ -11,6 +11,9 @@ local db
 local dbDefaults = {
 	Version = 9,
 
+	-- Tracks the version whose "What's New" dialog has already been shown.
+	WhatsNewVersion = false,
+
 	TTS = {
 		VoiceID = false,
 		Volume = 100,
@@ -629,6 +632,8 @@ local function BuildChangelogTab(content)
 	local changelogBlock = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v1.0.9"],
+			" ",
 			L["changelog_v1.0.8"],
 			" ",
 			L["changelog_v1.0.7"],
