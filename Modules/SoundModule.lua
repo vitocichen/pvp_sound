@@ -930,8 +930,36 @@ local function CacheTTSSettings()
 	cachedCastInterval = tts.CastInterval or 0
 end
 
+-- Our important detection reads the enemy buff icons that Blizzard's nameplate
+-- "Enemy Buffs" display produces. Nameplate addons (e.g. BetterBlizzPlates) and
+-- imported profiles often turn that display OFF, which silently breaks offensive
+-- announcements. Re-enable the "Enemy Buffs" bit of the nameplateEnemyPlayerAuraDisplay
+-- bitfield so the icons exist. Opt-out via db.AutoEnableEnemyBuffs = false.
+local enemyBuffsCVarPending = false
+local function EnsureEnemyBuffsDisplay()
+	if not db or db.AutoEnableEnemyBuffs == false then return end
+	if not moduleUtil:IsEnabled() then return end
+	if not (C_CVar and C_CVar.SetCVarBitfield) then return end
+	local display = Enum and Enum.NamePlateEnemyPlayerAuraDisplay
+	if not (display and display.Buffs) then return end
+
+	-- Setting CVars during combat lockdown can taint; defer to combat end.
+	if InCombatLockdown() then
+		enemyBuffsCVarPending = true
+		return
+	end
+	enemyBuffsCVarPending = false
+	pcall(C_CVar.SetCVarBitfield, "nameplateEnemyPlayerAuraDisplay", display.Buffs, true)
+end
+
 function M:Refresh()
+	-- Re-sync the prep-room gate from the real match state. It is otherwise only
+	-- updated on PVP_MATCH_STATE_CHANGED; if the "left the arena" event is ever
+	-- missed, inPrepRoom would stay true and silence ALL announcements until a
+	-- /reload. Refresh runs on PLAYER_ENTERING_WORLD, so this self-heals.
+	OnMatchStateChanged()
 	CacheTTSSettings()
+	EnsureEnemyBuffsDisplay()
 	EnableDisable()
 end
 
@@ -973,8 +1001,12 @@ function M:Init()
 	eventsFrame:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 	eventsFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	eventsFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+	eventsFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 	eventsFrame:SetScript("OnEvent", function(_, event, unitToken)
-		if event == "PVP_MATCH_STATE_CHANGED" then
+		if event == "PLAYER_REGEN_ENABLED" then
+			if enemyBuffsCVarPending then EnsureEnemyBuffsDisplay() end
+			return
+		elseif event == "PVP_MATCH_STATE_CHANGED" then
 			OnMatchStateChanged()
 		elseif event == "NAME_PLATE_UNIT_ADDED" then
 			if moduleUtil:IsEnabled() then
@@ -1054,4 +1086,8 @@ function M:Init()
 	end)
 
 	EnableDisable()
+	EnsureEnemyBuffsDisplay()
+	-- Re-assert shortly after login: other nameplate addons set this CVar during
+	-- their own load and may run after us, turning the display back off.
+	C_Timer.After(3, EnsureEnemyBuffsDisplay)
 end
