@@ -52,6 +52,18 @@ function M:IsEnemy(unitToken)
 	return UnitIsEnemy("player", unitToken)
 end
 
+-- True for a player's pet OR guardian/minion. UnitIsOtherPlayersPet only
+-- catches controllable pets (e.g. Hunter pet, Water Elemental); guardians like
+-- Mage Mirror Images, Warlock Wild Imps/Dreadstalkers and most temporary
+-- summons are caught by UnitIsMinion instead.
+function M:IsPetOrMinion(unitToken)
+	if not unitToken then return false end
+	if string.find(unitToken, "pet", 1, true) then return true end
+	if UnitIsOtherPlayersPet(unitToken) then return true end
+	if UnitIsMinion and UnitIsMinion(unitToken) then return true end
+	return false
+end
+
 function M:IsHealer(unit)
 	local role = UnitGroupRolesAssigned(unit)
 	return role == "HEALER"

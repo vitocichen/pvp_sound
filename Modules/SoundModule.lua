@@ -35,9 +35,27 @@ local cachedCastInterval
 -- So we read those already-rendered icons: each shown buff icon exposes a
 -- (never-secret) auraInstanceID and isBuff flag, letting us announce exactly
 -- what the default nameplate shows.
--- npImportantSeen[unitToken] = { [auraInstanceID] = true }  -- icons already seen
-local npImportantSeen = {}
-local npImportantPending = {}
+--
+-- We decide "is this buff new?" by diffing the unit's full set of helpful aura
+-- instance ids (which are never secret) against what it had a moment ago - NOT
+-- by remembering ids forever. auraInstanceIDs are recycled after an aura ends,
+-- so a remembered id could wrongly suppress a fresh buff that reused that number
+-- (e.g. Mirror Image not announcing). A full diff each UNIT_AURA is immune to id
+-- reuse, to whether the event is incremental or a full update, and to render
+-- timing.
+--
+-- npKnownAuras[unitToken] = { [auraInstanceID] = true }  -- helpful auras last seen on the unit
+-- npNewBuffs[unitToken]   = { [auraInstanceID] = true }
+--   Auras that appeared since we started watching this nameplate and have not
+--   been announced yet. A nameplate starts baselined to the enemy's current
+--   buffs, so everything they already had is "old" and never announced (this
+--   also stops a Druid's permanent versatility buff being announced when the
+--   2-slot nameplate cap cycles it back into a visible slot). An id is dropped
+--   once announced (so it won't repeat) or when its aura is gone.
+local npKnownAuras = {}
+local npNewBuffs = {}
+local npImportantPending = {}      -- next-frame scan scheduled
+local npImportantPendingLate = {}  -- catch-up scan scheduled (icons render late)
 
 -- Per-frame announce dedup: in a single OnAuraDataChanged pass, only announce
 -- once per spell-type (important / defensive / cc).
@@ -154,48 +172,122 @@ local function ForEachNameplateBuffIcon(unit, callback)
 	pcall(walk, af, 0)
 end
 
--- Scan one enemy nameplate's buff icons and announce any newly-shown ones.
--- allowAnnounce=false seeds the seen-set silently (so pre-existing/persistent
--- buffs on a freshly-shown nameplate are not announced).
-local function ScanNameplateImportant(unit, allowAnnounce)
+-- Every currently-active HELPFUL aura instance id on the unit (ids never secret).
+local function CollectActiveHelpfulIds(unit)
+	local ids = {}
+	for i = 1, 60 do
+		local a = C_UnitAuras.GetAuraDataByIndex(unit, i, "HELPFUL")
+		if not a then break end
+		local id = a.auraInstanceID
+		if id ~= nil and not issecretvalue(id) then
+			ids[id] = true
+		end
+	end
+	return ids
+end
+
+-- Diff the unit's current helpful auras against what it had last time: any id
+-- that's present now but wasn't before is a freshly-gained buff -> mark it as an
+-- announce candidate. Drop candidates whose aura is already gone.
+local function UpdateNewBuffs(unit)
+	local known = npKnownAuras[unit]
+	local newBuffs = npNewBuffs[unit]
+	if not known or not newBuffs then return end
+
+	local current = CollectActiveHelpfulIds(unit)
+	for id in pairs(current) do
+		if not known[id] then
+			newBuffs[id] = true
+		end
+	end
+	for id in pairs(newBuffs) do
+		if not current[id] then
+			newBuffs[id] = nil
+		end
+	end
+	npKnownAuras[unit] = current
+end
+
+-- Set of the unit's auraInstanceIDs that are defensives (so the important path
+-- can skip them; the Defensive feature handles those). The BIG_DEFENSIVE /
+-- EXTERNAL_DEFENSIVE filters still restrict correctly post-12.0.7.
+local function CollectDefensiveIds(unit)
+	local ids = {}
+	for _, filter in ipairs({ "HELPFUL|BIG_DEFENSIVE", "HELPFUL|EXTERNAL_DEFENSIVE" }) do
+		for i = 1, 40 do
+			local a = C_UnitAuras.GetAuraDataByIndex(unit, i, filter)
+			if not a then break end
+			local id = a.auraInstanceID
+			if id ~= nil and not issecretvalue(id) then
+				ids[id] = true
+			end
+		end
+	end
+	return ids
+end
+
+-- Announce any nameplate buff icon whose aura was added since we started
+-- watching (i.e. it's in npNewBuffs) and that the default UI is showing. Each
+-- id is consumed once handled so it can't repeat when the nameplate's 2-slot
+-- cap cycles it back into view.
+local function ScanNameplateImportant(unit)
 	if paused or inPrepRoom then return end
 	if not UnitExists(unit) then return end
 
-	local current = {}
-	ForEachNameplateBuffIcon(unit, function(id) current[id] = true end)
-
-	local seen = npImportantSeen[unit]
-	npImportantSeen[unit] = current
-
-	if not allowAnnounce or not seen then return end
+	local newBuffs = npNewBuffs[unit]
+	if not newBuffs then return end
 
 	local zone = moduleUtil:GetZoneConfig()
-	if not zone or zone.ImportantEnabled == false or not zone.Important then return end
-
-	-- Respect the Target/Focus-only setting (default on), EXCEPT in arena where
-	-- (matching the original behaviour) all enemies are always announced.
-	local _, instanceType = IsInInstance()
-	if instanceType ~= "arena"
-		and zone.TargetFocusOnly ~= false
-		and not (UnitIsUnit(unit, "target") or UnitIsUnit(unit, "focus")) then
-		return
+	local announce = (zone and zone.ImportantEnabled ~= false and zone.Important) and true or false
+	if announce then
+		-- Target/Focus-only gate (default on), except in arena (announce all).
+		local _, instanceType = IsInInstance()
+		if instanceType ~= "arena"
+			and zone.TargetFocusOnly ~= false
+			and not (UnitIsUnit(unit, "target") or UnitIsUnit(unit, "focus")) then
+			announce = false
+		end
 	end
 
-	for id in pairs(current) do
-		if not seen[id] then
+	-- Only consume a candidate when we actually announce it. If announcing is
+	-- gated off right now (e.g. this enemy isn't your target in Target/Focus-only
+	-- mode), leave it pending so it can still be announced if you target them
+	-- later, or until its aura is gone.
+	if not announce then return end
+
+	-- Defensives also appear in the nameplate "Enemy Buffs" set, but they're
+	-- announced by the dedicated Defensive feature. Skip them here so a buff like
+	-- Barkskin isn't announced twice (and isn't miscategorised as offensive).
+	local defensiveIds = CollectDefensiveIds(unit)
+
+	ForEachNameplateBuffIcon(unit, function(id)
+		if newBuffs[id] and not defensiveIds[id] then
+			newBuffs[id] = nil
 			local data = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, id)
 			if data then SpeakImportant(data.name) end
 		end
-	end
+	end)
 end
 
-local function ScheduleNameplateImportantScan(unit, allowAnnounce)
-	if npImportantPending[unit] then return end
-	npImportantPending[unit] = true
-	C_Timer.After(0, function()
-		npImportantPending[unit] = nil
-		ScanNameplateImportant(unit, allowAnnounce)
-	end)
+-- Schedule a next-frame scan plus a short catch-up. Blizzard can populate the
+-- nameplate's buff icons a moment after UNIT_AURA fires, so a single immediate
+-- scan sometimes runs before the icon exists and the buff would never be
+-- announced; the catch-up pass closes that race.
+local function ScheduleNameplateImportantScan(unit)
+	if not npImportantPending[unit] then
+		npImportantPending[unit] = true
+		C_Timer.After(0, function()
+			npImportantPending[unit] = nil
+			ScanNameplateImportant(unit)
+		end)
+	end
+	if not npImportantPendingLate[unit] then
+		npImportantPendingLate[unit] = true
+		C_Timer.After(0.3, function()
+			npImportantPendingLate[unit] = nil
+			ScanNameplateImportant(unit)
+		end)
+	end
 end
 
 local function ProcessEnemyWatcherData(watcher)
@@ -366,6 +458,10 @@ local function CheckTargetCast()
 
 	if not UnitExists("target") or not units:IsEnemy("target") then return end
 
+	-- Exclude pet/guardian casts if the option is enabled, even when the pet is
+	-- the current target (the user wants pet casts fully ignored).
+	if zone.CastBarExcludePets ~= false and units:IsPetOrMinion("target") then return end
+
 	-- For TargetingMe mode, only announce if the target is casting at the player
 	if mode == "TargetingMe" and not IsCastTargetingPlayer("target") then return end
 
@@ -407,7 +503,7 @@ local function OnCastEvent(unit, spellID)
 	elseif mode == "TargetingMe" then
 		if not unit or not UnitExists(unit) then return end
 		if not units:IsEnemy(unit) then return end
-		if zone.CastBarExcludePets ~= false and UnitIsOtherPlayersPet(unit) then return end
+		if zone.CastBarExcludePets ~= false and units:IsPetOrMinion(unit) then return end
 
 		local spellName = GetCastSpellName(unit, spellID) or tostring(spellID or "cast")
 
@@ -432,7 +528,7 @@ local function OnCastEvent(unit, spellID)
 	end
 
 	-- Exclude pet/guardian casts if option is enabled
-	if zone.CastBarExcludePets ~= false and UnitIsOtherPlayersPet(unit) then
+	if zone.CastBarExcludePets ~= false and units:IsPetOrMinion(unit) then
 		return
 	end
 
@@ -462,7 +558,7 @@ local function OnCastInterrupted(unit)
 	end
 
 	-- Exclude pet/guardian interrupts if option is enabled
-	if zone.InterruptExcludePets ~= false and UnitIsOtherPlayersPet(unit) then
+	if zone.InterruptExcludePets ~= false and units:IsPetOrMinion(unit) then
 		return
 	end
 
@@ -618,8 +714,10 @@ local function OnMatchStateChanged()
 	previousDefensiveAuras = {}
 	previousFriendlyCCAuras = {}
 	healerCCActive = false
-	wipe(npImportantSeen)
+	wipe(npNewBuffs)
+	wipe(npKnownAuras)
 	wipe(npImportantPending)
+	wipe(npImportantPendingLate)
 end
 
 local function OnNamePlateAdded(unitToken)
@@ -756,8 +854,10 @@ local function DisableWatchers()
 	previousDefensiveAuras = {}
 	previousFriendlyCCAuras = {}
 	healerCCActive = false
-	wipe(npImportantSeen)
+	wipe(npNewBuffs)
+	wipe(npKnownAuras)
 	wipe(npImportantPending)
+	wipe(npImportantPendingLate)
 end
 
 local function EnableDisable()
@@ -924,19 +1024,32 @@ function M:Init()
 	npScanFrame:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 	npScanFrame:RegisterEvent("UNIT_AURA")
 	npScanFrame:SetScript("OnEvent", function(_, event, unit)
-		if not moduleUtil:IsEnabled() then return end
 		if event == "NAME_PLATE_UNIT_ADDED" then
+			-- Track from the moment the plate appears, regardless of whether the
+			-- module is "enabled" yet (the announce itself is gated later). This
+			-- avoids missing the very first cast right after a /reload.
 			if units:IsEnemy(unit) then
-				npImportantSeen[unit] = nil
-				ScheduleNameplateImportantScan(unit, false)
+				npNewBuffs[unit] = {}
+				npKnownAuras[unit] = CollectActiveHelpfulIds(unit) -- baseline = existing buffs
 			end
 		elseif event == "NAME_PLATE_UNIT_REMOVED" then
-			npImportantSeen[unit] = nil
+			npNewBuffs[unit] = nil
+			npKnownAuras[unit] = nil
 			npImportantPending[unit] = nil
+			npImportantPendingLate[unit] = nil
 		elseif event == "UNIT_AURA" then
-			if npImportantSeen[unit] ~= nil then
-				ScheduleNameplateImportantScan(unit, true)
+			if not moduleUtil:IsEnabled() then return end
+			if not string.find(unit, "nameplate", 1, true) then return end
+			if npNewBuffs[unit] == nil then
+				-- Lazy fallback if we somehow missed the add: baseline now so we
+				-- don't dump the enemy's existing buffs.
+				if not units:IsEnemy(unit) then return end
+				npNewBuffs[unit] = {}
+				npKnownAuras[unit] = CollectActiveHelpfulIds(unit)
+				return
 			end
+			UpdateNewBuffs(unit)
+			ScheduleNameplateImportantScan(unit)
 		end
 	end)
 
