@@ -635,14 +635,12 @@ local function OnAuraDataChanged()
 	-- Process friendly CC watchers
 	local ccMode = GetCCMode()
 	if ccMode ~= "Off" then
-		if ccMode == "Self" then
+		if ccMode == "Self" or ccMode == "All" then
 			if selfCCWatcher then
 				ProcessFriendlyCCData(selfCCWatcher)
 			end
-		elseif ccMode == "All" then
-			if selfCCWatcher then
-				ProcessFriendlyCCData(selfCCWatcher)
-			end
+		end
+		if ccMode == "Party" or ccMode == "All" then
 			for _, watcher in ipairs(friendlyWatchers) do
 				ProcessFriendlyCCData(watcher)
 			end
@@ -656,7 +654,7 @@ local function OnAuraDataChanged()
 		if zone2 and zone2.HealerCC then
 			local anyHealerCCed = false
 			for _, watcher in ipairs(healerCCWatchers) do
-				if ProcessHealerCCData(watcher) then
+				if not UnitIsUnit(watcher:GetUnit(), "player") and ProcessHealerCCData(watcher) then
 					anyHealerCCed = true
 				end
 			end
@@ -795,13 +793,13 @@ local function RebuildFriendlyWatchers()
 	DisposeFriendlyWatchers()
 
 	local ccMode = GetCCMode()
-	if ccMode ~= "All" then return end
+	if ccMode ~= "All" and ccMode ~= "Party" then return end
 
 	local ccFilter = { CC = true }
 	local friendlyUnits = units:FriendlyUnits()
 
 	for _, unit in ipairs(friendlyUnits) do
-		if unit ~= "player" and not string.find(unit, "pet", 1, true) then
+		if not units:IsPetOrMinion(unit) then
 			local watcher = unitWatcher:New(unit, nil, ccFilter)
 			watcher:RegisterCallback(ScheduleAuraDataUpdate)
 			friendlyWatchers[#friendlyWatchers + 1] = watcher
@@ -908,8 +906,12 @@ local function EnableDisable()
 
 	-- Friendly CC watchers
 	if ccMode ~= "Off" then
-		if selfCCWatcher then selfCCWatcher:Enable() end
-		if ccMode == "All" then
+		if ccMode == "Self" or ccMode == "All" then
+			if selfCCWatcher then selfCCWatcher:Enable() end
+		else
+			if selfCCWatcher then selfCCWatcher:Disable() end
+		end
+		if ccMode == "All" or ccMode == "Party" then
 			RebuildFriendlyWatchers()
 		else
 			DisposeFriendlyWatchers()
@@ -1021,7 +1023,7 @@ function M:Init()
 			EnableDisable()
 		elseif event == "GROUP_ROSTER_UPDATE" then
 			local ccMode = GetCCMode()
-			if ccMode == "All" and moduleUtil:IsEnabled() then
+			if (ccMode == "All" or ccMode == "Party") and moduleUtil:IsEnabled() then
 				RebuildFriendlyWatchers()
 			end
 			-- Refresh healer CC watchers on roster change (arena and battlegrounds)

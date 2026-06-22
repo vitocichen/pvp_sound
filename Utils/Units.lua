@@ -35,9 +35,11 @@ function M:FriendlyUnits()
 
 	for i = 1, #units do
 		local unit = units[i]
-		local exists = UnitExists(unit)
-		if not issecretvalue(exists) and exists then
-			results[#results + 1] = unit
+		if not UnitIsUnit(unit, "player") then
+			local exists = UnitExists(unit)
+			if not issecretvalue(exists) and exists then
+				results[#results + 1] = unit
+			end
 		end
 	end
 

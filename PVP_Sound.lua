@@ -10,7 +10,7 @@ local db
 
 -- Bump this when there's a change worth popping a "What's New" dialog for.
 -- The dialog body is the matching changelog string.
-local WHATS_NEW_VERSION = "1.0.11"
+local WHATS_NEW_VERSION = "1.0.12"
 
 local function ShowWhatsNew()
 	if not db then return end

@@ -68,6 +68,7 @@ L:SetDefaultStrings({
 	["CC Mode"] = "Mode",
 	["Announce CC on self or party via TTS."] = "Announce CC on self or party via TTS.",
 	["Self Only"] = "Self Only",
+	["Party Only"] = "Party Only",
 	["Self + Party"] = "Self + Party",
 
 	-- Section 3: Cast Bar
@@ -111,6 +112,7 @@ L:SetDefaultStrings({
 	["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — Added Cast Bar and Interrupt monitoring.",
 	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — Added Healer CC monitoring.",
 	["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — Fixed cast bar duplicate announcements; added multi-target interrupt alert monitoring.",
+	["changelog_v1.0.12"] = "|cFFFFD100v1.0.12|r — CC voice module update: added 'Party Only' mode—announce teammates' crowd control without announcing your own. Ideal for healers.",
 	["changelog_v1.0.11"] = "|cFFFFD100v1.0.11|r — Fixes a conflict with nameplate addons like BetterBlizzPlates, which often turn off Blizzard's 'Enemy Buffs' nameplate display and thereby break offensive announcements. The addon now auto-enables that display at login/zone-in (the Buffs bit of the nameplateEnemyPlayerAuraDisplay bitfield). Toggle it off via the 'Auto-enable nameplate Enemy Buffs' option.",
 	["changelog_v1.0.10"] = "|cFFFFD100v1.0.10|r — Fixes: (1) an important spell sometimes wasn't announced (e.g. a Mage's first Mirror Image) - new buffs are now detected from UNIT_AURA added-aura events, which is immune to auraInstanceID reuse and icon render timing, plus a catch-up scan; (2) a persistent buff (e.g. a Druid's versatility buff) was re-announced when Blizzard's 2-slot nameplate cap cycled it back into view (anything the enemy already had is treated as old and never announced; only buffs gained while you're watching are announced); (3) the Cast Bar / Interrupt 'Exclude Pets' option now also excludes guardians like Mage Mirror Images and Warlock minions, and keeps ignoring them even when you target them.",
 	["changelog_v1.0.9"] = "|cFFFFD100v1.0.9|r — 12.0.7 fix: Blizzard removed the IMPORTANT spell whitelist, so offensive buffs can no longer be identified from aura data. Important announcements now read the buff icons Blizzard already curates onto the enemy nameplate, matching the default UI exactly. Defensive/CC announcements are unaffected.\n\n|cffff3030[REQUIRED] Important announcements rely on the default nameplates: in Blizzard's UI options, (1) enable showing enemy nameplates (press V, or check it under Interface > Nameplates), and (2) enable the nameplate 'Enemy Buffs' option. Otherwise offensive spells won't be announced!|r",

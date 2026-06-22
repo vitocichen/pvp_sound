@@ -649,6 +649,8 @@ local function BuildChangelogTab(content)
 	local changelogBlock = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v1.0.12"],
+			" ",
 			L["changelog_v1.0.11"],
 			" ",
 			L["changelog_v1.0.10"],
@@ -809,7 +811,7 @@ local function BuildZoneTab(content, zoneKey)
 	})
 	ccModeLabel:SetPoint("TOPLEFT", ccEnabledChk, "BOTTOMLEFT", 0, -verticalSpacing)
 
-	local ccModeItems = { "Self", "All" }
+	local ccModeItems = { "Self", "Party", "All" }
 	local ccModeDropdown = mini:Dropdown({
 		Parent = content,
 		Items = ccModeItems,
@@ -825,6 +827,7 @@ local function BuildZoneTab(content, zoneKey)
 		end,
 		GetText = function(value)
 			if value == "Self" then return L["Self Only"]
+			elseif value == "Party" then return L["Party Only"]
 			else return L["Self + Party"]
 			end
 		end,
