@@ -130,21 +130,41 @@ end
 local function GetNameplateAurasFrame(unit)
 	local np = C_NamePlate.GetNamePlateForUnit(unit)
 	if not np or not np.UnitFrame then return end
-	return np.UnitFrame.AurasFrame
+	-- Default UI uses BuffFrame for buffs specifically, or AurasFrame as a container.
+	return np.UnitFrame.BuffFrame or np.UnitFrame.AurasFrame
 end
 
 -- Blizzard's curated important buff ids (AurasFrame.buffList), not on-screen icons.
 local function ForEachImportantBuffId(unit, callback)
 	local af = GetNameplateAurasFrame(unit)
-	if not af or not af.buffList or not af.buffList.Iterate then return end
+	if not af or not af.buffList then return end
 
-	pcall(function()
-		af.buffList:Iterate(function(auraInstanceID)
-			if auraInstanceID ~= nil and not issecretvalue(auraInstanceID) then
+	if type(af.buffList) == "table" and af.buffList.Iterate then
+		pcall(function()
+			af.buffList:Iterate(function(auraInstanceID)
+				if auraInstanceID ~= nil then
+					callback(auraInstanceID)
+				end
+			end)
+		end)
+	elseif type(af.buffList) == "table" then
+		-- Fallback for standard table iteration
+		for _, auraInstanceID in ipairs(af.buffList) do
+			if auraInstanceID ~= nil then
 				callback(auraInstanceID)
 			end
-		end)
-	end)
+		end
+	end
+end
+
+-- Returns true when a helpful aura is purgeable (has a dispel type the player can remove) AND is not
+-- a defensive cooldown. The important displays use this to strip the non-important purgeable garbage
+-- Blizzard's enemy nameplate list bundles in, while still keeping purgeable defensives (e.g. magic
+-- barriers) visible. Secret-safe: only secure aura filters, no IsSpellImportant/isStealable branching.
+local function IsPurgeableNonDefensive(unit, auraInstanceID)
+	return not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HELPFUL|RAID_PLAYER_DISPELLABLE")
+		and C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HELPFUL|BIG_DEFENSIVE")
+		and C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HELPFUL|EXTERNAL_DEFENSIVE")
 end
 
 local function CollectImportantBuffIds(unit)
@@ -163,7 +183,7 @@ local function CollectDefensiveIds(unit)
 			local a = C_UnitAuras.GetAuraDataByIndex(unit, i, filter)
 			if not a then break end
 			local id = a.auraInstanceID
-			if id ~= nil and not issecretvalue(id) then
+			if id ~= nil then
 				ids[id] = true
 			end
 		end
@@ -197,8 +217,11 @@ local function OnImportantBuffsRefreshed(unit)
 		for id in pairs(current) do
 			if not lastSeen[id] and not defensiveIds[id] then
 				if announceThisPassImportant then break end
-				local data = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, id)
-				if data then AnnounceTTS(data.name, "important") end
+				-- MiniCC 核心逻辑：剔除可驱散但非防御性的“垃圾”buff（如耐力、智力）
+				if not IsPurgeableNonDefensive(unit, id) then
+					local data = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, id)
+					if data then AnnounceTTS(data.name, "important") end
+				end
 			end
 		end
 	end

@@ -112,6 +112,7 @@ L:SetDefaultStrings({
 	["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — Added Cast Bar and Interrupt monitoring.",
 	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — Added Healer CC monitoring.",
 	["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — Fixed cast bar duplicate announcements; added multi-target interrupt alert monitoring.",
+	["changelog_v2.0.0"] = "|cFFFFD100v2.0.0|r — Important spell playback is now implemented, only playing important offensive skills and ignoring permanent/unnecessary buffs.",
 	["changelog_v1.0.13"] = "|cFFFFD100v1.0.13|r — Offensive announcements now read the nameplate's internal important-buff data list (same approach as Platynator), not on-screen buff icons. No more auto-forcing Blizzard's 'Enemy Buffs' CVar. Stamina/intel and other junk permanent buffs are no longer announced.",
 	["changelog_v1.0.12"] = "|cFFFFD100v1.0.12|r — CC voice module update: added 'Party Only' mode—announce teammates' crowd control without announcing your own. Ideal for healers.",
 	["changelog_v1.0.11"] = "|cFFFFD100v1.0.11|r — Fixes a conflict with nameplate addons like BetterBlizzPlates, which often turn off Blizzard's 'Enemy Buffs' nameplate display and thereby break offensive announcements. The addon now auto-enables that display at login/zone-in (the Buffs bit of the nameplateEnemyPlayerAuraDisplay bitfield). Toggle it off via the 'Auto-enable nameplate Enemy Buffs' option.",
