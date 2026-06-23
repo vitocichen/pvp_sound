@@ -9,14 +9,10 @@ local horizontalSpacing = mini.HorizontalSpacing
 local db
 
 local dbDefaults = {
-	Version = 9,
+	Version = 10,
 
 	-- Tracks the version whose "What's New" dialog has already been shown.
 	WhatsNewVersion = false,
-
-	-- Auto-enable Blizzard's nameplate "Enemy Buffs" display (needed for
-	-- offensive/important announcements; other nameplate addons often disable it).
-	AutoEnableEnemyBuffs = true,
 
 	TTS = {
 		VoiceID = false,
@@ -601,23 +597,10 @@ local function BuildHomeTab(content)
 	})
 	castIntervalSlider.Slider:SetPoint("TOPLEFT", castIntervalDivider, "BOTTOMLEFT", 4, -verticalSpacing)
 
-	-- ---- Auto-enable Enemy Buffs nameplate display ----
-	local autoEnemyBuffsChk = mini:Checkbox({
-		Parent = content,
-		LabelText = L["Auto-enable Enemy Buffs"],
-		Tooltip = L["Auto-enable Enemy Buffs Tooltip"],
-		GetValue = function() return db.AutoEnableEnemyBuffs ~= false end,
-		SetValue = function(value)
-			db.AutoEnableEnemyBuffs = value and true or false
-			M:Apply()
-		end,
-	})
-	autoEnemyBuffsChk:SetPoint("TOPLEFT", castIntervalSlider.Slider, "BOTTOMLEFT", -4, -verticalSpacing * 2)
-
 	-- Test button
 	local testBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
 	testBtn:SetSize(120, 26)
-	testBtn:SetPoint("TOPLEFT", autoEnemyBuffsChk, "BOTTOMLEFT", 4, -verticalSpacing * 2)
+	testBtn:SetPoint("TOPLEFT", castIntervalSlider.Slider, "BOTTOMLEFT", -4, -verticalSpacing * 2)
 	testBtn:SetText(L["Test"])
 	testBtn:SetScript("OnClick", DoTest)
 

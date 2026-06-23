@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PVP Sound - 设置面板预览</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    background: #0a0a1a;
+    color: #e0e0e0;
+    display: flex;
+    justify-content: center;
+    padding: 30px 20px;
+    min-height: 100vh;
+  }
+
+  .wow-settings {
+    width: 620px;
+    background: #16213e;
+    border: 1px solid #3a3a5c;
+    border-radius: 8px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  }
+
+  /* ── Header ── */
+  .header {
+    background: linear-gradient(135deg, #0f3460, #1a1a4e);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid #3a3a5c;
+    border-radius: 8px 8px 0 0;
+  }
+  .header-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, #533483, #44ad9f);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .header-title {
+    font-size: 16px;
+    font-weight: bold;
+    color: #ffcc00;
+  }
+  .header-sub {
+    font-size: 11px;
+    color: #aaa;
+  }
+  .header-version {
+    font-size: 11px;
+    color: #888;
+    margin-left: auto;
+  }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    background: #111133;
+    border-bottom: 2px solid #2a2a4a;
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 10px 16px;
+    font-size: 12px;
+    color: #777;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+    user-select: none;
+    position: relative;
+    top: 2px;
+  }
+  .tab:hover {
+    color: #bbb;
+    background: rgba(255,255,255,0.03);
+  }
+  .tab.active {
+    color: #ffcc00;
+    border-bottom-color: #ffcc00;
+    background: rgba(255, 204, 0, 0.06);
+  }
+
+  /* ── Content area ── */
+  .tab-content {
+    display: none;
+    padding: 18px 20px 24px;
+    min-height: 480px;
+    animation: fadeIn 0.2s ease;
+  }
+  .tab-content.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ── Shared components ── */
+  .master-switch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(255, 204, 0, 0.08);
+    border: 1px solid rgba(255, 204, 0, 0.25);
+    border-radius: 6px;
+    margin-bottom: 16px;
+  }
+  .master-switch .chk-label {
+    font-weight: bold;
+    color: #ffcc00;
+    font-size: 13px;
+  }
+
+  .section {
+    margin-bottom: 14px;
+    border: 1px solid #2a2a4a;
+    border-radius: 6px;
+    overflow: visible;
+  }
+  .section-header {
+    background: #1e2d50;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #88bbff;
+    border-bottom: 1px solid #2a2a4a;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 6px 6px 0 0;
+  }
+  .section-header .hint {
+    color: #00bfff;
+    font-size: 11px;
+    font-weight: normal;
+  }
+  .section-header.healer {
+    color: #ff69b4;
+  }
+  .section-body {
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-radius: 0 0 6px 6px;
+    position: relative;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 28px;
+    flex-wrap: wrap;
+    position: relative;
+  }
+  .inline-pair {
+    display: flex;
+    align-items: center;
+    gap: 30px;
+  }
+
+  /* Checkbox */
+  .checkbox {
+    width: 16px; height: 16px;
+    border: 2px solid #5a5a8a;
+    border-radius: 3px;
+    background: #0a0a2a;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .checkbox:hover { border-color: #888; }
+  .checkbox.checked { border-color: #ffcc00; background: rgba(255, 204, 0, 0.15); }
+  .checkbox.checked::after { content: '✓'; color: #ffcc00; font-size: 11px; font-weight: bold; }
+
+  .chk-label {
+    font-size: 12px;
+    color: #ccc;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  /* Dropdown */
+  .dropdown {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #0a0a2a;
+    border: 1px solid #5a5a8a;
+    border-radius: 4px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: #e0e0e0;
+    min-width: 140px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    position: relative;
+    user-select: none;
+  }
+  .dropdown::after { content: '▾'; color: #888; margin-left: auto; }
+  .dropdown:hover { border-color: #888; }
+  .dropdown.open { border-color: #ffcc00; }
+  .dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: -1px;
+    right: -1px;
+    background: #0f0f2a;
+    border: 1px solid #5a5a8a;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    z-index: 1000;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+  .dropdown.open .dropdown-menu { display: block; }
+  .dropdown-item {
+    padding: 6px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .dropdown-item:hover { background: rgba(255, 204, 0, 0.15); color: #ffcc00; }
+  .dropdown-item.selected { color: #ffcc00; background: rgba(255, 204, 0, 0.08); }
+
+  /* Editbox */
+  .editbox {
+    background: #0a0a2a;
+    border: 1px solid #5a5a8a;
+    border-radius: 4px;
+    padding: 4px 12px;
+    font-size: 12px;
+    color: #e0e0e0;
+    min-width: 160px;
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: inherit;
+  }
+  .editbox:focus { border-color: #ffcc00; }
+
+  /* Slider */
+  .slider-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .slider-label {
+    font-size: 11px;
+    color: #aaa;
+    display: flex;
+    justify-content: space-between;
+  }
+  .slider-label .val { color: #ffcc00; font-weight: bold; }
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: #2a2a4a;
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #ffcc00;
+    cursor: pointer;
+    box-shadow: 0 0 4px rgba(255,204,0,0.4);
+  }
+
+  .label-text {
+    font-size: 12px;
+    color: #aaa;
+    white-space: nowrap;
+  }
+
+  /* Button */
+  .wow-btn {
+    background: linear-gradient(180deg, #3a3a6a, #2a2a4a);
+    border: 1px solid #5a5a8a;
+    border-radius: 4px;
+    color: #e0e0e0;
+    padding: 5px 18px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .wow-btn:hover { background: linear-gradient(180deg, #4a4a7a, #3a3a5a); border-color: #888; }
+  .wow-btn:active { background: #2a2a4a; }
+
+  /* Divider */
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 4px 0;
+    color: #88bbff;
+    font-size: 12px;
+    font-weight: bold;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #3a3a6a, transparent);
+  }
+
+  /* Text block */
+  .text-block {
+    font-size: 12px;
+    line-height: 1.8;
+    color: #bbb;
+  }
+  .text-block .green { color: #00ff00; }
+  .text-block .blue { color: #00bfff; }
+  .text-block .red { color: #ff6060; }
+  .text-block .gold { color: #ffd100; }
+  .text-block .orange { color: #ffa500; }
+  .text-block .pink { color: #ff69b4; }
+  .text-block .cmd { color: #ffd100; font-family: monospace; }
+
+  /* Sliders row */
+  .sliders-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .buttons-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  /* ── WoW-style Tooltip (follows mouse) ── */
+  #wow-tooltip {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    background: linear-gradient(180deg, #1a0a30, #0d0d24);
+    border: 1px solid #6644aa;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: #ddd;
+    max-width: 300px;
+    line-height: 1.5;
+    pointer-events: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  /* Changelog */
+  .changelog-entry {
+    margin-bottom: 8px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #bbb;
+  }
+  .changelog-entry .ver { color: #ffd100; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<!-- Global WoW-style Tooltip -->
+<div id="wow-tooltip"></div>
+
+<div class="wow-settings">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-icon">🔊</div>
+    <div>
+      <div class="header-title">PVP Sound</div>
+      <div class="header-sub">一款PVP语音播报插件</div>
+    </div>
+    <div class="header-version">v1.0.6</div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-tab="home">PVP Sound</div>
+    <div class="tab" data-tab="world">野外</div>
+    <div class="tab" data-tab="arena">竞技场</div>
+    <div class="tab" data-tab="bg">战场</div>
+    <div class="tab" data-tab="pve">PvE</div>
+    <div class="tab" data-tab="changelog">更新记录</div>
+  </div>
+
+  <!-- ═══════════════ TAB: Home (PVP Sound) ═══════════════ -->
+  <div class="tab-content active" id="tab-home">
+    <div class="text-block" style="margin-bottom: 4px;">
+      <p style="color:#aaa;">作者：DK-姜世离（燃烧之刃）</p>
+    </div>
+    <div class="text-block" style="margin-bottom: 16px;">
+      <p>PVP Sound 实时监控敌方增益/减益/施法/被控制效果，通过TTS语音播报PvP中的重要技能。</p>
+      <p style="color:#ff2020; font-size:13px; font-weight:bold;">注：请关闭系统/其他插件的TTS语音播报，否则会造成重复和延时！！！</p>
+      <br>
+      <p>支持六种播报类型：</p>
+      <p><span class="green">重要法术</span> — 进攻性技能，如复仇之怒、自由之手、操控时间等。</p>
+      <p><span class="blue">防御法术</span> — 防御性技能，如保护之手、暗影斗篷、无敌、冰箱等。</p>
+      <p><span class="red">友方被控</span> — 施加在你或队友身上的控制技能（窒息、制裁、变羊、闷棍等）。</p>
+      <p><span class="gold">读条监控</span> — 实时播报敌方施法/引导技能名称。</p>
+      <p><span class="orange">打断提醒</span> — 当目标施法停止时播报打断成功。</p>
+      <p><span class="pink">治疗被控</span> — 当治疗被控时候播放提示音效。</p>
+      <br>
+      <p>每种区域（野外、竞技场、战场、PvE）都有独立的设置 — 请在上方的标签页中分别配置。</p>
+      <br>
+      <p>输入 <span class="cmd">/pvpsound</span> 或 <span class="cmd">/ps</span> 打开设置面板，<span class="cmd">/ps test</span> 可测试TTS语音输出。</p>
+    </div>
+
+    <!-- TTS Settings -->
+    <div class="divider">TTS语音设置</div>
+    <div style="margin-top:6px;">
+      <p class="label-text" style="margin-bottom: 10px;">必须选择与你的语言匹配的语音才能使其生效。</p>
+
+      <div class="row" style="margin-bottom: 12px;">
+        <span class="label-text">语音</span>
+        <div class="dropdown" id="voiceDropdown" onclick="toggleDropdown(this)" style="min-width: 220px;">
+          Microsoft Xiaoxiao (Neural)
+          <div class="dropdown-menu">
+            <div class="dropdown-item selected">Microsoft Xiaoxiao (Neural)</div>
+            <div class="dropdown-item">Microsoft Yunxi (Neural)</div>
+            <div class="dropdown-item">Microsoft Xiaoyi (Neural)</div>
+            <div class="dropdown-item">Microsoft Huihui</div>
+            <div class="dropdown-item">Microsoft Kangkang</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sliders-row">
+        <div class="slider-wrap">
+          <div class="slider-label"><span>TTS音量</span><span class="val" id="volVal">100</span></div>
+          <input type="range" min="0" max="100" value="100" oninput="document.getElementById('volVal').textContent=this.value">
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-label"><span>TTS语速</span><span class="val" id="rateVal">5</span></div>
+          <input type="range" min="-5" max="5" value="5" oninput="document.getElementById('rateVal').textContent=this.value">
+        </div>
+      </div>
+
+      <div class="sliders-row" style="margin-top: 12px;">
+        <div class="slider-wrap">
+          <div class="slider-label"><span>读条播报间隔</span><span class="val" id="castIntVal">0.0</span></div>
+          <input type="range" min="0" max="5" value="0" step="0.5" oninput="document.getElementById('castIntVal').textContent=parseFloat(this.value).toFixed(1)">
+        </div>
+      </div>
+
+      <div class="buttons-row" style="margin-top: 14px;">
+        <button class="wow-btn" onclick="alert('🔊 PVP Sound Test')">测试</button>
+        <button class="wow-btn" onclick="if(confirm('您确定要重置为出厂设置吗？')) alert('✅ 设置已重置为默认值。')">重置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TAB: 野外 (World) ═══════════════ -->
+  <div class="tab-content" id="tab-world">
+    <!-- Master Switch -->
+    <div class="master-switch" data-tip="总开关：在此区域中启用所有语音播报。">
+      <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+      <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用（总开关）</span>
+    </div>
+
+    <!-- Section 1: Important Spells -->
+    <div class="section">
+      <div class="section-header">重要技能语音</div>
+      <div class="section-body">
+        <div class="row" data-tip="启用重要进攻技能和防御技能的语音播报。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row" data-tip="仅监控你的目标和焦点，而不是所有敌方姓名板。">
+          <span class="label-text">监控范围 <span style="color:#00bfff;font-size:11px;">（建议选仅目标/焦点）</span></span>
+        </div>
+        <div class="row">
+          <div class="dropdown" onclick="toggleDropdown(this)">
+            仅目标/焦点
+            <div class="dropdown-menu">
+              <div class="dropdown-item selected">仅目标/焦点</div>
+              <div class="dropdown-item">所有敌人</div>
+            </div>
+          </div>
+        </div>
+        <div class="inline-pair">
+          <div class="row" data-tip="当敌人施放重要进攻技能时，用TTS语音播报技能名称。">
+            <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+            <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">重要法术（进攻技能）</span>
+          </div>
+          <div class="row" data-tip="当敌人施放防御技能时，用TTS语音播报技能名称。">
+            <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+            <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">防御法术</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: CC Spells -->
+    <div class="section">
+      <div class="section-header">控制技能语音</div>
+      <div class="section-body">
+        <div class="row" data-tip="启用控制技能语音播报。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row" data-tip="当你或队友被控制时用TTS语音播报控制技能名称。">
+          <span class="label-text">播报范围</span>
+          <div class="dropdown" onclick="toggleDropdown(this)">
+            自己+队友
+            <div class="dropdown-menu">
+              <div class="dropdown-item">仅自己</div>
+              <div class="dropdown-item selected">自己+队友</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: Cast Bar -->
+    <div class="section">
+      <div class="section-header">读条监控</div>
+      <div class="section-body">
+        <div class="row" data-tip="用TTS语音播报敌方施法。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row" data-tip="选择播报哪些敌人的施法。">
+          <span class="label-text">监控范围</span>
+          <div class="dropdown" onclick="toggleDropdown(this)">
+            所有敌人
+            <div class="dropdown-menu">
+              <div class="dropdown-item">仅目标</div>
+              <div class="dropdown-item selected">所有敌人</div>
+            </div>
+          </div>
+        </div>
+        <div class="row" data-tip="排除宠物和守护者的施法（如水元素），仅播报玩家施法。">
+          <div class="checkbox" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">排除宠物</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: Interrupt -->
+    <div class="section">
+      <div class="section-header">打断监控 <span class="hint">（只能判断目标施法是否停止，无法区分被打断还是自行取消）</span></div>
+      <div class="section-body">
+        <div class="row" data-tip="当目标被打断或停止施法时播报。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row" data-tip="选择监控哪些敌人的施法中断。">
+          <span class="label-text">监控范围</span>
+          <div class="dropdown" onclick="toggleDropdown(this)">
+            所有敌人
+            <div class="dropdown-menu">
+              <div class="dropdown-item">仅目标</div>
+              <div class="dropdown-item">目标+焦点</div>
+              <div class="dropdown-item selected">所有敌人</div>
+            </div>
+          </div>
+        </div>
+        <div class="row" data-tip="排除宠物和守护者的打断（如水元素），仅播报玩家打断。">
+          <div class="checkbox" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">排除宠物</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TAB: 竞技场 (Arena) ═══════════════ -->
+  <div class="tab-content" id="tab-arena">
+    <!-- Master Switch -->
+    <div class="master-switch" data-tip="总开关：在此区域中启用所有语音播报。">
+      <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+      <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用（总开关）</span>
+    </div>
+
+    <!-- Section 1: Important Spells (No monitor range for Arena) -->
+    <div class="section">
+      <div class="section-header">重要技能语音</div>
+      <div class="section-body">
+        <div class="row" data-tip="启用重要进攻技能和防御技能的语音播报。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="inline-pair">
+          <div class="row" data-tip="当敌人施放重要进攻技能时，用TTS语音播报技能名称。">
+            <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+            <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">重要法术（进攻技能）</span>
+          </div>
+          <div class="row" data-tip="当敌人施放防御技能时，用TTS语音播报技能名称。">
+            <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+            <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">防御法术</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: CC Spells -->
+    <div class="section">
+      <div class="section-header">控制技能语音</div>
+      <div class="section-body">
+        <div class="row" data-tip="启用控制技能语音播报。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row" data-tip="当你或队友被控制时用TTS语音播报控制技能名称。">
+          <span class="label-text">播报范围</span>
+          <div class="dropdown" onclick="toggleDropdown(this)">
+            自己+队友
+            <div class="dropdown-menu">
+              <div class="dropdown-item">仅自己</div>
+              <div class="dropdown-item selected">自己+队友</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: Cast Bar -->
+    <div class="section">
+      <div class="section-header">读条监控</div>
+      <div class="section-body">
+        <div class="row" data-tip="用TTS语音播报敌方施法。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row" data-tip="选择播报哪些敌人的施法。">
+          <span class="label-text">监控范围</span>
+          <div class="dropdown" onclick="toggleDropdown(this)">
+            所有敌人
+            <div class="dropdown-menu">
+              <div class="dropdown-item">仅目标</div>
+              <div class="dropdown-item selected">所有敌人</div>
+            </div>
+          </div>
+        </div>
+        <div class="row" data-tip="排除宠物和守护者的施法（如水元素），仅播报玩家施法。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">排除宠物</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: Interrupt -->
+    <div class="section">
+      <div class="section-header">打断监控 <span class="hint">（只能判断目标施法是否停止，无法区分被打断还是自行取消）</span></div>
+      <div class="section-body">
+        <div class="row" data-tip="当目标被打断或停止施法时播报。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row" data-tip="选择监控哪些敌人的施法中断。">
+          <span class="label-text">监控范围</span>
+          <div class="dropdown" onclick="toggleDropdown(this)">
+            仅目标
+            <div class="dropdown-menu">
+              <div class="dropdown-item selected">仅目标</div>
+              <div class="dropdown-item">目标+焦点</div>
+              <div class="dropdown-item">所有敌人</div>
+            </div>
+          </div>
+        </div>
+        <div class="row" data-tip="排除宠物和守护者的打断（如水元素），仅播报玩家打断。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">排除宠物</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 5: Healer CC (Arena) -->
+    <div class="section">
+      <div class="section-header healer">治疗被控语音</div>
+      <div class="section-body" id="arena-healer-section">
+        <div class="row" data-tip="当友方治疗被控制时，用TTS语音播报。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row">
+          <span class="label-text">播报方式</span>
+          <div class="dropdown" onclick="toggleDropdown(this)" data-healer-mode="arena">
+            TTS语音
+            <div class="dropdown-menu">
+              <div class="dropdown-item selected" onclick="setHealerMode('arena','TTS')">TTS语音</div>
+              <div class="dropdown-item" onclick="setHealerMode('arena','Sound')">自定义音效</div>
+            </div>
+          </div>
+          <button class="wow-btn" onclick="alert('🔊 试听：治疗被控')">试听</button>
+        </div>
+        <!-- TTS mode controls -->
+        <div class="row healer-tts-row" data-zone="arena" data-tip="当友方治疗被控制时播报的文本。">
+          <span class="label-text">TTS播报文本</span>
+          <input class="editbox" type="text" value="治疗被控">
+        </div>
+        <!-- Sound mode controls (hidden by default) -->
+        <div class="row healer-sound-row" data-zone="arena" style="display:none;">
+          <span class="label-text">音效文件</span>
+          <div class="dropdown" onclick="toggleDropdown(this)" style="min-width: 200px;">
+            夏一可_控制成功
+            <div class="dropdown-menu">
+              <div class="dropdown-item selected">夏一可_控制成功</div>
+              <div class="dropdown-item">PS_Alert</div>
+              <div class="dropdown-item">PS_Chime</div>
+              <div class="dropdown-item">PS_Error</div>
+              <div class="dropdown-item">PS_Horn</div>
+              <div class="dropdown-item">PS_Impact</div>
+              <div class="dropdown-item">PS_Ping</div>
+              <div class="dropdown-item">PS_Pop</div>
+              <div class="dropdown-item">PS_Radar</div>
+              <div class="dropdown-item">PS_Shock</div>
+              <div class="dropdown-item">PS_Swoosh</div>
+              <div class="dropdown-item">PS_Warm</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TAB: 战场 (BattleGrounds) ═══════════════ -->
+  <div class="tab-content" id="tab-bg">
+    <!-- Master Switch -->
+    <div class="master-switch" data-tip="总开关：在此区域中启用所有语音播报。">
+      <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+      <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用（总开关）</span>
+    </div>
+
+    <!-- Section 1: Important Spells -->
+    <div class="section">
+      <div class="section-header">重要技能语音</div>
+      <div class="section-body">
+        <div class="row" data-tip="启用重要进攻技能和防御技能的语音播报。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row" data-tip="仅监控你的目标和焦点，而不是所有敌方姓名板。">
+          <span class="label-text">监控范围 <span style="color:#00bfff;font-size:11px;">（建议选仅目标/焦点）</span></span>
+        </div>
+        <div class="row">
+          <div class="dropdown" onclick="toggleDropdown(this)">
+            仅目标/焦点
+            <div class="dropdown-menu">
+              <div class="dropdown-item selected">仅目标/焦点</div>
+              <div class="dropdown-item">所有敌人</div>
+            </div>
+          </div>
+        </div>
+        <div class="inline-pair">
+          <div class="row" data-tip="当敌人施放重要进攻技能时，用TTS语音播报技能名称。">
+            <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+            <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">重要法术（进攻技能）</span>
+          </div>
+          <div class="row" data-tip="当敌人施放防御技能时，用TTS语音播报技能名称。">
+            <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+            <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">防御法术</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: CC Spells -->
+    <div class="section">
+      <div class="section-header">控制技能语音</div>
+      <div class="section-body">
+        <div class="row" data-tip="启用控制技能语音播报。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row" data-tip="当你或队友被控制时用TTS语音播报控制技能名称。">
+          <span class="label-text">播报范围</span>
+          <div class="dropdown" onclick="toggleDropdown(this)">
+            自己+队友
+            <div class="dropdown-menu">
+              <div class="dropdown-item">仅自己</div>
+              <div class="dropdown-item selected">自己+队友</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: Cast Bar -->
+    <div class="section">
+      <div class="section-header">读条监控</div>
+      <div class="section-body">
+        <div class="row" data-tip="用TTS语音播报敌方施法。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row" data-tip="选择播报哪些敌人的施法。">
+          <span class="label-text">监控范围</span>
+          <div class="dropdown" onclick="toggleDropdown(this)">
+            仅目标
+            <div class="dropdown-menu">
+              <div class="dropdown-item selected">仅目标</div>
+              <div class="dropdown-item">所有敌人</div>
+            </div>
+          </div>
+        </div>
+        <div class="row" data-tip="排除宠物和守护者的施法（如水元素），仅播报玩家施法。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">排除宠物</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: Interrupt -->
+    <div class="section">
+      <div class="section-header">打断监控 <span class="hint">（只能判断目标施法是否停止，无法区分被打断还是自行取消）</span></div>
+      <div class="section-body">
+        <div class="row" data-tip="当目标被打断或停止施法时播报。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row" data-tip="选择监控哪些敌人的施法中断。">
+          <span class="label-text">监控范围</span>
+          <div class="dropdown" onclick="toggleDropdown(this)">
+            仅目标
+            <div class="dropdown-menu">
+              <div class="dropdown-item selected">仅目标</div>
+              <div class="dropdown-item">目标+焦点</div>
+              <div class="dropdown-item">所有敌人</div>
+            </div>
+          </div>
+        </div>
+        <div class="row" data-tip="排除宠物和守护者的打断（如水元素），仅播报玩家打断。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">排除宠物</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 5: Healer CC (Battlegrounds) -->
+    <div class="section">
+      <div class="section-header healer">治疗被控语音</div>
+      <div class="section-body" id="bg-healer-section">
+        <div class="row" data-tip="当友方治疗被控制时，用TTS语音播报。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row">
+          <span class="label-text">播报方式</span>
+          <div class="dropdown" onclick="toggleDropdown(this)" data-healer-mode="bg">
+            TTS语音
+            <div class="dropdown-menu">
+              <div class="dropdown-item selected" onclick="setHealerMode('bg','TTS')">TTS语音</div>
+              <div class="dropdown-item" onclick="setHealerMode('bg','Sound')">自定义音效</div>
+            </div>
+          </div>
+          <button class="wow-btn" onclick="alert('🔊 试听：治疗被控')">试听</button>
+        </div>
+        <!-- TTS mode controls -->
+        <div class="row healer-tts-row" data-zone="bg" data-tip="当友方治疗被控制时播报的文本。">
+          <span class="label-text">TTS播报文本</span>
+          <input class="editbox" type="text" value="治疗被控">
+        </div>
+        <!-- Sound mode controls (hidden by default) -->
+        <div class="row healer-sound-row" data-zone="bg" style="display:none;">
+          <span class="label-text">音效文件</span>
+          <div class="dropdown" onclick="toggleDropdown(this)" style="min-width: 200px;">
+            夏一可_控制成功
+            <div class="dropdown-menu">
+              <div class="dropdown-item selected">夏一可_控制成功</div>
+              <div class="dropdown-item">PS_Alert</div>
+              <div class="dropdown-item">PS_Chime</div>
+              <div class="dropdown-item">PS_Error</div>
+              <div class="dropdown-item">PS_Horn</div>
+              <div class="dropdown-item">PS_Impact</div>
+              <div class="dropdown-item">PS_Ping</div>
+              <div class="dropdown-item">PS_Pop</div>
+              <div class="dropdown-item">PS_Radar</div>
+              <div class="dropdown-item">PS_Shock</div>
+              <div class="dropdown-item">PS_Swoosh</div>
+              <div class="dropdown-item">PS_Warm</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TAB: PvE ═══════════════ -->
+  <div class="tab-content" id="tab-pve">
+    <!-- Master Switch (PvE now defaults ON in v1.0.5) -->
+    <div class="master-switch" data-tip="总开关：在此区域中启用所有语音播报。">
+      <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+      <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用（总开关）</span>
+    </div>
+
+    <!-- Section 1: Important Spells -->
+    <div class="section">
+      <div class="section-header">重要技能语音</div>
+      <div class="section-body">
+        <div class="row" data-tip="启用重要进攻技能和防御技能的语音播报。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row" data-tip="仅监控你的目标和焦点，而不是所有敌方姓名板。">
+          <span class="label-text">监控范围 <span style="color:#00bfff;font-size:11px;">（建议选仅目标/焦点）</span></span>
+        </div>
+        <div class="row">
+          <div class="dropdown" onclick="toggleDropdown(this)">
+            仅目标/焦点
+            <div class="dropdown-menu">
+              <div class="dropdown-item selected">仅目标/焦点</div>
+              <div class="dropdown-item">所有敌人</div>
+            </div>
+          </div>
+        </div>
+        <div class="inline-pair">
+          <div class="row" data-tip="当敌人施放重要进攻技能时，用TTS语音播报技能名称。">
+            <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+            <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">重要法术（进攻技能）</span>
+          </div>
+          <div class="row" data-tip="当敌人施放防御技能时，用TTS语音播报技能名称。">
+            <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+            <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">防御法术</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: CC Spells -->
+    <div class="section">
+      <div class="section-header">控制技能语音</div>
+      <div class="section-body">
+        <div class="row" data-tip="启用控制技能语音播报。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row" data-tip="当你或队友被控制时用TTS语音播报控制技能名称。">
+          <span class="label-text">播报范围</span>
+          <div class="dropdown" onclick="toggleDropdown(this)">
+            仅自己
+            <div class="dropdown-menu">
+              <div class="dropdown-item selected">仅自己</div>
+              <div class="dropdown-item">自己+队友</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 3: Cast Bar -->
+    <div class="section">
+      <div class="section-header">读条监控</div>
+      <div class="section-body">
+        <div class="row" data-tip="用TTS语音播报敌方施法。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row" data-tip="选择播报哪些敌人的施法。">
+          <span class="label-text">监控范围</span>
+          <div class="dropdown" onclick="toggleDropdown(this)">
+            仅目标
+            <div class="dropdown-menu">
+              <div class="dropdown-item selected">仅目标</div>
+              <div class="dropdown-item">所有敌人</div>
+            </div>
+          </div>
+        </div>
+        <div class="row" data-tip="排除宠物和守护者的施法（如水元素），仅播报玩家施法。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">排除宠物</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: Interrupt -->
+    <div class="section">
+      <div class="section-header">打断监控 <span class="hint">（只能判断目标施法是否停止，无法区分被打断还是自行取消）</span></div>
+      <div class="section-body">
+        <div class="row" data-tip="当目标被打断或停止施法时播报。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">启用</span>
+        </div>
+        <div class="row" data-tip="选择监控哪些敌人的施法中断。">
+          <span class="label-text">监控范围</span>
+          <div class="dropdown" onclick="toggleDropdown(this)">
+            仅目标
+            <div class="dropdown-menu">
+              <div class="dropdown-item selected">仅目标</div>
+              <div class="dropdown-item">目标+焦点</div>
+              <div class="dropdown-item">所有敌人</div>
+            </div>
+          </div>
+        </div>
+        <div class="row" data-tip="排除宠物和守护者的打断（如水元素），仅播报玩家打断。">
+          <div class="checkbox checked" onclick="toggleCheck(this)"></div>
+          <span class="chk-label" onclick="toggleCheck(this.previousElementSibling)">排除宠物</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 12px; padding: 10px 14px; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px dashed #333;">
+      <p style="font-size: 11px; color: #666;">💡 PvE 模式可监控 Boss/小怪 的重要技能和读条。<br>没有治疗被控语音（仅竞技场和战场可用）。</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════ TAB: 更新记录 (Changelog) ═══════════════ -->
+  <div class="tab-content" id="tab-changelog">
+    <div style="padding: 4px 0;">
+      <div class="changelog-entry">
+        <span class="ver">v1.0.6</span> — 读条监控和打断监控新增「排除宠物」选项，可过滤宠物/守护者（如水元素）的施法。
+      </div>
+      <div class="changelog-entry">
+        <span class="ver">v1.0.5</span> — 修复了读条重复播放的问题，新增多目标的打断成功监控。
+      </div>
+      <div class="changelog-entry">
+        <span class="ver">v1.0.4</span> — 修复了技能会重复播放的问题。
+      </div>
+      <div class="changelog-entry">
+        <span class="ver">v1.0.3</span> — 新增治疗被控监控。
+      </div>
+      <div class="changelog-entry">
+        <span class="ver">v1.0.2</span> — 新增读条和打断监控。
+      </div>
+      <div class="changelog-entry">
+        <span class="ver">v1.0.1</span> — 新增野外/竞技场/战场/PvE场景区分。
+      </div>
+      <div class="changelog-entry">
+        <span class="ver">v1.0.0</span> — 初版本发布。
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Tab switching ──
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    const target = document.getElementById('tab-' + tab.dataset.tab);
+    if (target) target.classList.add('active');
+    // Close any open dropdowns
+    document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+  });
+});
+
+// ── Checkbox toggle ──
+function toggleCheck(el) {
+  if (!el.classList.contains('checkbox')) return;
+  el.classList.toggle('checked');
+}
+
+// ── Dropdown toggle ──
+function toggleDropdown(el) {
+  const wasOpen = el.classList.contains('open');
+  // Close all
+  document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+  if (!wasOpen) el.classList.add('open');
+}
+
+// Select dropdown items
+document.querySelectorAll('.dropdown-item').forEach(item => {
+  item.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const dropdown = item.closest('.dropdown');
+    const menu = item.closest('.dropdown-menu');
+    // Update selected
+    menu.querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('selected'));
+    item.classList.add('selected');
+    // Update display text (first text node of dropdown)
+    const nodes = dropdown.childNodes;
+    for (let n of nodes) {
+      if (n.nodeType === 3 && n.textContent.trim()) {
+        n.textContent = '\n            ' + item.textContent.trim() + '\n            ';
+        break;
+      }
+    }
+    dropdown.classList.remove('open');
+  });
+});
+
+// ── Healer CC mode switching ──
+function setHealerMode(zone, mode) {
+  const ttsRows = document.querySelectorAll(`.healer-tts-row[data-zone="${zone}"]`);
+  const soundRows = document.querySelectorAll(`.healer-sound-row[data-zone="${zone}"]`);
+  if (mode === 'TTS') {
+    ttsRows.forEach(r => r.style.display = 'flex');
+    soundRows.forEach(r => r.style.display = 'none');
+  } else {
+    ttsRows.forEach(r => r.style.display = 'none');
+    soundRows.forEach(r => r.style.display = 'flex');
+  }
+}
+
+// Close dropdown on outside click
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.dropdown')) {
+    document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
+  }
+});
+
+// ── WoW-style Tooltip (follows mouse cursor) ──
+const tooltip = document.getElementById('wow-tooltip');
+
+document.addEventListener('mouseover', (e) => {
+  const tipEl = e.target.closest('[data-tip]');
+  if (tipEl) {
+    tooltip.textContent = tipEl.getAttribute('data-tip');
+    tooltip.style.display = 'block';
+  }
+});
+
+document.addEventListener('mouseout', (e) => {
+  const tipEl = e.target.closest('[data-tip]');
+  if (tipEl) {
+    // Check if we're moving to a child of the same tip element
+    const related = e.relatedTarget;
+    if (related && tipEl.contains(related)) return;
+    tooltip.style.display = 'none';
+  }
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (tooltip.style.display === 'block') {
+    const offsetX = 14;
+    const offsetY = 18;
+    let x = e.clientX + offsetX;
+    let y = e.clientY + offsetY;
+    // Prevent overflow off screen
+    const rect = tooltip.getBoundingClientRect();
+    if (x + rect.width > window.innerWidth - 8) {
+      x = e.clientX - rect.width - 8;
+    }
+    if (y + rect.height > window.innerHeight - 8) {
+      y = e.clientY - rect.height - 8;
+    }
+    tooltip.style.left = x + 'px';
+    tooltip.style.top = y + 'px';
+  }
+});
+</script>
+</body>
+</html>
