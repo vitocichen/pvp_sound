@@ -157,16 +157,6 @@ local function ForEachImportantBuffId(unit, callback)
 	end
 end
 
--- Returns true when a helpful aura is purgeable (has a dispel type the player can remove) AND is not
--- a defensive cooldown. The important displays use this to strip the non-important purgeable garbage
--- Blizzard's enemy nameplate list bundles in, while still keeping purgeable defensives (e.g. magic
--- barriers) visible. Secret-safe: only secure aura filters, no IsSpellImportant/isStealable branching.
-local function IsPurgeableNonDefensive(unit, auraInstanceID)
-	return not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HELPFUL|RAID_PLAYER_DISPELLABLE")
-		and C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HELPFUL|BIG_DEFENSIVE")
-		and C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HELPFUL|EXTERNAL_DEFENSIVE")
-end
-
 local function CollectImportantBuffIds(unit)
 	local ids = {}
 	ForEachImportantBuffId(unit, function(id)
@@ -189,6 +179,23 @@ local function CollectDefensiveIds(unit)
 		end
 	end
 	return ids
+end
+
+-- "Simple" filter mode (same as MiniCC): treats a buff as junk when the player can
+-- dispel/steal it AND it isn't a defensive cooldown. This drops purgeable junk like
+-- Intellect/Rejuvenation, but also drops purgeable utility like Blessing of Freedom.
+local function IsPurgeableNonDefensive(unit, auraInstanceID)
+	return not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HELPFUL|RAID_PLAYER_DISPELLABLE")
+		and C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HELPFUL|BIG_DEFENSIVE")
+		and C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HELPFUL|EXTERNAL_DEFENSIVE")
+end
+
+-- "Simple" (default) filters purgeable non-defensive buffs; "Detailed" announces
+-- everything Blizzard lists on the nameplate.
+local function GetImportantFilterMode()
+	local zone = moduleUtil:GetZoneConfig()
+	if not zone then return "Simple" end
+	return zone.ImportantFilterMode or "Simple"
 end
 
 local function OnImportantBuffsRefreshed(unit)
@@ -214,13 +221,17 @@ local function OnImportantBuffsRefreshed(unit)
 	if shouldAnnounce then
 		ScheduleImportantDedupReset()
 		local defensiveIds = CollectDefensiveIds(unit)
+		local simpleMode = GetImportantFilterMode() == "Simple"
 		for id in pairs(current) do
 			if not lastSeen[id] and not defensiveIds[id] then
 				if announceThisPassImportant then break end
-				-- MiniCC 核心逻辑：剔除可驱散但非防御性的“垃圾”buff（如耐力、智力）
-				if not IsPurgeableNonDefensive(unit, id) then
+				-- 简易版：额外剔除“可驱散 + 非减伤”的垃圾 buff（同 MiniCC，但自由祝福也会被剔除）
+				-- 详细版：暴雪姓名板列表显示什么就播报什么（含自由祝福，可能多回春/智力等）
+				if not (simpleMode and IsPurgeableNonDefensive(unit, id)) then
 					local data = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, id)
-					if data then AnnounceTTS(data.name, "important") end
+					if data and data.name then
+						AnnounceTTS(data.name, "important")
+					end
 				end
 			end
 		end

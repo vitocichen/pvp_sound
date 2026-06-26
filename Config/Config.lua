@@ -27,6 +27,7 @@ local dbDefaults = {
 			Enabled = true,
 			ImportantEnabled = true,
 			Important = true,
+			ImportantFilterMode = "Simple",
 			Defensive = true,
 			TargetFocusOnly = true,
 			CCEnabled = true,
@@ -42,6 +43,7 @@ local dbDefaults = {
 			Enabled = true,
 			ImportantEnabled = true,
 			Important = true,
+			ImportantFilterMode = "Simple",
 			Defensive = true,
 			TargetFocusOnly = false,
 			CCEnabled = true,
@@ -61,6 +63,7 @@ local dbDefaults = {
 			Enabled = true,
 			ImportantEnabled = true,
 			Important = true,
+			ImportantFilterMode = "Simple",
 			Defensive = true,
 			TargetFocusOnly = true,
 			CCEnabled = true,
@@ -80,6 +83,7 @@ local dbDefaults = {
 			Enabled = true,
 			ImportantEnabled = true,
 			Important = true,
+			ImportantFilterMode = "Simple",
 			Defensive = true,
 			TargetFocusOnly = true,
 			CCEnabled = true,
@@ -307,6 +311,21 @@ local function MigrateV8(savedDb)
 	end
 
 	savedDb.Version = 9
+end
+
+-- Migrate to v10: add ImportantFilterMode (default Simple)
+local function MigrateV9(savedDb)
+	if not savedDb or not savedDb.Version or savedDb.Version >= 10 then return end
+
+	if savedDb.Zones then
+		for _, zone in pairs(savedDb.Zones) do
+			if zone.ImportantFilterMode == nil then
+				zone.ImportantFilterMode = "Simple"
+			end
+		end
+	end
+
+	savedDb.Version = 10
 end
 
 -- ==================== Sound files ====================
@@ -632,6 +651,8 @@ local function BuildChangelogTab(content)
 	local changelogBlock = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v2.0.1"],
+			" ",
 			L["changelog_v2.0.0"],
 			" ",
 			L["changelog_v1.0.12"],
@@ -768,6 +789,36 @@ local function BuildZoneTab(content, zoneKey)
 	})
 	defensiveChk:SetPoint("LEFT", importantChk, "RIGHT", 160, 0)
 
+	-- Important filter mode (Detailed / Simple)
+	local importantModeLabel = mini:TextLine({
+		Parent = content,
+		Text = L["Important Filter Mode"],
+		Tooltip = L["Choose how strictly important buffs are filtered."],
+	})
+	importantModeLabel:SetPoint("TOPLEFT", importantChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	local importantModeItems = { "Detailed", "Simple" }
+	local importantModeDropdown = mini:Dropdown({
+		Parent = content,
+		Items = importantModeItems,
+		Width = 260,
+		GetValue = function()
+			return GetZone().ImportantFilterMode or "Simple"
+		end,
+		SetValue = function(value)
+			GetZone().ImportantFilterMode = value
+			M:Apply()
+		end,
+		GetText = function(value)
+			if value == "Simple" then return L["Important Mode Simple"]
+			else return L["Important Mode Detailed"]
+			end
+		end,
+	})
+	importantModeDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+	importantModeDropdown:SetPoint("TOP", importantModeLabel, "TOP", 0, 8)
+	importantModeDropdown:SetWidth(260)
+
 	-- ==================== Section 2: CC Spells ====================
 	local ccDivider = mini:Divider({
 		Parent = content,
@@ -775,7 +826,7 @@ local function BuildZoneTab(content, zoneKey)
 	})
 	ccDivider:SetPoint("LEFT", content, "LEFT")
 	ccDivider:SetPoint("RIGHT", content, "RIGHT")
-	ccDivider:SetPoint("TOP", importantChk, "BOTTOM", 0, -verticalSpacing * 1.5)
+	ccDivider:SetPoint("TOP", importantModeLabel, "BOTTOM", 0, -verticalSpacing * 2.5)
 
 	local ccEnabledChk = mini:Checkbox({
 		Parent = content,
@@ -1105,6 +1156,7 @@ function M:Init()
 	MigrateV6(rawDb)
 	MigrateV7(rawDb)
 	MigrateV8(rawDb)
+	MigrateV9(rawDb)
 
 	db = mini:GetSavedVars(dbDefaults)
 	mini:CleanTable(db, dbDefaults, true, true)

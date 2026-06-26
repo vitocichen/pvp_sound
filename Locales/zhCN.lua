@@ -65,6 +65,10 @@ L:SetStrings({
 	["Defensive Spells"] = "防御法术",
 	["Announce defensive spell names via TTS when enemies cast them."] = "当敌人施放防御技能时，用TTS语音播报技能名称。",
 	["Only monitor your target and focus instead of all enemy nameplates."] = "仅监控你的目标和焦点，而不是所有敌方姓名板。",
+	["Important Filter Mode"] = "重要法术过滤",
+	["Choose how strictly important buffs are filtered."] = "选择重要法术的过滤严格程度。",
+	["Important Mode Detailed"] = "详细版（含自由祝福，可能多回春/智力等）",
+	["Important Mode Simple"] = "简易版（过滤可驱散非减伤，同MiniCC）",
 
 	-- Section 2: CC Spells
 	["CC Spells Section"] = "控制技能语音",
@@ -116,6 +120,7 @@ L:SetStrings({
 	["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — 新增读条和打断监控。",
 	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — 新增治疗被控监控。",
 	["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — 修复了读条重复播放的问题，新增多目标的打断成功监控。",
+	["changelog_v2.0.1"] = "|cFFFFD100v2.0.1|r — 重要法术新增「详细版/简易版」过滤模式：详细版含自由祝福（可能多回春/智力等），简易版过滤可驱散非减伤 buff（同 MiniCC）。",
 	["changelog_v2.0.0"] = "|cFFFFD100v2.0.0|r — 现在重要法术播放已经实现，可以只播放重要的进攻技能，忽略常驻buff和不必要的buff。",
 	["changelog_v1.0.13"] = "|cFFFFD100v1.0.13|r — 进攻播报改为读取姓名板内部的「重要增益」数据列表（与 Platynator 相同方式），不再依赖屏幕上的增益图标，也不再强制修改暴雪「敌方增益」设置。耐力/智力等无用常驻增益不会再被播报。",
 	["changelog_v1.0.12"] = "|cFFFFD100v1.0.12|r — 升级被控语音模块，添加了仅队友选项，支持只播放队友的控制技能，适用于治疗职业。",

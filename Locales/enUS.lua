@@ -61,6 +61,10 @@ L:SetDefaultStrings({
 	["Defensive Spells"] = "Defensive Spells",
 	["Announce defensive spell names via TTS when enemies cast them."] = "Announce defensive spell names via TTS when enemies cast them.",
 	["Only monitor your target and focus instead of all enemy nameplates."] = "Only monitor your target and focus instead of all enemy nameplates.",
+	["Important Filter Mode"] = "Important Filter Mode",
+	["Choose how strictly important buffs are filtered."] = "Choose how strictly important buffs are filtered.",
+	["Important Mode Detailed"] = "Detailed (incl. Blessing of Freedom, may add Rejuv/Intellect etc.)",
+	["Important Mode Simple"] = "Simple (filters purgeable non-defensive, like MiniCC)",
 
 	-- Section 2: CC Spells
 	["CC Spells Section"] = "CC Spells",
@@ -112,6 +116,7 @@ L:SetDefaultStrings({
 	["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — Added Cast Bar and Interrupt monitoring.",
 	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — Added Healer CC monitoring.",
 	["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — Fixed cast bar duplicate announcements; added multi-target interrupt alert monitoring.",
+	["changelog_v2.0.1"] = "|cFFFFD100v2.0.1|r — Added Detailed/Simple filter modes for important spells: Detailed includes Blessing of Freedom (may also announce Rejuv/Intellect etc.); Simple filters purgeable non-defensive buffs (like MiniCC).",
 	["changelog_v2.0.0"] = "|cFFFFD100v2.0.0|r — Important spell playback is now implemented, only playing important offensive skills and ignoring permanent/unnecessary buffs.",
 	["changelog_v1.0.13"] = "|cFFFFD100v1.0.13|r — Offensive announcements now read the nameplate's internal important-buff data list (same approach as Platynator), not on-screen buff icons. No more auto-forcing Blizzard's 'Enemy Buffs' CVar. Stamina/intel and other junk permanent buffs are no longer announced.",
 	["changelog_v1.0.12"] = "|cFFFFD100v1.0.12|r — CC voice module update: added 'Party Only' mode—announce teammates' crowd control without announcing your own. Ideal for healers.",
