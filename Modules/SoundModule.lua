@@ -59,6 +59,11 @@ local healerCCActive = false -- true while any healer has CC (like MiniCC's IsVi
 local castFrame
 local lastCastAnnounceTime = 0
 local lastInterruptAnnounceTime = 0
+local lastImportantAnnounceTime = 0
+
+-- Global cooldown for important-buff TTS only. Each bounce (e.g. Prayer of Mending) creates a
+-- new auraInstanceID on a different nameplate; per-unit lastSeen cannot dedupe across units.
+local IMPORTANT_ANNOUNCE_INTERVAL = 1.0
 
 -- Nameplate important-buff hook frame
 local importantFrame
@@ -84,10 +89,12 @@ local function AnnounceTTS(spellName, spellType)
 
 	if not enabled then return end
 
-	-- Per-frame dedup: only the first announce of each type per frame.
+	-- Per-frame dedup + global interval for important only (PoM bounce across nameplates).
 	if spellType == "important" then
 		if announceThisPassImportant then return end
+		if GetTime() - lastImportantAnnounceTime < IMPORTANT_ANNOUNCE_INTERVAL then return end
 		announceThisPassImportant = true
+		lastImportantAnnounceTime = GetTime()
 	elseif spellType == "defensive" then
 		if announceThisPassDefensive then return end
 		announceThisPassDefensive = true
@@ -130,31 +137,25 @@ end
 local function GetNameplateAurasFrame(unit)
 	local np = C_NamePlate.GetNamePlateForUnit(unit)
 	if not np or not np.UnitFrame then return end
-	-- Default UI uses BuffFrame for buffs specifically, or AurasFrame as a container.
-	return np.UnitFrame.BuffFrame or np.UnitFrame.AurasFrame
+	-- Match MiniCC: AurasFrame.buffList only. BuffFrame.buffList is wider (e.g. Prayer of Mending).
+	local af = np.UnitFrame.AurasFrame
+	if af and af.IsForbidden and af:IsForbidden() then return end
+	return af
 end
 
 -- Blizzard's curated important buff ids (AurasFrame.buffList), not on-screen icons.
+-- Match MiniCC: only buffList:Iterate(); no raw table fallback.
 local function ForEachImportantBuffId(unit, callback)
 	local af = GetNameplateAurasFrame(unit)
-	if not af or not af.buffList then return end
+	if not af or not af.buffList or not af.buffList.Iterate then return end
 
-	if type(af.buffList) == "table" and af.buffList.Iterate then
-		pcall(function()
-			af.buffList:Iterate(function(auraInstanceID)
-				if auraInstanceID ~= nil then
-					callback(auraInstanceID)
-				end
-			end)
-		end)
-	elseif type(af.buffList) == "table" then
-		-- Fallback for standard table iteration
-		for _, auraInstanceID in ipairs(af.buffList) do
+	pcall(function()
+		af.buffList:Iterate(function(auraInstanceID)
 			if auraInstanceID ~= nil then
 				callback(auraInstanceID)
 			end
-		end
-	end
+		end)
+	end)
 end
 
 local function CollectImportantBuffIds(unit)
@@ -188,6 +189,26 @@ local function IsPurgeableNonDefensive(unit, auraInstanceID)
 	return not C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HELPFUL|RAID_PLAYER_DISPELLABLE")
 		and C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HELPFUL|BIG_DEFENSIVE")
 		and C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HELPFUL|EXTERNAL_DEFENSIVE")
+end
+
+-- Simple mode: same pre-TTS filters as MiniCC 4.5.x PlaceImportantBuff (AlertsModule).
+-- MiniCC 4.0.0 removed Blizzard's important aura category; 4.5.x reads AurasFrame.buffList
+-- plus purgeable + friendly filters only. IsSpellImportant is used for icon alpha via
+-- SetAlphaFromBoolean (display only) — not for TTS, and not HELPFUL|IMPORTANT (removed).
+local function ShouldAnnounceImportantBuff(unit, auraInstanceID, simpleMode)
+	if not simpleMode then return true end
+
+	if units:IsFriend(unit) then
+		if C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, auraInstanceID, "HELPFUL|INCLUDE_NAME_PLATE_ONLY|RAID_IN_COMBAT|PLAYER") then
+			return false
+		end
+	end
+
+	if IsPurgeableNonDefensive(unit, auraInstanceID) then
+		return false
+	end
+
+	return true
 end
 
 -- "Simple" (default) filters purgeable non-defensive buffs; "Detailed" announces
@@ -225,9 +246,9 @@ local function OnImportantBuffsRefreshed(unit)
 		for id in pairs(current) do
 			if not lastSeen[id] and not defensiveIds[id] then
 				if announceThisPassImportant then break end
-				-- 简易版：额外剔除“可驱散 + 非减伤”的垃圾 buff（同 MiniCC，但自由祝福也会被剔除）
-				-- 详细版：暴雪姓名板列表显示什么就播报什么（含自由祝福，可能多回春/智力等）
-				if not (simpleMode and IsPurgeableNonDefensive(unit, id)) then
+				-- 简易版：同 MiniCC 4.5.x TTS 前的过滤（buffList + 友方 + 可驱散非减伤）
+				-- 详细版：AurasFrame.buffList 有什么播什么
+				if ShouldAnnounceImportantBuff(unit, id, simpleMode) then
 					local data = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, id)
 					if data and data.name then
 						AnnounceTTS(data.name, "important")
