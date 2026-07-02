@@ -651,6 +651,7 @@ local function BuildChangelogTab(content)
 	local changelogBlock = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v3.0.0"],
 			L["changelog_v2.0.2"],
 			" ",
 			L["changelog_v2.0.1"],
@@ -769,7 +770,7 @@ local function BuildZoneTab(content, zoneKey)
 	local importantChk = mini:Checkbox({
 		Parent = content,
 		LabelText = L["Important Spells"],
-		Tooltip = L["Announce important (offensive) spell names via TTS when enemies cast them."],
+		Tooltip = L["Announce important enemy buffs via Xia Yike voice clips."],
 		GetValue = function() return GetZone().Important end,
 		SetValue = function(value)
 			GetZone().Important = value
@@ -782,7 +783,7 @@ local function BuildZoneTab(content, zoneKey)
 	local defensiveChk = mini:Checkbox({
 		Parent = content,
 		LabelText = L["Defensive Spells"],
-		Tooltip = L["Announce defensive spell names via TTS when enemies cast them."],
+		Tooltip = L["Announce defensive enemy buffs via Xia Yike voice clips."],
 		GetValue = function() return GetZone().Defensive end,
 		SetValue = function(value)
 			GetZone().Defensive = value
@@ -791,36 +792,6 @@ local function BuildZoneTab(content, zoneKey)
 	})
 	defensiveChk:SetPoint("LEFT", importantChk, "RIGHT", 160, 0)
 
-	-- Important filter mode (Detailed / Simple)
-	local importantModeLabel = mini:TextLine({
-		Parent = content,
-		Text = L["Important Filter Mode"],
-		Tooltip = L["Choose how strictly important buffs are filtered."],
-	})
-	importantModeLabel:SetPoint("TOPLEFT", importantChk, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	local importantModeItems = { "Detailed", "Simple" }
-	local importantModeDropdown = mini:Dropdown({
-		Parent = content,
-		Items = importantModeItems,
-		Width = 260,
-		GetValue = function()
-			return GetZone().ImportantFilterMode or "Simple"
-		end,
-		SetValue = function(value)
-			GetZone().ImportantFilterMode = value
-			M:Apply()
-		end,
-		GetText = function(value)
-			if value == "Simple" then return L["Important Mode Simple"]
-			else return L["Important Mode Detailed"]
-			end
-		end,
-	})
-	importantModeDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
-	importantModeDropdown:SetPoint("TOP", importantModeLabel, "TOP", 0, 8)
-	importantModeDropdown:SetWidth(260)
-
 	-- ==================== Section 2: CC Spells ====================
 	local ccDivider = mini:Divider({
 		Parent = content,
@@ -828,7 +799,7 @@ local function BuildZoneTab(content, zoneKey)
 	})
 	ccDivider:SetPoint("LEFT", content, "LEFT")
 	ccDivider:SetPoint("RIGHT", content, "RIGHT")
-	ccDivider:SetPoint("TOP", importantModeLabel, "BOTTOM", 0, -verticalSpacing * 2.5)
+	ccDivider:SetPoint("TOP", importantChk, "BOTTOM", 0, -verticalSpacing * 2.5)
 
 	local ccEnabledChk = mini:Checkbox({
 		Parent = content,

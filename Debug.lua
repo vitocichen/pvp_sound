@@ -2,9 +2,11 @@
 local _, addon = ...
 local moduleUtil = addon.Utils.ModuleUtil
 local units = addon.Utils.Units
+local privateAuraSound = addon.Modules.PrivateAuraSound
 
 -- Temporary diagnostic for important-buff detection.
 -- Run /pvpsdiag while targeting an enemy with buffs up.
+-- Private aura sound: /pvpspas [on|off|dump]
 
 local function fmt(v)
 	if v == nil then return "nil" end
@@ -61,4 +63,21 @@ SlashCmdList["PVPSDIAG"] = function()
 		end)
 	end
 	print("|cff33ff99=== end ===|r")
+end
+
+SLASH_PVPSPAS1 = "/pvpspas"
+SlashCmdList["PVPSPAS"] = function(msg)
+	msg = strtrim(msg or ""):lower()
+	if msg == "on" or msg == "1" or msg == "true" then
+		privateAuraSound:SetDebug(true)
+	elseif msg == "off" or msg == "0" or msg == "false" then
+		privateAuraSound:SetDebug(false)
+	elseif msg == "dump" or msg == "list" then
+		privateAuraSound:DumpRegistrations()
+	else
+		print("|cff33ff99PVP_Sound 私有光环音效调试|r")
+		print("  /pvpspas on   — 开启注册/删除日志")
+		print("  /pvpspas off  — 关闭日志")
+		print("  /pvpspas dump — 查看当前已注册单位与条数")
+	end
 end
