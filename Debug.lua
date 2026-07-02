@@ -74,10 +74,14 @@ SlashCmdList["PVPSPAS"] = function(msg)
 		privateAuraSound:SetDebug(false)
 	elseif msg == "dump" or msg == "list" then
 		privateAuraSound:DumpRegistrations()
+	elseif msg:match("^test") then
+		local id = tonumber(msg:match("test%s+(%d+)"))
+		privateAuraSound:PlayTest(id)
 	else
 		print("|cff33ff99PVP_Sound 私有光环音效调试|r")
-		print("  /pvpspas on   — 开启注册/删除日志")
-		print("  /pvpspas off  — 关闭日志")
-		print("  /pvpspas dump — 查看当前已注册单位与条数")
+		print("  /pvpspas on        — 开启注册/删除日志")
+		print("  /pvpspas off       — 关闭日志")
+		print("  /pvpspas dump      — 查看当前已注册单位与条数")
+		print("  /pvpspas test [id] — 直接试播某 spellID 的 ogg（默认 45438 冰箱）")
 	end
 end

@@ -4,7 +4,7 @@
 ## Title-zhCN: PVP Sound - PvP语音播报
 ## Notes-zhCN: PvP语音播报：敌方重要/防御法术播放夏一可音效；控制、读条、治疗被控仍用TTS。
 ## Author: DK-姜世离（燃烧之刃）
-## Version: 3.0.1
+## Version: 3.0.2
 ## SavedVariables: PVPSoundDB
 ## IconTexture: Interface\Icons\Spell_Holy_MindSooth
 ## X-Curse-Project-ID: 1479674
@@ -28,7 +28,6 @@ Data\SpellSoundMap.lua
 Core\UnitAuraWatcher.lua
 
 Modules\PrivateAuraSound.lua
-Modules\EnemyBuffPlayback.lua
 Modules\SoundModule.lua
 
 Config\Config.lua

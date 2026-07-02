@@ -310,6 +310,34 @@ end
 
 
 
+-- 直接播放某个 spellID 映射的 ogg，用来验证文件/路径本身可用（与 PAS 是否触发无关）。
+
+function M:PlayTest(spellID)
+
+	spellID = spellID or 45438
+
+	local fileName = spellSoundMap[spellID]
+
+	if not fileName or fileName == "" then
+
+		print(string.format("|cff33ff99[PVP_Sound PAS]|r spellID=%d 没有 ogg 映射", spellID))
+
+		return
+
+	end
+
+	local path = MEDIA_PREFIX .. fileName
+
+	local ok, handle = PlaySoundFile(path, DEFAULT_OUTPUT)
+
+	print(string.format("|cff33ff99[PVP_Sound PAS]|r 试播 spellID=%d 文件=%s 结果=%s",
+
+		spellID, fileName, ok and "成功(应能听到声音)" or "失败(文件不存在或路径错误)"))
+
+end
+
+
+
 function M:ClearRegistrations(reason)
 
 	reason = reason or "?"
