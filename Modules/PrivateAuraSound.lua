@@ -338,6 +338,74 @@ end
 
 
 
+-- 探针：扫描当前目标的增益，报告 spellId 是否为 secret（能否运行时读取并映射 ogg）。
+
+function M:ScanTarget()
+
+	local unit = "target"
+
+	if not UnitExists(unit) then
+
+		print("|cff33ff99[PVP_Sound PAS]|r 没有目标，先选中一个敌方玩家")
+
+		return
+
+	end
+
+	local _, instanceType = IsInInstance()
+
+	print(string.format("|cff33ff99=== 目标增益扫描 %s | 区域=%s ===|r", UnitName(unit) or "?", instanceType or "none"))
+
+	local anyReadable = false
+
+	local anySecret = false
+
+	for i = 1, 40 do
+
+		local data = C_UnitAuras.GetAuraDataByIndex(unit, i, "HELPFUL")
+
+		if not data then break end
+
+		local sid = data.spellId
+
+		if issecretvalue(sid) then
+
+			anySecret = true
+
+			print(string.format("  [%d] spellId=|cffff5555SECRET(读不到)|r", i))
+
+		else
+
+			anyReadable = true
+
+			local mapped = spellSoundMap[sid]
+
+			print(string.format("  [%d] spellId=%s → %s", i, tostring(sid), mapped or "无 ogg 映射"))
+
+		end
+
+	end
+
+	if anySecret and not anyReadable then
+
+		print("|cffff5555结论: spellId 全是 secret，此环境无法运行时检测，只能靠 PAS（而 PAS 对普通 buff 不触发）|r")
+
+	elseif anyReadable then
+
+		print("|cff33ff99结论: spellId 可读！此环境可用运行时检测映射 ogg|r")
+
+	else
+
+		print("  (目标身上没有增益)")
+
+	end
+
+	print("|cff33ff99=== end ===|r")
+
+end
+
+
+
 function M:ClearRegistrations(reason)
 
 	reason = reason or "?"

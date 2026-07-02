@@ -77,11 +77,14 @@ SlashCmdList["PVPSPAS"] = function(msg)
 	elseif msg:match("^test") then
 		local id = tonumber(msg:match("test%s+(%d+)"))
 		privateAuraSound:PlayTest(id)
+	elseif msg == "scan" then
+		privateAuraSound:ScanTarget()
 	else
 		print("|cff33ff99PVP_Sound 私有光环音效调试|r")
 		print("  /pvpspas on        — 开启注册/删除日志")
 		print("  /pvpspas off       — 关闭日志")
 		print("  /pvpspas dump      — 查看当前已注册单位与条数")
 		print("  /pvpspas test [id] — 直接试播某 spellID 的 ogg（默认 45438 冰箱）")
+		print("  /pvpspas scan      — 扫描目标增益，看 spellId 能否运行时读取")
 	end
 end
