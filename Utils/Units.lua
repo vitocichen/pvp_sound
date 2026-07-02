@@ -54,6 +54,18 @@ function M:IsEnemy(unitToken)
 	return UnitIsEnemy("player", unitToken)
 end
 
+-- Enemy player character only (no NPCs, no player pets/minions).
+function M:IsEnemyPlayer(unitToken)
+	if not unitToken then return false end
+	local exists = UnitExists(unitToken)
+	if not exists or issecretvalue(exists) then return false end
+	if not M:IsEnemy(unitToken) then return false end
+	if M:IsPetOrMinion(unitToken) then return false end
+	local isPlayer = UnitIsPlayer(unitToken)
+	if issecretvalue(isPlayer) then return false end
+	return isPlayer
+end
+
 -- True for a player's pet OR guardian/minion. UnitIsOtherPlayersPet only
 -- catches controllable pets (e.g. Hunter pet, Water Elemental); guardians like
 -- Mage Mirror Images, Warlock Wild Imps/Dreadstalkers and most temporary
