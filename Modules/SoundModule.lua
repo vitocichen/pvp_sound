@@ -4,6 +4,7 @@ local unitWatcher = addon.Core.UnitAuraWatcher
 local moduleUtil = addon.Utils.ModuleUtil
 local units = addon.Utils.Units
 local privateAuraSound = addon.Modules.PrivateAuraSound
+local enemyBuffPlayback = addon.Modules.EnemyBuffPlayback
 local eventsFrame
 local paused = false
 local inPrepRoom = false
@@ -321,6 +322,9 @@ local function OnAuraDataChanged()
 	end
 
 	previousFriendlyCCAuras, currentFriendlyCCAuras = currentFriendlyCCAuras, previousFriendlyCCAuras
+
+	enemyBuffPlayback:SetRuntimeState(paused, inPrepRoom)
+	enemyBuffPlayback:OnAuraDataChanged()
 end
 
 local function ScheduleAuraDataUpdate()
@@ -348,7 +352,7 @@ local function OnMatchStateChanged()
 	healerCCActive = false
 
 	if inPrepRoom then
-		privateAuraSound:Refresh()
+		enemyBuffPlayback:ClearState()
 	end
 end
 
@@ -410,6 +414,7 @@ local function DisableWatchers()
 	previousFriendlyCCAuras = {}
 	healerCCActive = false
 	privateAuraSound:ClearRegistrations()
+	enemyBuffPlayback:ClearState()
 end
 
 local function EnableDisable()
@@ -446,7 +451,7 @@ local function EnableDisable()
 	end
 
 	ScheduleAuraDataUpdate()
-	privateAuraSound:Refresh()
+	enemyBuffPlayback:EnableDisable()
 end
 
 local function CacheTTSSettings()
@@ -468,7 +473,7 @@ function M:Init()
 	db = mini:GetSavedVars()
 
 	CacheTTSSettings()
-	privateAuraSound:Init()
+	enemyBuffPlayback:Init(ScheduleAuraDataUpdate)
 
 	local ccFilter = { CC = true }
 	selfCCWatcher = unitWatcher:New("player", nil, ccFilter)
