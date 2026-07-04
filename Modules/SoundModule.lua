@@ -72,6 +72,9 @@ local importantFrame
 local M = {}
 addon.Modules.SoundModule = M
 
+-- Forward declaration: AllBuffs (World-only) announces verbosely with no 1s interval.
+local UsesLegacyImportantDetection
+
 local function AnnounceTTS(spellName, spellType)
 	if not spellName then return end
 
@@ -90,11 +93,14 @@ local function AnnounceTTS(spellName, spellType)
 	if not enabled then return end
 
 	-- Per-frame dedup + global interval for important only (PoM bounce across nameplates).
+	-- AllBuffs (World) mirrors v1.0.8: per-frame dedup only, no 1s global interval.
 	if spellType == "important" then
 		if announceThisPassImportant then return end
-		if GetTime() - lastImportantAnnounceTime < IMPORTANT_ANNOUNCE_INTERVAL then return end
+		if not UsesLegacyImportantDetection() then
+			if GetTime() - lastImportantAnnounceTime < IMPORTANT_ANNOUNCE_INTERVAL then return end
+			lastImportantAnnounceTime = GetTime()
+		end
 		announceThisPassImportant = true
-		lastImportantAnnounceTime = GetTime()
 	elseif spellType == "defensive" then
 		if announceThisPassDefensive then return end
 		announceThisPassDefensive = true
@@ -212,17 +218,57 @@ local function ShouldAnnounceImportantBuff(unit, auraInstanceID, simpleMode)
 end
 
 -- "Simple" (default) filters purgeable non-defensive buffs; "Detailed" announces
--- everything Blizzard lists on the nameplate.
+-- everything Blizzard lists on the nameplate; "AllBuffs" (World only) is broader still.
 local function GetImportantFilterMode()
 	local zone = moduleUtil:GetZoneConfig()
 	if not zone then return "Simple" end
 	return zone.ImportantFilterMode or "Simple"
 end
 
+-- AllBuffs is World-only. Same stable path as Simple/Detailed (nameplate RefreshAuras hook +
+-- importantLastSeen dedup), but it collects every nameplate-eligible helpful aura (not just the
+-- curated buffList) and applies no Simple/purge filter — verbose, for open-world / duel coverage.
+-- IMPORTANT: this only affects the important-buff path; the defensive/CC watcher path is untouched.
+function UsesLegacyImportantDetection()
+	local zone = moduleUtil:GetZoneConfig()
+	if not zone or zone.ImportantEnabled == false or not zone.Important then return false end
+	if GetImportantFilterMode() ~= "AllBuffs" then return false end
+	local inInstance = IsInInstance()
+	return not inInstance
+end
+
+-- AllBuffs source: all nameplate-eligible helpful auras (broader than the displayed buffList),
+-- secret-safe via GetUnitAuraInstanceIDs. Falls back to the buffList (same as Detailed).
+local function CollectAllHelpfulBuffIds(unit)
+	if C_UnitAuras.GetUnitAuraInstanceIDs then
+		local ok, list = pcall(C_UnitAuras.GetUnitAuraInstanceIDs, unit, "HELPFUL|INCLUDE_NAME_PLATE_ONLY")
+		if ok and list then
+			local ids = {}
+			for _, id in ipairs(list) do
+				if id ~= nil then
+					ids[id] = true
+				end
+			end
+			return ids
+		end
+	end
+	return CollectImportantBuffIds(unit)
+end
+
+-- The current mode's buff-id set. Used everywhere importantLastSeen is seeded AND compared, so
+-- pre-existing buffs are never announced as "new" when entering combat in AllBuffs mode.
+local function CollectImportantBuffIdsForMode(unit)
+	if UsesLegacyImportantDetection() then
+		return CollectAllHelpfulBuffIds(unit)
+	end
+	return CollectImportantBuffIds(unit)
+end
+
 local function OnImportantBuffsRefreshed(unit)
 	if not unit or not UnitExists(unit) or not units:IsEnemy(unit) then return end
 
-	local current = CollectImportantBuffIds(unit)
+	local legacy = UsesLegacyImportantDetection()
+	local current = CollectImportantBuffIdsForMode(unit)
 	local lastSeen = importantLastSeen[unit]
 	if not lastSeen then
 		importantLastSeen[unit] = current
@@ -246,9 +292,10 @@ local function OnImportantBuffsRefreshed(unit)
 		for id in pairs(current) do
 			if not lastSeen[id] and not defensiveIds[id] then
 				if announceThisPassImportant then break end
+				-- 全部增益：野外插旗，姓名板可见的增益全播（无简易过滤、无 1 秒间隔）
 				-- 简易版：同 MiniCC 4.5.x TTS 前的过滤（buffList + 友方 + 可驱散非减伤）
 				-- 详细版：AurasFrame.buffList 有什么播什么
-				if ShouldAnnounceImportantBuff(unit, id, simpleMode) then
+				if legacy or ShouldAnnounceImportantBuff(unit, id, simpleMode) then
 					local data = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, id)
 					if data and data.name then
 						AnnounceTTS(data.name, "important")
@@ -281,7 +328,8 @@ local function HookNameplateImportantBuffs(unit, retryCount)
 	if hookedAurasFrames[af] then return end
 
 	hookedAurasFrames[af] = true
-	importantLastSeen[unit] = CollectImportantBuffIds(unit)
+	-- Seed with the current mode's set so pre-existing buffs are not announced as "new".
+	importantLastSeen[unit] = CollectImportantBuffIdsForMode(unit)
 
 	pcall(function()
 		hooksecurefunc(af, "RefreshAuras", function(frame)
@@ -795,6 +843,29 @@ local function RebuildNameplateWatchers()
 	end
 end
 
+-- A friendly unit turning hostile (duel start, PvP flag) fires UNIT_FACTION but NOT
+-- NAME_PLATE_UNIT_ADDED, so the watcher (OnNamePlateAdded) and important hook
+-- (HookNameplateImportantBuffs) - both gated on units:IsEnemy at nameplate-add time - were never
+-- created for that nameplate. Re-run the same setup the mode-switch path uses so the now-hostile
+-- unit gets tracked. Debounced to once per frame (UNIT_FACTION can fire in bursts).
+local pendingFactionRefresh = false
+local function OnUnitFactionChanged()
+	if pendingFactionRefresh then return end
+	pendingFactionRefresh = true
+	C_Timer.After(0, function()
+		pendingFactionRefresh = false
+		if not moduleUtil:IsEnabled() then return end
+		local inInstance, instanceType = IsInInstance()
+		if instanceType == "arena" then return end
+		if instanceType == "pvp" or instanceType == "party" or instanceType == "raid" or not inInstance then
+			if not GetTargetFocusOnly() then
+				RebuildNameplateWatchers()
+			end
+			HookAllEnemyNameplates()
+		end
+	end)
+end
+
 local function DisposeFriendlyWatchers()
 	for _, watcher in ipairs(friendlyWatchers) do
 		watcher:Dispose()
@@ -989,9 +1060,12 @@ function M:Init()
 	eventsFrame:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 	eventsFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	eventsFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+	eventsFrame:RegisterEvent("UNIT_FACTION")
 	eventsFrame:SetScript("OnEvent", function(_, event, unitToken)
 		if event == "PVP_MATCH_STATE_CHANGED" then
 			OnMatchStateChanged()
+		elseif event == "UNIT_FACTION" then
+			OnUnitFactionChanged()
 		elseif event == "NAME_PLATE_UNIT_ADDED" then
 			if moduleUtil:IsEnabled() then
 				local inInstance, instanceType = IsInInstance()

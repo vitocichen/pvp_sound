@@ -69,6 +69,7 @@ L:SetStrings({
 	["Choose how strictly important buffs are filtered."] = "选择重要法术的过滤严格程度。",
 	["Important Mode Detailed"] = "详细版（含自由祝福，可能多回春/智力等）",
 	["Important Mode Simple"] = "简易版（过滤可驱散非减伤，同MiniCC）",
+	["Important Mode AllBuffs"] = "全部增益（仅野外，新增增益全播，适合插旗决斗）",
 
 	-- Section 2: CC Spells
 	["CC Spells Section"] = "控制技能语音",
@@ -120,6 +121,7 @@ L:SetStrings({
 	["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — 新增读条和打断监控。",
 	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — 新增治疗被控监控。",
 	["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — 修复了读条重复播放的问题，新增多目标的打断成功监控。",
+	["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — 野外新增「全部增益」模式，如暗影步/君王/腥红之瓶均能播放，但是也会伴随诸多无用 buff，适用于插旗单人 PK。",
 	["changelog_v2.0.2"] = "|cFFFFD100v2.0.2|r — 简易版重要法术播报已与 MiniCC 保持一致；新增 1 秒播报间隔，一定程度修复了愈合导言的频繁播放。",
 	["changelog_v2.0.1"] = "|cFFFFD100v2.0.1|r — 重要法术新增「详细版/简易版」过滤模式：详细版含自由祝福（可能多回春/智力等），简易版过滤可驱散非减伤 buff（同 MiniCC）。",
 	["changelog_v2.0.0"] = "|cFFFFD100v2.0.0|r — 现在重要法术播放已经实现，可以只播放重要的进攻技能，忽略常驻buff和不必要的buff。",

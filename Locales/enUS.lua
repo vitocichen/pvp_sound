@@ -65,6 +65,7 @@ L:SetDefaultStrings({
 	["Choose how strictly important buffs are filtered."] = "Choose how strictly important buffs are filtered.",
 	["Important Mode Detailed"] = "Detailed (incl. Blessing of Freedom, may add Rejuv/Intellect etc.)",
 	["Important Mode Simple"] = "Simple (filters purgeable non-defensive, like MiniCC)",
+	["Important Mode AllBuffs"] = "All Buffs (World only, announces every new buff, for duels)",
 
 	-- Section 2: CC Spells
 	["CC Spells Section"] = "CC Spells",
@@ -116,6 +117,7 @@ L:SetDefaultStrings({
 	["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — Added Cast Bar and Interrupt monitoring.",
 	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — Added Healer CC monitoring.",
 	["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — Fixed cast bar duplicate announcements; added multi-target interrupt alert monitoring.",
+	["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — New \"All Buffs\" mode for the World zone: announces skills like Shadowstep / Sovereign / Crimson Vial, but also many useless buffs — best for open-world 1v1 duels.",
 	["changelog_v2.0.2"] = "|cFFFFD100v2.0.2|r — Simple mode for important spells now matches MiniCC. Added a 1-second announcement gap to reduce Prayer of Mending spam.",
 	["changelog_v2.0.1"] = "|cFFFFD100v2.0.1|r — Added Detailed/Simple filter modes for important spells: Detailed includes Blessing of Freedom (may also announce Rejuv/Intellect etc.); Simple filters purgeable non-defensive buffs (like MiniCC).",
 	["changelog_v2.0.0"] = "|cFFFFD100v2.0.0|r — Important spell playback is now implemented, only playing important offensive skills and ignoring permanent/unnecessary buffs.",

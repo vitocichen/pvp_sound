@@ -651,6 +651,8 @@ local function BuildChangelogTab(content)
 	local changelogBlock = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v2.0.3"],
+			" ",
 			L["changelog_v2.0.2"],
 			" ",
 			L["changelog_v2.0.1"],
@@ -799,7 +801,10 @@ local function BuildZoneTab(content, zoneKey)
 	})
 	importantModeLabel:SetPoint("TOPLEFT", importantChk, "BOTTOMLEFT", 0, -verticalSpacing)
 
-	local importantModeItems = { "Detailed", "Simple" }
+	-- "AllBuffs" (verbose, v1.0.8-style) is offered only in the World zone.
+	local importantModeItems = (zoneKey == "World")
+		and { "Detailed", "Simple", "AllBuffs" }
+		or { "Detailed", "Simple" }
 	local importantModeDropdown = mini:Dropdown({
 		Parent = content,
 		Items = importantModeItems,
@@ -813,6 +818,7 @@ local function BuildZoneTab(content, zoneKey)
 		end,
 		GetText = function(value)
 			if value == "Simple" then return L["Important Mode Simple"]
+			elseif value == "AllBuffs" then return L["Important Mode AllBuffs"]
 			else return L["Important Mode Detailed"]
 			end
 		end,
