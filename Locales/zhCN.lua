@@ -69,7 +69,7 @@ L:SetStrings({
 	["Choose how strictly important buffs are filtered."] = "选择重要法术的过滤严格程度。",
 	["Important Mode Detailed"] = "详细版（含自由祝福，可能多回春/智力等）",
 	["Important Mode Simple"] = "简易版（过滤可驱散非减伤，同MiniCC）",
-	["Important Mode AllBuffs"] = "全部增益（仅野外，新增增益全播，适合插旗决斗）",
+	["Important Mode AllBuffs"] = "全部增益（全部buff播放，推荐插旗环境使用）",
 
 	-- Section 2: CC Spells
 	["CC Spells Section"] = "控制技能语音",
