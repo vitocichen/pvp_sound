@@ -46,24 +46,80 @@ function M:FriendlyUnits()
 	return results
 end
 
+---True only when confidently a friend. Secret → false (safe for conditions).
 function M:IsFriend(unitToken)
-	return UnitIsFriend("player", unitToken)
+	local result = UnitIsFriend("player", unitToken)
+	if issecretvalue(result) then
+		return false
+	end
+	return result and true or false
 end
 
+---True only when confidently an enemy. Secret → false.
+---Note: duel opponents are often NOT IsEnemy (same faction) but ARE CanAttack.
 function M:IsEnemy(unitToken)
-	return UnitIsEnemy("player", unitToken)
+	local result = UnitIsEnemy("player", unitToken)
+	if issecretvalue(result) then
+		return false
+	end
+	return result and true or false
 end
 
--- True for a player's pet OR guardian/minion. UnitIsOtherPlayersPet only
--- catches controllable pets (e.g. Hunter pet, Water Elemental); guardians like
--- Mage Mirror Images, Warlock Wild Imps/Dreadstalkers and most temporary
--- summons are caught by UnitIsMinion instead.
+---True when we can attack the unit. Secret → true so real enemies aren't dropped.
+function M:CanAttack(unitToken)
+	local result = UnitCanAttack("player", unitToken)
+	if issecretvalue(result) then
+		return true
+	end
+	return result and true or false
+end
+
+function M:IsCharmed(unitToken)
+	local result = UnitIsCharmed(unitToken)
+	if issecretvalue(result) then
+		return false
+	end
+	return result and true or false
+end
+
+-- True for a player's pet OR guardian/minion.
 function M:IsPetOrMinion(unitToken)
 	if not unitToken then return false end
 	if string.find(unitToken, "pet", 1, true) then return true end
 	if UnitIsOtherPlayersPet(unitToken) then return true end
 	if UnitIsMinion and UnitIsMinion(unitToken) then return true end
 	return false
+end
+
+---Enemy (or duel) player worth watching for aura sounds.
+---Uses CanAttack — not UnitIsEnemy — so same-faction duel opponents still match (MiniAuras pattern).
+function M:IsEnemyPlayer(unitToken)
+	if not unitToken then return false end
+
+	local exists = UnitExists(unitToken)
+	if issecretvalue(exists) or not exists then
+		return false
+	end
+
+	if M:IsPetOrMinion(unitToken) then
+		return false
+	end
+
+	-- Mind-controlled: skip (nameplate buff list flips; MiniAuras does the same).
+	if M:IsCharmed(unitToken) then
+		return false
+	end
+
+	if not M:CanAttack(unitToken) then
+		return false
+	end
+
+	local isPlayer = UnitIsPlayer(unitToken)
+	if issecretvalue(isPlayer) then
+		-- Attackable non-pet with secret IsPlayer: keep (nameplate / arena).
+		return true
+	end
+	return isPlayer and true or false
 end
 
 function M:IsHealer(unit)

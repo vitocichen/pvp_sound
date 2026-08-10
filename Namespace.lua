@@ -4,3 +4,4 @@ addon.Utils = {}
 addon.Core = {}
 addon.Modules = {}
 addon.Config = {}
+addon.Data = {}

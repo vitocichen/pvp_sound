@@ -1,0 +1,536 @@
+---@type string, Addon
+local _, addon = ...
+local moduleUtil = addon.Utils.ModuleUtil
+local units = addon.Utils.Units
+local auraSounds = addon.Core.AuraSounds
+local voicePack = addon.Core.VoicePack
+
+local enemyBuffSounds = addon.Data.EnemyBuffSounds
+local selfCcSounds = addon.Data.SelfCcSounds
+local ccSpellIds = addon.Data.CcSpellIds
+
+local HEALER_CC_SOUND = "Sonar.ogg"
+
+---@class AuraSoundModule
+local M = {}
+addon.Modules.AuraSoundModule = M
+
+-- token -> handle list (enemy buffs)
+local enemyByToken = {}
+local enemySignature = nil
+local spellGeneration = 0
+
+-- friendly CC handles by unit token (player / party / raid)
+local selfCcByToken = {}
+local selfCcSignature = nil
+local selfCcGeneration = 0
+
+-- healer-in-CC: one shared alert clip on each healer unit (MiniAuras HealerCC)
+local healerCcByToken = {}
+local healerCcSignature = nil
+
+local DEFAULT_CHANNEL = "Master"
+local eventsFrame
+local db
+
+local enabledEnemySounds = {}
+local enabledSelfCcSounds = {}
+
+local function Channel()
+	return (db and db.Sound and db.Sound.Channel) or DEFAULT_CHANNEL
+end
+
+local function BuffZoneEnabled()
+	return moduleUtil:IsEnabled()
+end
+
+local function CcZoneEnabled()
+	local zone = moduleUtil:GetZoneConfig()
+	if not zone then return true end
+	return zone.CcEnabled ~= false
+end
+
+local function HealerCcZoneEnabled()
+	local zone = moduleUtil:GetZoneConfig()
+	if not zone then return true end
+	return zone.HealerCcEnabled ~= false
+end
+
+---"self" = player only; "party" = player + party/raid teammates (per zone).
+local function SelfCcScope()
+	local zone = moduleUtil:GetZoneConfig()
+	if zone and zone.CcScope == "party" then return "party" end
+	return "self"
+end
+
+local function RebuildEnabledEnemySounds()
+	wipe(enabledEnemySounds)
+	local spells = db and db.Spells
+	for spellId, file in pairs(enemyBuffSounds) do
+		if not spells or spells[spellId] ~= false then
+			enabledEnemySounds[spellId] = file
+		end
+	end
+end
+
+local function RebuildEnabledSelfCcSounds()
+	wipe(enabledSelfCcSounds)
+	local spells = db and db.SelfCcSpells
+	for spellId, file in pairs(selfCcSounds) do
+		if not spells or spells[spellId] ~= false then
+			enabledSelfCcSounds[spellId] = file
+		end
+	end
+end
+
+local function UnitExistsSafe(unitToken)
+	local exists = UnitExists(unitToken)
+	return not issecretvalue(exists) and exists and true or false
+end
+
+---@return string[]
+local function GetSelfCcWatchTokens()
+	-- Match old PVP_Sound Friendly CC + MiniAuras party unit picking:
+	-- always player; teammates via Units:FriendlyUnits(); skip pets/minions.
+	-- When healer-CC alert is on, skip healers here so they only get Sonar (no spell+Sonar stack).
+	local tokens = { "player" }
+	if SelfCcScope() ~= "party" then
+		return tokens
+	end
+
+	local skipHealers = HealerCcZoneEnabled()
+	for _, unit in ipairs(units:FriendlyUnits()) do
+		if not units:IsPetOrMinion(unit) then
+			if not (skipHealers and units:IsHealer(unit)) then
+				tokens[#tokens + 1] = unit
+			end
+		end
+	end
+
+	return tokens
+end
+
+local function IsTargetFocusOnly()
+	-- Old PVP_Sound: per-zone TargetFocusOnly; nil/true = target+focus only.
+	local zone = moduleUtil:GetZoneConfig()
+	if not zone then return true end
+	return zone.TargetFocusOnly ~= false
+end
+
+local function GetEnemyWatchTokens()
+	local tokens = {}
+	local _, instanceType = IsInInstance()
+	local targetFocusOnly = IsTargetFocusOnly()
+
+	tokens[#tokens + 1] = "target"
+	tokens[#tokens + 1] = "focus"
+
+	if instanceType == "arena" then
+		if not targetFocusOnly then
+			tokens[#tokens + 1] = "arena1"
+			tokens[#tokens + 1] = "arena2"
+			tokens[#tokens + 1] = "arena3"
+		end
+		return tokens
+	end
+
+	if not targetFocusOnly then
+		for _, nameplate in ipairs(C_NamePlate.GetNamePlates() or {}) do
+			local unitToken = nameplate.unitToken
+			if units:IsEnemyPlayer(unitToken) then
+				tokens[#tokens + 1] = unitToken
+			end
+		end
+	end
+
+	return tokens
+end
+
+local function ClearMap(map)
+	for token, ids in pairs(map) do
+		auraSounds:RemoveSet(ids)
+		map[token] = nil
+	end
+end
+
+---Only watch units that currently qualify (hostile/duel player, or existing arena frame).
+---@param unitToken string
+---@return boolean
+local function ShouldWatchToken(unitToken)
+	if not unitToken then return false end
+	local isArena = unitToken == "arena1" or unitToken == "arena2" or unitToken == "arena3"
+	if isArena then
+		local exists = UnitExists(unitToken)
+		return not issecretvalue(exists) and exists and true or false
+	end
+	return units:IsEnemyPlayer(unitToken)
+end
+
+local function UnregisterToken(unitToken)
+	local ids = enemyByToken[unitToken]
+	if not ids then return end
+	auraSounds:RemoveSet(ids)
+	enemyByToken[unitToken] = nil
+end
+
+local function RegisterEnemyToken(unitToken, basePath, channel)
+	if enemyByToken[unitToken] then return end
+	if not next(enabledEnemySounds) then return end
+	if not ShouldWatchToken(unitToken) then return end
+
+	enemyByToken[unitToken] = auraSounds:RegisterMappedSet(nil, unitToken, enabledEnemySounds, basePath, channel)
+end
+
+local function UnregisterSelfCcToken(unitToken)
+	local ids = selfCcByToken[unitToken]
+	if not ids then return end
+	auraSounds:RemoveSet(ids)
+	selfCcByToken[unitToken] = nil
+end
+
+local function RegisterSelfCcToken(unitToken, basePath, channel)
+	if selfCcByToken[unitToken] then return end
+	if not next(enabledSelfCcSounds) then return end
+	if unitToken ~= "player" and not UnitExistsSafe(unitToken) then return end
+
+	selfCcByToken[unitToken] = auraSounds:RegisterMappedSet(nil, unitToken, enabledSelfCcSounds, basePath, channel)
+end
+
+local function RefreshSelfCc(basePath, channel, active)
+	local wantActive = active and next(enabledSelfCcSounds) ~= nil
+	local scope = SelfCcScope()
+	local inGroup = IsInGroup() and true or false
+	local inRaid = IsInRaid() and true or false
+	local sig = auraSounds:Signature(
+		wantActive,
+		basePath or "",
+		channel,
+		selfCcGeneration,
+		scope,
+		inGroup,
+		inRaid,
+		moduleUtil:GetZoneKey(),
+		HealerCcZoneEnabled()
+	)
+
+	local tokens = wantActive and GetSelfCcWatchTokens() or {}
+	local want = {}
+	for i = 1, #tokens do
+		want[tokens[i]] = true
+	end
+
+	if sig ~= selfCcSignature then
+		ClearMap(selfCcByToken)
+		selfCcSignature = sig
+	else
+		for token in pairs(selfCcByToken) do
+			if not want[token] or (token ~= "player" and not UnitExistsSafe(token)) then
+				UnregisterSelfCcToken(token)
+			end
+		end
+	end
+
+	if wantActive and basePath then
+		for token in pairs(want) do
+			RegisterSelfCcToken(token, basePath, channel)
+		end
+	elseif not wantActive then
+		ClearMap(selfCcByToken)
+	end
+end
+
+local function UnregisterHealerCcToken(unitToken)
+	local ids = healerCcByToken[unitToken]
+	if not ids then return end
+	auraSounds:RemoveSet(ids)
+	healerCcByToken[unitToken] = nil
+end
+
+local function RegisterHealerCcToken(unitToken, soundPath, channel)
+	if healerCcByToken[unitToken] then return end
+	if not ccSpellIds or not next(ccSpellIds) then return end
+	if not UnitExistsSafe(unitToken) then return end
+
+	healerCcByToken[unitToken] = auraSounds:RegisterSet(nil, unitToken, ccSpellIds, soundPath, channel)
+end
+
+---MiniAuras HealerCC: register full CC list on each party/raid healer (not the player).
+local function RefreshHealerCc(basePath, channel, active)
+	local wantActive = active and basePath ~= nil and ccSpellIds ~= nil and next(ccSpellIds) ~= nil
+	local soundPath = wantActive and voicePack:Path(HEALER_CC_SOUND) or nil
+	if wantActive and not soundPath then
+		wantActive = false
+	end
+
+	local inGroup = IsInGroup() and true or false
+	local inRaid = IsInRaid() and true or false
+	local sig = auraSounds:Signature(
+		wantActive,
+		soundPath or "",
+		channel,
+		inGroup,
+		inRaid,
+		moduleUtil:GetZoneKey()
+	)
+
+	local want = {}
+	if wantActive then
+		for _, unit in ipairs(units:FindHealers()) do
+			if not units:IsPetOrMinion(unit) then
+				want[unit] = true
+			end
+		end
+	end
+
+	if sig ~= healerCcSignature then
+		ClearMap(healerCcByToken)
+		healerCcSignature = sig
+	else
+		for token in pairs(healerCcByToken) do
+			if not want[token] or not UnitExistsSafe(token) then
+				UnregisterHealerCcToken(token)
+			end
+		end
+	end
+
+	if wantActive and soundPath then
+		for token in pairs(want) do
+			RegisterHealerCcToken(token, soundPath, channel)
+		end
+	elseif not wantActive then
+		ClearMap(healerCcByToken)
+	end
+end
+
+function M:Refresh(reason)
+	if not auraSounds:IsAvailable() then return end
+
+	RebuildEnabledEnemySounds()
+	RebuildEnabledSelfCcSounds()
+
+	local basePath = voicePack:GetBasePath()
+	local channel = Channel()
+
+	-- --- enemy buffs ---
+	local enemyActive = BuffZoneEnabled() and basePath ~= nil and next(enabledEnemySounds) ~= nil
+	local targetFocusOnly = IsTargetFocusOnly()
+	local sig = auraSounds:Signature(
+		enemyActive,
+		basePath or "",
+		channel,
+		moduleUtil:GetZoneKey(),
+		spellGeneration,
+		targetFocusOnly
+	)
+
+	local tokens = enemyActive and GetEnemyWatchTokens() or {}
+	local want = {}
+	for i = 1, #tokens do
+		want[tokens[i]] = true
+	end
+
+	if sig ~= enemySignature then
+		ClearMap(enemyByToken)
+		enemySignature = sig
+	else
+		-- Drop tokens we no longer want, OR that no longer qualify (e.g. target
+		-- was hostile, registration stuck after they became friendly / cleared).
+		for token in pairs(enemyByToken) do
+			if not want[token] or not ShouldWatchToken(token) then
+				UnregisterToken(token)
+			end
+		end
+	end
+
+	if enemyActive and basePath then
+		for token in pairs(want) do
+			if ShouldWatchToken(token) then
+				RegisterEnemyToken(token, basePath, channel)
+			else
+				UnregisterToken(token)
+			end
+		end
+	elseif not enemyActive then
+		ClearMap(enemyByToken)
+	end
+
+	-- --- friendly CC (player / optional party+raid) ---
+	local ccActive = CcZoneEnabled() and basePath ~= nil
+	RefreshSelfCc(basePath, channel, ccActive)
+
+	-- --- healer-in-CC (other healers only; MiniAuras-style) ---
+	local healerActive = HealerCcZoneEnabled() and basePath ~= nil
+	RefreshHealerCc(basePath, channel, healerActive)
+end
+
+function M:ClearAll()
+	ClearMap(enemyByToken)
+	enemySignature = nil
+	ClearMap(selfCcByToken)
+	selfCcSignature = nil
+	ClearMap(healerCcByToken)
+	healerCcSignature = nil
+end
+
+---@return table<string, number>
+---@return number
+function M:GetRegistrationStats()
+	local byToken = {}
+	local total = 0
+	for token, ids in pairs(enemyByToken) do
+		local n = ids and #ids or 0
+		byToken[token] = n
+		total = total + n
+	end
+	for token, ids in pairs(selfCcByToken) do
+		local n = ids and #ids or 0
+		byToken[token .. "(selfCC)"] = n
+		total = total + n
+	end
+	for token, ids in pairs(healerCcByToken) do
+		local n = ids and #ids or 0
+		byToken[token .. "(healerCC)"] = n
+		total = total + n
+	end
+	return byToken, total
+end
+
+---@param spellID number?
+function M:PlayTest(spellID)
+	spellID = spellID or 45438
+	local file = enemyBuffSounds[spellID] or selfCcSounds[spellID]
+	if not file then
+		print(string.format("|cff33ff99[PVP Sound]|r spellID=%d 无语音映射", spellID))
+		return
+	end
+	local path = voicePack:Path(file)
+	if not path then
+		print("|cff33ff99[PVP Sound]|r 语音文件缺失：请确认 Media\\语音包文件夹 完整")
+		return
+	end
+	local ok = PlaySoundFile(path, Channel())
+	if ok then
+		print(string.format("|cff33ff99[PVP Sound]|r 试播 %d → %s (ok)", spellID, file))
+	else
+		print(string.format("|cff33ff99[PVP Sound]|r 试播失败 %d → %s", spellID, path))
+	end
+end
+
+---@param spellID number
+---@return boolean
+function M:IsSpellEnabled(spellID)
+	if not db or not db.Spells then return true end
+	return db.Spells[spellID] ~= false
+end
+
+---@param spellID number
+---@param enabled boolean
+function M:SetSpellEnabled(spellID, enabled)
+	if not db then return end
+	db.Spells = db.Spells or {}
+	db.Spells[spellID] = enabled and true or false
+	spellGeneration = spellGeneration + 1
+	self:Refresh("spell-toggle")
+end
+
+---Enable/disable one enemy-buff ability (all ID variants sharing the UI row).
+---@param spellEntry table { Id, File, Ids? }
+---@param enabled boolean
+function M:SetSpellGroupEnabled(spellEntry, enabled)
+	if not db or not spellEntry then return end
+	db.Spells = db.Spells or {}
+	local value = enabled and true or false
+	-- Only toggle this UI row's Ids (DedupeSpells merges variants).
+	-- Do NOT expand by File — unrelated abilities can share a clip (e.g. Fear4).
+	if spellEntry.Ids then
+		for spellId in pairs(spellEntry.Ids) do
+			db.Spells[spellId] = value
+		end
+	elseif spellEntry.Id then
+		db.Spells[spellEntry.Id] = value
+	end
+	spellGeneration = spellGeneration + 1
+	self:Refresh("spell-group-toggle")
+end
+
+---@param spellEntry table
+---@return boolean
+function M:IsSpellGroupEnabled(spellEntry)
+	if not spellEntry then return false end
+	return self:IsSpellEnabled(spellEntry.Id)
+end
+
+---@param spellID number
+---@return boolean
+function M:IsSelfCcEnabled(spellID)
+	if not db or not db.SelfCcSpells then return true end
+	return db.SelfCcSpells[spellID] ~= false
+end
+
+---Enable/disable one catalog ability (all aura ID variants).
+---@param spellEntry table { Id, File, Ids? }
+---@param enabled boolean
+function M:SetSelfCcGroupEnabled(spellEntry, enabled)
+	if not db or not spellEntry then return end
+	db.SelfCcSpells = db.SelfCcSpells or {}
+	local value = enabled and true or false
+	-- Only this row's Ids — shared clips (Fear4) must not cross-disable other abilities.
+	if spellEntry.Ids then
+		for spellId in pairs(spellEntry.Ids) do
+			db.SelfCcSpells[spellId] = value
+		end
+	elseif spellEntry.Id then
+		db.SelfCcSpells[spellEntry.Id] = value
+	end
+	selfCcGeneration = selfCcGeneration + 1
+	self:Refresh("selfcc-toggle")
+end
+
+---@param spellEntry table
+---@return boolean
+function M:IsSelfCcGroupEnabled(spellEntry)
+	if not spellEntry then return false end
+	return self:IsSelfCcEnabled(spellEntry.Id)
+end
+
+function M:Init()
+	local mini = addon.Core.Framework
+	db = mini:GetSavedVars()
+
+	eventsFrame = CreateFrame("Frame")
+	eventsFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+	eventsFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
+	eventsFrame:RegisterEvent("PLAYER_FOCUS_CHANGED")
+	eventsFrame:RegisterEvent("NAME_PLATE_UNIT_ADDED")
+	eventsFrame:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
+	eventsFrame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+	eventsFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+	eventsFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+	eventsFrame:RegisterEvent("PLAYER_ROLES_ASSIGNED")
+	eventsFrame:RegisterEvent("DUEL_INBOUNDS")
+	eventsFrame:RegisterEvent("DUEL_FINISHED")
+	eventsFrame:RegisterUnitEvent("UNIT_FACTION", "target", "focus", "arena1", "arena2", "arena3")
+	eventsFrame:SetScript("OnEvent", function(_, event, arg1)
+		if event == "NAME_PLATE_UNIT_ADDED" then
+			if (not IsTargetFocusOnly()) and units:IsEnemyPlayer(arg1) then
+				local basePath = voicePack:GetBasePath()
+				if BuffZoneEnabled() and basePath then
+					RebuildEnabledEnemySounds()
+					RegisterEnemyToken(arg1, basePath, Channel())
+				end
+			end
+		elseif event == "NAME_PLATE_UNIT_REMOVED" then
+			if arg1 and enemyByToken[arg1] then
+				auraSounds:RemoveSet(enemyByToken[arg1])
+				enemyByToken[arg1] = nil
+			end
+		else
+			M:Refresh(event)
+		end
+	end)
+
+	SLASH_PVPSOUNDTEST1 = "/pvpsoundtest"
+	SlashCmdList.PVPSOUNDTEST = function(msg)
+		M:PlayTest(tonumber(msg))
+	end
+end

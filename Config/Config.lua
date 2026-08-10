@@ -4,98 +4,52 @@ local mini = addon.Core.Framework
 local L = addon.L
 local verticalSpacing = mini.VerticalSpacing
 local horizontalSpacing = mini.HorizontalSpacing
+local catalog = addon.Data.EnemyBuffCatalog
+local selfCcCatalog = addon.Data.SelfCcCatalog
+local voicePack = addon.Core.VoicePack
 
 ---@type Db
 local db
 
+local function AuraSounds()
+	return addon.Modules.AuraSoundModule
+end
+
+local function BuildDefaultSpells()
+	local spells = {}
+	for spellId in pairs(addon.Data.EnemyBuffSounds) do
+		spells[spellId] = true
+	end
+	return spells
+end
+
+local function BuildDefaultSelfCcSpells()
+	local spells = {}
+	for spellId in pairs(addon.Data.SelfCcSounds) do
+		spells[spellId] = true
+	end
+	return spells
+end
+
 local dbDefaults = {
-	Version = 10,
-
-	-- Tracks the version whose "What's New" dialog has already been shown.
+	Version = 20,
 	WhatsNewVersion = false,
-
-	TTS = {
-		VoiceID = false,
-		Volume = 100,
-		SpeechRate = 7,
-		CastMinDuration = 1.0,
+	VoicePack = "夏一可",
+	ExtraVoicePacks = {},
+	Sound = {
+		Channel = "Master",
 		CastInterval = 0.0,
 	},
-
+	-- Enabled = enemy buff; CcEnabled = self/party debuff; HealerCcEnabled = healer-in-CC alert.
+	-- TargetFocusOnly = buff monitor; CcScope = self|party for debuffs.
 	Zones = {
-		World = {
-			Enabled = true,
-			ImportantEnabled = true,
-			Important = true,
-			ImportantFilterMode = "Simple",
-			Defensive = true,
-			TargetFocusOnly = true,
-			CCEnabled = true,
-			CCMode = "All",
-			CastBar = true,
-			CastBarTargetOnly = false,
-			CastBarExcludePets = false,
-			InterruptAlert = true,
-			InterruptMode = "All",
-			InterruptExcludePets = false,
-		},
-		Arena = {
-			Enabled = true,
-			ImportantEnabled = true,
-			Important = true,
-			ImportantFilterMode = "Simple",
-			Defensive = true,
-			TargetFocusOnly = false,
-			CCEnabled = true,
-			CCMode = "All",
-			CastBar = true,
-			CastBarTargetOnly = false,
-			CastBarExcludePets = true,
-			InterruptAlert = true,
-			InterruptMode = "Target",
-			InterruptExcludePets = true,
-			HealerCC = true,
-			HealerCCMode = "TTS",
-			HealerCCText = "治疗被控",
-			HealerCCSoundFile = "夏一可_控制成功.ogg",
-		},
-		BattleGrounds = {
-			Enabled = true,
-			ImportantEnabled = true,
-			Important = true,
-			ImportantFilterMode = "Simple",
-			Defensive = true,
-			TargetFocusOnly = true,
-			CCEnabled = true,
-			CCMode = "All",
-			CastBar = true,
-			CastBarTargetOnly = true,
-			CastBarExcludePets = true,
-			InterruptAlert = true,
-			InterruptMode = "Target",
-			InterruptExcludePets = true,
-			HealerCC = true,
-			HealerCCMode = "TTS",
-			HealerCCText = "治疗被控",
-			HealerCCSoundFile = "夏一可_控制成功.ogg",
-		},
-		PvE = {
-			Enabled = true,
-			ImportantEnabled = true,
-			Important = true,
-			ImportantFilterMode = "Simple",
-			Defensive = true,
-			TargetFocusOnly = true,
-			CCEnabled = true,
-			CCMode = "Self",
-			CastBar = true,
-			CastBarTargetOnly = true,
-			CastBarExcludePets = true,
-			InterruptAlert = true,
-			InterruptMode = "Target",
-			InterruptExcludePets = true,
-		},
+		World = { Enabled = true, TargetFocusOnly = true, CcEnabled = true, CcScope = "self", HealerCcEnabled = true },
+		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "self", HealerCcEnabled = true },
+		BattleGrounds = { Enabled = true, TargetFocusOnly = true, CcEnabled = true, CcScope = "self", HealerCcEnabled = true },
+		PvE = { Enabled = false, TargetFocusOnly = true, CcEnabled = false, CcScope = "self", HealerCcEnabled = false },
 	},
+	Spells = {},
+	SelfCcSpells = {},
 }
 
 local M = addon.Config
@@ -104,526 +58,339 @@ function M:Apply()
 	addon:Refresh()
 end
 
--- Migrate old v1 format to v2
+-- ---------- migrations (keep chain so old DBs upgrade cleanly) ----------
+
 local function MigrateV1(savedDb)
 	if not savedDb or (savedDb.Version and savedDb.Version >= 2) then return end
-
-	local oldEnabled = savedDb.Enabled or {}
-	local oldTTS = savedDb.TTS or {}
-	local oldImportant = oldTTS.Important and oldTTS.Important.Enabled
-	local oldDefensive = oldTTS.Defensive and oldTTS.Defensive.Enabled
-	local oldCCMode = oldTTS.CC and oldTTS.CC.Mode or "Off"
-	local oldTargetFocusOnly = savedDb.TargetFocusOnly
-
-	if oldImportant == nil then oldImportant = true end
-	if oldDefensive == nil then oldDefensive = true end
-	if oldTargetFocusOnly == nil then oldTargetFocusOnly = true end
-
-	local zones = {}
-	for _, zoneKey in ipairs({ "World", "Arena", "BattleGrounds", "PvE" }) do
-		local zoneEnabled
-		if oldEnabled[zoneKey] ~= nil then
-			zoneEnabled = oldEnabled[zoneKey]
-		else
-			zoneEnabled = dbDefaults.Zones[zoneKey].Enabled
-		end
-		zones[zoneKey] = {
-			Enabled = zoneEnabled,
-			Important = oldImportant,
-			Defensive = oldDefensive,
-			CCMode = oldCCMode,
-			TargetFocusOnly = (zoneKey == "Arena") and false or oldTargetFocusOnly,
-		}
-	end
-
-	savedDb.Enabled = nil
-	savedDb.TargetFocusOnly = nil
-	if savedDb.TTS then
-		savedDb.TTS.Important = nil
-		savedDb.TTS.Defensive = nil
-		savedDb.TTS.CC = nil
-	end
-
-	savedDb.Zones = zones
 	savedDb.Version = 2
 end
 
--- Migrate v2 format to v3: add CastBarTargetOnly and HealerCC
-local function MigrateV2(savedDb)
-	if not savedDb or not savedDb.Version or savedDb.Version >= 3 then return end
+local function MigrateThroughV11(savedDb)
+	if not savedDb then return end
+	if not savedDb.Version then savedDb.Version = 1 end
+	-- Jump any pre-v12 profile to the new simplified schema.
+	if savedDb.Version >= 12 then return end
 
+	local oldCastInterval = savedDb.TTS and savedDb.TTS.CastInterval
+		or (savedDb.Sound and savedDb.Sound.CastInterval)
+
+	local zoneEnabled = {}
 	if savedDb.Zones then
-		for zoneKey, zone in pairs(savedDb.Zones) do
-			-- Add CastBarTargetOnly (default true = current behavior)
-			if zone.CastBarTargetOnly == nil then
-				zone.CastBarTargetOnly = true
-			end
-			-- Add HealerCC for Arena
-			if zoneKey == "Arena" then
-				if zone.HealerCC == nil then
-					zone.HealerCC = true
-				end
-				if zone.HealerCCText == nil then
-					zone.HealerCCText = "治疗被控"
-				end
-			end
+		for key, zone in pairs(savedDb.Zones) do
+			zoneEnabled[key] = zone.Enabled ~= false
 		end
 	end
 
-	savedDb.Version = 3
-end
-
--- Migrate v3 format to v4: add ImportantEnabled
-local function MigrateV3(savedDb)
-	if not savedDb or not savedDb.Version or savedDb.Version >= 4 then return end
-
-	if savedDb.Zones then
-		for _, zone in pairs(savedDb.Zones) do
-			if zone.ImportantEnabled == nil then
-				zone.ImportantEnabled = true
-			end
-		end
-	end
-
-	savedDb.Version = 4
-end
-
--- Migrate v4 format to v5: add CCEnabled
-local function MigrateV4(savedDb)
-	if not savedDb or not savedDb.Version or savedDb.Version >= 5 then return end
-
-	if savedDb.Zones then
-		for _, zone in pairs(savedDb.Zones) do
-			if zone.CCEnabled == nil then
-				-- If CCMode was "Off", set CCEnabled to false; otherwise true
-				zone.CCEnabled = (zone.CCMode ~= "Off")
-			end
-		end
-	end
-
-	savedDb.Version = 5
-end
-
--- Migrate v5 format to v6: add HealerCCMode and HealerCCSoundFile
-local function MigrateV5(savedDb)
-	if not savedDb or not savedDb.Version or savedDb.Version >= 6 then return end
-
-	if savedDb.Zones and savedDb.Zones.Arena then
-		local arena = savedDb.Zones.Arena
-		if arena.HealerCCMode == nil then
-			arena.HealerCCMode = "TTS"
-		end
-		if arena.HealerCCSoundFile == nil then
-			arena.HealerCCSoundFile = "夏一可_控制成功.ogg"
-		end
-	end
-
-	savedDb.Version = 6
-end
-
--- Migrate v6 format to v7: add HealerCC to BattleGrounds
-local function MigrateV6(savedDb)
-	if not savedDb or not savedDb.Version or savedDb.Version >= 7 then return end
-
-	if savedDb.Zones and savedDb.Zones.BattleGrounds then
-		local bg = savedDb.Zones.BattleGrounds
-		if bg.HealerCC == nil then
-			bg.HealerCC = true
-		end
-		if bg.HealerCCMode == nil then
-			bg.HealerCCMode = "TTS"
-		end
-		if bg.HealerCCText == nil then
-			bg.HealerCCText = "治疗被控"
-		end
-		if bg.HealerCCSoundFile == nil then
-			bg.HealerCCSoundFile = "夏一可_控制成功.ogg"
-		end
-	end
-
-	savedDb.Version = 7
-end
-
--- Migrate v7 format to v8: update default CCMode/CastBar/PvE settings
-local function MigrateV7(savedDb)
-	if not savedDb or not savedDb.Version or savedDb.Version >= 8 then return end
-
-	if savedDb.Zones then
-		-- World: CCMode -> All, CastBarTargetOnly -> false
-		if savedDb.Zones.World then
-			local world = savedDb.Zones.World
-			if world.CCMode == "Self" or world.CCMode == "Off" then
-				world.CCMode = "All"
-			end
-			world.CastBarTargetOnly = false
-			-- Ensure CCEnabled is true
-			world.CCEnabled = true
-		end
-
-		-- Arena: CCMode -> All, CastBarTargetOnly -> false, CCEnabled -> true
-		if savedDb.Zones.Arena then
-			local arena = savedDb.Zones.Arena
-			if arena.CCMode == "Self" or arena.CCMode == "Off" then
-				arena.CCMode = "All"
-			end
-			arena.CastBarTargetOnly = false
-			arena.CCEnabled = true
-		end
-
-		-- BattleGrounds: CCMode -> All, CCEnabled -> true
-		if savedDb.Zones.BattleGrounds then
-			local bg = savedDb.Zones.BattleGrounds
-			if bg.CCMode == "Self" or bg.CCMode == "Off" then
-				bg.CCMode = "All"
-			end
-			bg.CCEnabled = true
-		end
-
-		-- PvE: Enabled -> true, CCEnabled -> true, CCMode -> Self (if Off)
-		if savedDb.Zones.PvE then
-			local pve = savedDb.Zones.PvE
-			pve.Enabled = true
-			pve.CCEnabled = true
-			if pve.CCMode == "Off" then
-				pve.CCMode = "Self"
-			end
-		end
-	end
-
-	savedDb.Version = 8
-end
-
--- Migrate v8 format to v9: add CastBarExcludePets and InterruptExcludePets
-local function MigrateV8(savedDb)
-	if not savedDb or not savedDb.Version or savedDb.Version >= 9 then return end
-
-	if savedDb.Zones then
-		for zoneKey, zone in pairs(savedDb.Zones) do
-			-- World defaults to false (include pets/NPCs), others default to true (exclude pets)
-			local defaultExclude = (zoneKey ~= "World")
-			if zone.CastBarExcludePets == nil then
-				zone.CastBarExcludePets = defaultExclude
-			end
-			if zone.InterruptExcludePets == nil then
-				zone.InterruptExcludePets = defaultExclude
-			end
-		end
-	end
-
-	savedDb.Version = 9
-end
-
--- Migrate to v10: add ImportantFilterMode (default Simple)
-local function MigrateV9(savedDb)
-	if not savedDb or not savedDb.Version or savedDb.Version >= 10 then return end
-
-	if savedDb.Zones then
-		for _, zone in pairs(savedDb.Zones) do
-			if zone.ImportantFilterMode == nil then
-				zone.ImportantFilterMode = "Simple"
-			end
-		end
-	end
-
-	savedDb.Version = 10
-end
-
--- ==================== Sound files ====================
-
-local soundFiles = {}
-local mediaPath = "Interface\\AddOns\\PVP_Sound\\Media\\"
-
-local function BuildSoundFileList()
-	if #soundFiles > 0 then return end
-	-- Hardcoded list of available sound files in Media folder
-	local files = {
-		"PS_Alert.ogg",
-		"PS_Chime.ogg",
-		"PS_Error.ogg",
-		"PS_Horn.ogg",
-		"PS_Impact.ogg",
-		"PS_Ping.ogg",
-		"PS_Pop.ogg",
-		"PS_Radar.ogg",
-		"PS_Shock.ogg",
-		"PS_Swoosh.ogg",
-		"PS_Warm.ogg",
-		"夏一可_控制成功.ogg",
+	savedDb.TTS = nil
+	savedDb.Sound = {
+		Channel = (savedDb.Sound and savedDb.Sound.Channel) or "Master",
+		CastInterval = oldCastInterval or 0,
 	}
-	for _, f in ipairs(files) do
-		soundFiles[#soundFiles + 1] = f
+	-- Nameplates by default (duel / world practice matches MiniCC).
+	savedDb.TargetFocusOnly = false
+	savedDb.Zones = {
+		World = { Enabled = zoneEnabled.World ~= false },
+		Arena = { Enabled = zoneEnabled.Arena ~= false },
+		BattleGrounds = { Enabled = zoneEnabled.BattleGrounds ~= false },
+		PvE = { Enabled = zoneEnabled.PvE == true },
+	}
+	-- Spells filled after defaults merge.
+	savedDb.Spells = savedDb.Spells or {}
+	savedDb.Version = 12
+end
+
+-- v13: watch nameplates by default; UnitIsEnemy failed for same-faction duels.
+local function MigrateV13(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 13) then return end
+	savedDb.TargetFocusOnly = false
+	savedDb.Version = 13
+end
+
+-- v14: self-CC (debuffs on player) via AddAuraSound on unitToken=player.
+local function MigrateV14(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 14) then return end
+	savedDb.SelfCcEnabled = true
+	savedDb.SelfCcSpells = savedDb.SelfCcSpells or {}
+	savedDb.Version = 14
+end
+
+-- v16: multi voice-pack folders under Media\<name>\.
+local function MigrateV16(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 16) then return end
+	savedDb.VoicePack = savedDb.VoicePack or "夏一可"
+	savedDb.ExtraVoicePacks = savedDb.ExtraVoicePacks or {}
+	savedDb.Version = 16
+end
+
+-- v17: SelfCcEnabled checkbox → SelfCcScope dropdown (self / party).
+local function MigrateV17(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 17) then return end
+	if savedDb.SelfCcScope ~= "self" and savedDb.SelfCcScope ~= "party" then
+		savedDb.SelfCcScope = "self"
 	end
+	savedDb.SelfCcEnabled = nil
+	savedDb.Version = 17
 end
 
-local function PreviewSoundFile(fileName)
-	if not fileName then return end
-	local path = mediaPath .. fileName
-	PlaySoundFile(path, "Master")
-end
-
--- ==================== Shared helpers ====================
-
-local voiceItems = {}
-local voiceNameById = {}
-
-local function BuildVoiceList()
-	if #voiceItems > 0 then return end
-	local voices = C_VoiceChat and C_VoiceChat.GetTtsVoices and C_VoiceChat.GetTtsVoices() or nil
-	if voices then
-		for _, v in ipairs(voices) do
-			if v and v.voiceID ~= nil then
-				voiceItems[#voiceItems + 1] = v.voiceID
-				voiceNameById[v.voiceID] = v.name or tostring(v.voiceID)
+-- v18: per-zone TargetFocusOnly (was a single global flag).
+local function MigrateV18(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 18) then return end
+	savedDb.Zones = savedDb.Zones or {}
+	local global = savedDb.TargetFocusOnly
+	local defaults = {
+		World = true,
+		Arena = false,
+		BattleGrounds = true,
+		PvE = true,
+	}
+	for key, defaultValue in pairs(defaults) do
+		savedDb.Zones[key] = savedDb.Zones[key] or {}
+		if savedDb.Zones[key].TargetFocusOnly == nil then
+			if global ~= nil then
+				savedDb.Zones[key].TargetFocusOnly = global and true or false
+			else
+				savedDb.Zones[key].TargetFocusOnly = defaultValue
 			end
 		end
-		table.sort(voiceItems, function(a, b)
-			return (voiceNameById[a] or tostring(a)) < (voiceNameById[b] or tostring(b))
-		end)
 	end
-	if #voiceItems == 0 then
-		local fallback = C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0) or 0
-		voiceItems = { fallback }
-		voiceNameById[fallback] = tostring(fallback)
-	end
+	savedDb.TargetFocusOnly = nil
+	savedDb.Version = 18
 end
 
-local function AutoSelectVoice()
-	if db.TTS.VoiceID and db.TTS.VoiceID ~= false then return end
-	for id, name in pairs(voiceNameById) do
-		if name and name:lower():find("xiaoxiao") then
-			db.TTS.VoiceID = id
-			return
+-- v19: per-zone CC enable + CcScope (was global SelfCcScope).
+local function MigrateV19(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 19) then return end
+	savedDb.Zones = savedDb.Zones or {}
+	local scope = (savedDb.SelfCcScope == "party") and "party" or "self"
+	local defaultsCc = {
+		World = true,
+		Arena = true,
+		BattleGrounds = true,
+		PvE = false,
+	}
+	for key, ccDefault in pairs(defaultsCc) do
+		savedDb.Zones[key] = savedDb.Zones[key] or {}
+		local zone = savedDb.Zones[key]
+		if zone.CcEnabled == nil then
+			zone.CcEnabled = ccDefault
+		end
+		if zone.CcScope ~= "self" and zone.CcScope ~= "party" then
+			zone.CcScope = scope
+		end
+	end
+	savedDb.SelfCcScope = nil
+	savedDb.Version = 19
+end
+
+-- v20: per-zone HealerCcEnabled (MiniAuras-style healer-in-CC alert).
+local function MigrateV20(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 20) then return end
+	savedDb.Zones = savedDb.Zones or {}
+	local defaults = {
+		World = true,
+		Arena = true,
+		BattleGrounds = true,
+		PvE = false,
+	}
+	for key, def in pairs(defaults) do
+		savedDb.Zones[key] = savedDb.Zones[key] or {}
+		if savedDb.Zones[key].HealerCcEnabled == nil then
+			savedDb.Zones[key].HealerCcEnabled = def
+		end
+	end
+	savedDb.Version = 20
+end
+
+local function EnsureSpellDefaults(savedDb)
+	savedDb.Spells = savedDb.Spells or {}
+	for spellId in pairs(addon.Data.EnemyBuffSounds) do
+		if savedDb.Spells[spellId] == nil then
+			savedDb.Spells[spellId] = true
 		end
 	end
 end
 
-local function EnsureTtsOptions()
-	if not db.TTS then
-		db.TTS = { Volume = 100, SpeechRate = 7 }
-	end
-	if db.TTS.SpeechRate == nil then
-		db.TTS.SpeechRate = 7
+local function EnsureSelfCcDefaults(savedDb)
+	savedDb.SelfCcSpells = savedDb.SelfCcSpells or {}
+	for spellId in pairs(addon.Data.SelfCcSounds) do
+		if savedDb.SelfCcSpells[spellId] == nil then
+			savedDb.SelfCcSpells[spellId] = true
+		end
 	end
 end
+
+local function EnsureZoneDefaults(savedDb)
+	savedDb.Zones = savedDb.Zones or {}
+	local defaults = {
+		World = { Enabled = true, TargetFocusOnly = true, CcEnabled = true, CcScope = "self", HealerCcEnabled = true },
+		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "self", HealerCcEnabled = true },
+		BattleGrounds = { Enabled = true, TargetFocusOnly = true, CcEnabled = true, CcScope = "self", HealerCcEnabled = true },
+		PvE = { Enabled = false, TargetFocusOnly = true, CcEnabled = false, CcScope = "self", HealerCcEnabled = false },
+	}
+	for key, def in pairs(defaults) do
+		savedDb.Zones[key] = savedDb.Zones[key] or {}
+		local zone = savedDb.Zones[key]
+		if zone.Enabled == nil then
+			zone.Enabled = def.Enabled
+		end
+		if zone.TargetFocusOnly == nil then
+			zone.TargetFocusOnly = def.TargetFocusOnly
+		end
+		if zone.CcEnabled == nil then
+			zone.CcEnabled = def.CcEnabled
+		end
+		if zone.CcScope ~= "self" and zone.CcScope ~= "party" then
+			zone.CcScope = def.CcScope
+		end
+		if zone.HealerCcEnabled == nil then
+			zone.HealerCcEnabled = def.HealerCcEnabled
+		end
+	end
+end
+
+-- ---------- UI helpers ----------
+
+local channelItems = { "Master", "SFX", "Ambience", "Dialog", "Music" }
 
 local function DoTest()
-	local voiceId = db.TTS and db.TTS.VoiceID or (C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0)) or 0
-	local vol = db.TTS and db.TTS.Volume or 100
-	local rate = db.TTS and db.TTS.SpeechRate or 7
-	C_VoiceChat.SpeakText(voiceId, "PVP Sound Test", rate, vol, true)
+	AuraSounds():PlayTest(45438)
 end
 
--- ==================== Build Home Tab ====================
-
 local function BuildHomeTab(content)
-	-- Introduction
-	local introBlock = mini:TextBlock({
+	local intro = mini:TextBlock({
 		Parent = content,
 		Lines = {
 			L["home_intro_1"],
-			L["home_intro_tts_warning"],
+			L["home_intro_voice_warning"],
 			" ",
-			L["home_intro_2"],
-			L["home_intro_3"],
-			L["home_intro_4"],
-			L["home_intro_5"],
-			L["home_intro_5b"],
-			L["home_intro_5c"],
-			L["home_intro_5d"],
-			" ",
-			L["home_intro_6"],
+			L["home_intro_enemy_buffs"],
 			" ",
 			L["home_intro_7"],
 		},
 	})
-	introBlock:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+	intro:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
 
 	local columns = 4
 	local columnWidth = mini:ColumnWidth(columns, 0, 0)
 
-	-- ==================== TTS Settings ====================
-	local ttsDivider = mini:Divider({
+	local soundDivider = mini:Divider({
 		Parent = content,
-		Text = L["TTS Settings"],
+		Text = L["Sound Settings"],
 	})
-	ttsDivider:SetPoint("LEFT", content, "LEFT")
-	ttsDivider:SetPoint("RIGHT", content, "RIGHT")
-	ttsDivider:SetPoint("TOP", introBlock, "BOTTOM", 0, -verticalSpacing)
+	soundDivider:SetPoint("LEFT", content, "LEFT")
+	soundDivider:SetPoint("RIGHT", content, "RIGHT")
+	soundDivider:SetPoint("TOP", intro, "BOTTOM", 0, -verticalSpacing)
 
-	local ttsIntro = mini:TextBlock({
+	local packHint = mini:TextBlock({
 		Parent = content,
-		Lines = {
-			L["You must choose a voice in your language for this to work."],
-		},
+		Lines = { L["Voice Pack Hint"] },
 	})
-	ttsIntro:SetPoint("TOPLEFT", ttsDivider, "BOTTOMLEFT", 0, -verticalSpacing)
+	packHint:SetPoint("TOPLEFT", soundDivider, "BOTTOMLEFT", 0, -verticalSpacing)
 
-	-- Voice dropdown
-	local voiceLabel = mini:TextLine({
+	local packItems = voicePack:ListPacks()
+	local packLabel = mini:TextLine({
 		Parent = content,
-		Text = L["Voice"],
+		Text = L["Voice Pack Select"],
 	})
-	voiceLabel:SetPoint("TOPLEFT", ttsIntro, "BOTTOMLEFT", 0, -verticalSpacing)
+	packLabel:SetPoint("TOPLEFT", packHint, "BOTTOMLEFT", 0, -verticalSpacing)
 
-	local voiceDropdown = mini:Dropdown({
+	local packDropdown = mini:Dropdown({
 		Parent = content,
-		Items = voiceItems,
-		Width = 240,
-		GridMode = true,
+		Items = packItems,
+		Width = 200,
 		GetValue = function()
-			EnsureTtsOptions()
-			return db.TTS.VoiceID or (C_TTSSettings and C_TTSSettings.GetVoiceOptionID and C_TTSSettings.GetVoiceOptionID(0)) or 0
+			return voicePack:GetSelectedPack()
 		end,
 		SetValue = function(value)
-			EnsureTtsOptions()
-			db.TTS.VoiceID = value
-			local speechRate = db.TTS.SpeechRate or 7
-			C_VoiceChat.SpeakText(value, L["Voice"], speechRate, db.TTS.Volume or 100, true)
+			voicePack:SetSelectedPack(value)
 			M:Apply()
 		end,
 		GetText = function(value)
-			return voiceNameById[value] or tostring(value)
+			return value or voicePack:DefaultPack()
 		end,
 	})
-	voiceDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
-	voiceDropdown:SetPoint("TOP", voiceLabel, "TOP", 0, 8)
-	voiceDropdown:SetWidth(200)
+	packDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+	packDropdown:SetPoint("TOP", packLabel, "TOP", 0, 8)
+	packDropdown:SetWidth(200)
 
-	local voiceHint = content:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	voiceHint:SetText(L["Voice Recommend Hint"])
-	voiceHint:SetPoint("TOPLEFT", voiceLabel, "BOTTOMLEFT", 0, -verticalSpacing * 0.5)
+	local customLabel = mini:TextLine({
+		Parent = content,
+		Text = L["Custom Voice Pack"],
+	})
+	customLabel:SetPoint("TOPLEFT", packLabel, "BOTTOMLEFT", 0, -verticalSpacing * 2)
 
-	local tutorialEditBox = CreateFrame("EditBox", nil, content, "InputBoxTemplate")
-	tutorialEditBox:SetSize(280, 20)
-	tutorialEditBox:SetPoint("TOPLEFT", voiceHint, "BOTTOMLEFT", 4, -verticalSpacing * 0.5)
-	tutorialEditBox:SetAutoFocus(false)
-	tutorialEditBox:SetText(L["Voice Tutorial URL"])
-	tutorialEditBox:SetCursorPosition(0)
-	tutorialEditBox:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
-	tutorialEditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-	tutorialEditBox:SetScript("OnTextChanged", function(self)
-		self:SetText(L["Voice Tutorial URL"])
-		self:HighlightText()
+	local customScratch = ""
+	local customBox = mini:EditBox({
+		Parent = content,
+		Width = 160,
+		GetValue = function()
+			return customScratch
+		end,
+		SetValue = function(value)
+			customScratch = value or ""
+		end,
+	})
+	customBox:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+	customBox:SetPoint("TOP", customLabel, "TOP", 0, 4)
+	customBox:SetWidth(160)
+	customBox:SetAutoFocus(false)
+
+	local addPackBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	addPackBtn:SetSize(70, 22)
+	addPackBtn:SetPoint("LEFT", customBox, "RIGHT", 8, 0)
+	addPackBtn:SetText(L["Add"])
+	addPackBtn:SetScript("OnClick", function()
+		local name = customBox:GetText()
+		if voicePack:RegisterExtraPack(name) then
+			local trimmed = name:match("^%s*(.-)%s*$")
+			voicePack:SetSelectedPack(trimmed)
+			customScratch = ""
+			customBox:SetText("")
+			wipe(packItems)
+			for _, n in ipairs(voicePack:ListPacks()) do
+				packItems[#packItems + 1] = n
+			end
+			M:Apply()
+			print("|cff33ff99[PVP Sound]|r " .. string.format(L["voice_pack_added"], trimmed, trimmed))
+			print("|cff33ff99[PVP Sound]|r " .. L["voice_pack_reload_hint"])
+		else
+			print("|cff33ff99[PVP Sound]|r " .. L["voice_pack_add_failed"])
+		end
 	end)
 
-	local copyBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
-	copyBtn:SetSize(60, 22)
-	copyBtn:SetPoint("LEFT", tutorialEditBox, "RIGHT", horizontalSpacing, 0)
-	copyBtn:SetText(L["Copy"])
-	copyBtn:SetScript("OnClick", function(self)
-		tutorialEditBox:SetText(L["Voice Tutorial URL"])
-		tutorialEditBox:HighlightText()
-		tutorialEditBox:SetFocus()
-		self:SetText(L["Copied"])
-		C_Timer.After(1.5, function() self:SetText(L["Copy"]) end)
-	end)
-
-	-- ---- Volume divider ----
-	local volumeDivider = mini:Divider({
+	local channelLabel = mini:TextLine({
 		Parent = content,
-		Text = L["TTS Volume"],
+		Text = L["Output Channel"],
 	})
-	volumeDivider:SetPoint("LEFT", content, "LEFT")
-	volumeDivider:SetPoint("RIGHT", content, "RIGHT")
-	volumeDivider:SetPoint("TOP", tutorialEditBox, "BOTTOM", 0, -verticalSpacing * 2)
+	channelLabel:SetPoint("TOPLEFT", customLabel, "BOTTOMLEFT", 0, -verticalSpacing * 2)
 
-	local volumeSlider = mini:Slider({
+	local channelDropdown = mini:Dropdown({
 		Parent = content,
-		Min = 0,
-		Max = 100,
-		Width = (columnWidth * 3) - horizontalSpacing,
-		Step = 1,
-		LabelText = L["TTS Volume"],
+		Items = channelItems,
+		Width = 200,
 		GetValue = function()
-			return db.TTS and db.TTS.Volume or 100
+			return db.Sound and db.Sound.Channel or "Master"
 		end,
-		SetValue = function(v)
-			local newValue = mini:ClampInt(v, 0, 100, 100)
-			EnsureTtsOptions()
-			if db.TTS.Volume ~= newValue then
-				db.TTS.Volume = newValue
-				M:Apply()
-			end
+		SetValue = function(value)
+			db.Sound = db.Sound or {}
+			db.Sound.Channel = value
+			M:Apply()
 		end,
-	})
-	volumeSlider.Slider:SetPoint("TOPLEFT", volumeDivider, "BOTTOMLEFT", 4, -verticalSpacing)
-
-	-- ---- Speech Rate divider ----
-	local speechRateDivider = mini:Divider({
-		Parent = content,
-		Text = L["TTS Speech Rate"],
-	})
-	speechRateDivider:SetPoint("LEFT", content, "LEFT")
-	speechRateDivider:SetPoint("RIGHT", content, "RIGHT")
-	speechRateDivider:SetPoint("TOP", volumeSlider.Slider, "BOTTOM", 0, -verticalSpacing * 2)
-
-	local speechRateSlider = mini:Slider({
-		Parent = content,
-		Min = -10,
-		Max = 10,
-		Width = (columnWidth * 3) - horizontalSpacing,
-		Step = 1,
-		LabelText = L["TTS Speech Rate"],
-		GetValue = function()
-			EnsureTtsOptions()
-			return db.TTS.SpeechRate or 7
-		end,
-		SetValue = function(v)
-			local newValue = mini:ClampInt(v, -10, 10, 0)
-			EnsureTtsOptions()
-			if db.TTS.SpeechRate ~= newValue then
-				db.TTS.SpeechRate = newValue
-				M:Apply()
-			end
+		GetText = function(value)
+			local key = "channel_" .. (value or "Master")
+			return L[key] or value or L["channel_Master"]
 		end,
 	})
-	speechRateSlider.Slider:SetPoint("TOPLEFT", speechRateDivider, "BOTTOMLEFT", 4, -verticalSpacing)
+	channelDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+	channelDropdown:SetPoint("TOP", channelLabel, "TOP", 0, 8)
+	channelDropdown:SetWidth(200)
 
-	local speechRateHint = content:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	speechRateHint:SetText(L["Speech Rate Recommend Hint"])
-	speechRateHint:SetPoint("TOPLEFT", speechRateSlider.Slider, "BOTTOMLEFT", -4, -verticalSpacing * 1.5)
-
-	-- ---- Cast Interval divider ----
-	local castIntervalDivider = mini:Divider({
-		Parent = content,
-		Text = L["Cast Interval"],
-	})
-	castIntervalDivider:SetPoint("LEFT", content, "LEFT")
-	castIntervalDivider:SetPoint("RIGHT", content, "RIGHT")
-	castIntervalDivider:SetPoint("TOP", speechRateHint, "BOTTOM", 0, -verticalSpacing * 2)
-
-	local castIntervalSlider = mini:Slider({
-		Parent = content,
-		Min = 0,
-		Max = 5,
-		Width = (columnWidth * 3) - horizontalSpacing,
-		Step = 0.5,
-		LabelText = L["Cast Interval"],
-		GetValue = function()
-			EnsureTtsOptions()
-			return db.TTS.CastInterval or 0
-		end,
-		SetValue = function(v)
-			EnsureTtsOptions()
-			local newValue = tonumber(string.format("%.1f", v)) or 0
-			if newValue < 0 then newValue = 0 end
-			if newValue > 5 then newValue = 5 end
-			if db.TTS.CastInterval ~= newValue then
-				db.TTS.CastInterval = newValue
-				M:Apply()
-			end
-		end,
-	})
-	castIntervalSlider.Slider:SetPoint("TOPLEFT", castIntervalDivider, "BOTTOMLEFT", 4, -verticalSpacing)
-
-	-- Test button
 	local testBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
-	testBtn:SetSize(120, 26)
-	testBtn:SetPoint("TOPLEFT", castIntervalSlider.Slider, "BOTTOMLEFT", -4, -verticalSpacing * 2)
+	testBtn:SetSize(140, 26)
+	testBtn:SetPoint("TOPLEFT", channelLabel, "BOTTOMLEFT", 0, -verticalSpacing * 2)
 	testBtn:SetText(L["Test"])
 	testBtn:SetScript("OnClick", DoTest)
 
-	-- Reset button
 	local resetBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
 	resetBtn:SetSize(120, 26)
 	resetBtn:SetPoint("LEFT", testBtn, "RIGHT", horizontalSpacing, 0)
@@ -633,9 +400,9 @@ local function BuildHomeTab(content)
 			mini:NotifyCombatLockdown()
 			return
 		end
-
 		StaticPopup_Show("PVPSOUND_CONFIRM", L["Are you sure you wish to reset to factory settings?"], nil, {
 			OnYes = function()
+				dbDefaults.Spells = BuildDefaultSpells()
 				mini:ResetSavedVars(dbDefaults)
 				db = mini:GetSavedVars()
 				addon:Refresh()
@@ -645,535 +412,530 @@ local function BuildHomeTab(content)
 	end)
 end
 
--- ==================== Build Changelog Tab ====================
-
-local function BuildChangelogTab(content)
-	local changelogBlock = mini:TextBlock({
+local function BuildZonesTab(content)
+	local intro = mini:TextBlock({
 		Parent = content,
-		Lines = {
-			L["changelog_v2.0.3"],
-			" ",
-			L["changelog_v2.0.2"],
-			" ",
-			L["changelog_v2.0.1"],
-			" ",
-			L["changelog_v2.0.0"],
-			" ",
-			L["changelog_v1.0.12"],
-			" ",
-			L["changelog_v1.0.11"],
-			" ",
-			L["changelog_v1.0.10"],
-			" ",
-			L["changelog_v1.0.9"],
-			" ",
-			L["changelog_v1.0.8"],
-			" ",
-			L["changelog_v1.0.7"],
-			" ",
-			L["changelog_v1.0.6"],
-			" ",
-			L["changelog_v1.0.5"],
-			" ",
-			L["changelog_v1.0.4"],
-			" ",
-			L["changelog_v1.0.3"],
-			" ",
-			L["changelog_v1.0.2"],
-			" ",
-			L["changelog_v1.0.1"],
-			" ",
-			L["changelog_v1.0.0"],
-		},
+		Lines = { L["zones_intro"] },
 	})
-	changelogBlock:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+	intro:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+
+	local columnWidth = mini:ColumnWidth(2, 0, 0)
+	local buffRangeItems = { "TargetFocus", "All" }
+	local ccScopeItems = { "self", "party" }
+	local last = intro
+	local zoneOrder = {
+		{ Key = "World", Label = L["World"] },
+		{ Key = "Arena", Label = L["Arena"] },
+		{ Key = "BattleGrounds", Label = L["Battlegrounds"] },
+		{ Key = "PvE", Label = L["PvE"] },
+	}
+
+	---TextLine defaults to TextMaxWidth; shrink so dropdown can sit to its right.
+	local function PlaceRangeRow(anchorChk, labelText, items, getValue, setValue, getText)
+		local rangeLabel = mini:TextLine({
+			Parent = content,
+			Text = labelText,
+		})
+		rangeLabel:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+		rangeLabel:SetPoint("TOP", anchorChk, "TOP", 0, 0)
+		rangeLabel:SetWidth(math.max(1, rangeLabel:GetStringWidth() + 2))
+
+		local rangeDropdown = mini:Dropdown({
+			Parent = content,
+			Items = items,
+			Width = 180,
+			GetValue = getValue,
+			SetValue = setValue,
+			GetText = getText,
+		})
+		rangeDropdown:SetPoint("LEFT", rangeLabel, "RIGHT", 8, 0)
+		rangeDropdown:SetPoint("TOP", anchorChk, "TOP", 0, 8)
+		rangeDropdown:SetWidth(180)
+		return rangeDropdown
+	end
+
+	for _, z in ipairs(zoneOrder) do
+		local zoneKey = z.Key
+		local divider = mini:Divider({
+			Parent = content,
+			Text = z.Label,
+		})
+		divider:SetPoint("LEFT", content, "LEFT")
+		divider:SetPoint("RIGHT", content, "RIGHT")
+		divider:SetPoint("TOP", last, "BOTTOM", 0, -verticalSpacing * 2)
+
+		-- Row 1: buff enable + buff monitor range
+		local buffChk = mini:Checkbox({
+			Parent = content,
+			LabelText = L["Enable Buff Alerts"],
+			Tooltip = L["Enable enemy buff voice alerts in this zone."],
+			GetValue = function()
+				return db.Zones[zoneKey] and db.Zones[zoneKey].Enabled
+			end,
+			SetValue = function(value)
+				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
+				db.Zones[zoneKey].Enabled = value and true or false
+				M:Apply()
+			end,
+		})
+		buffChk:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -verticalSpacing)
+
+		PlaceRangeRow(
+			buffChk,
+			L["Monitor Range"],
+			buffRangeItems,
+			function()
+				local zone = db.Zones[zoneKey]
+				if zone and zone.TargetFocusOnly == false then
+					return "All"
+				end
+				return "TargetFocus"
+			end,
+			function(value)
+				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
+				db.Zones[zoneKey].TargetFocusOnly = (value == "TargetFocus")
+				M:Apply()
+			end,
+			function(value)
+				if value == "All" then
+					return L["Monitor Everyone"]
+				end
+				return L["Monitor Target Focus"]
+			end
+		)
+
+		-- Row 2: debuff enable + debuff monitor scope
+		local ccChk = mini:Checkbox({
+			Parent = content,
+			LabelText = L["Enable Debuff Alerts"],
+			Tooltip = L["Enable self-debuff voice alerts in this zone."],
+			GetValue = function()
+				local zone = db.Zones[zoneKey]
+				return zone and zone.CcEnabled ~= false
+			end,
+			SetValue = function(value)
+				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
+				db.Zones[zoneKey].CcEnabled = value and true or false
+				M:Apply()
+			end,
+		})
+		ccChk:SetPoint("TOPLEFT", buffChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+		PlaceRangeRow(
+			ccChk,
+			L["Monitor Range"],
+			ccScopeItems,
+			function()
+				local zone = db.Zones[zoneKey]
+				return (zone and zone.CcScope == "party") and "party" or "self"
+			end,
+			function(value)
+				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
+				db.Zones[zoneKey].CcScope = (value == "party") and "party" or "self"
+				M:Apply()
+			end,
+			function(value)
+				if value == "party" then
+					return L["Self CC Scope Party"]
+				end
+				return L["Self CC Scope Self"]
+			end
+		)
+
+		-- Row 3: healer-in-CC (MiniAuras-style; always watches group healers)
+		local healerChk = mini:Checkbox({
+			Parent = content,
+			LabelText = L["Enable Healer CC Alerts"],
+			Tooltip = L["Enable healer-in-CC voice alerts in this zone."],
+			GetValue = function()
+				local zone = db.Zones[zoneKey]
+				return zone and zone.HealerCcEnabled ~= false
+			end,
+			SetValue = function(value)
+				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
+				db.Zones[zoneKey].HealerCcEnabled = value and true or false
+				M:Apply()
+				if value then
+					local path = voicePack:Path("Sonar.ogg")
+					if path then
+						pcall(PlaySoundFile, path, db.Sound and db.Sound.Channel or "Master")
+					end
+				end
+			end,
+		})
+		healerChk:SetPoint("TOPLEFT", ccChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+		last = healerChk
+	end
 end
 
--- ==================== Build Zone Tab ====================
+---@param spellId number
+---@param fallbackName string?
+local function SpellLabel(spellId, fallbackName)
+	local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellId)
+	local icon = C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(spellId)
+	name = name or fallbackName
+	if name and icon then
+		return string.format("|T%s:20:20:0:0|t %s", icon, name)
+	end
+	if name then
+		return name
+	end
+	return string.format("Spell %d", spellId)
+end
 
-local function BuildZoneTab(content, zoneKey)
-	local columns = 4
+local CLASS_ORDER = {
+	"General",
+	"DeathKnight",
+	"DemonHunter",
+	"Druid",
+	"Evoker",
+	"Hunter",
+	"Mage",
+	"Monk",
+	"Paladin",
+	"Priest",
+	"Rogue",
+	"Shaman",
+	"Warlock",
+	"Warrior",
+}
+
+---Collapse same File into one UI row (enemy buff + self-CC share one checkbox).
+---@param spells table[]
+---@return table[]
+local function DedupeSpells(spells)
+	local order = {}
+	local byKey = {}
+	for _, spell in ipairs(spells) do
+		local key = spell.File or ("id:" .. tostring(spell.Id))
+		local group = byKey[key]
+		local mode = spell.Mode or "enemy"
+		if not group then
+			group = {
+				Id = spell.Id,
+				File = spell.File,
+				Name = spell.Name,
+				Mode = mode,
+				Modes = {},
+				Ids = {},
+			}
+			byKey[key] = group
+			order[#order + 1] = group
+		end
+		group.Modes[mode] = true
+		if spell.Name and not group.Name then
+			group.Name = spell.Name
+		end
+		-- Prefer a named / selfcc primary Id for the label when available.
+		if mode == "selfcc" and spell.Id then
+			group.Id = spell.Id
+		end
+		group.Ids[spell.Id] = true
+		if spell.Ids then
+			for id in pairs(spell.Ids) do
+				group.Ids[id] = true
+			end
+		end
+	end
+	return order
+end
+
+local function SpellUsesSelfCc(spell)
+	if not spell then return false end
+	if spell.Modes then return spell.Modes.selfcc == true end
+	return spell.Mode == "selfcc"
+end
+
+local function SpellUsesEnemy(spell)
+	if not spell then return false end
+	if spell.Modes then return spell.Modes.enemy == true end
+	return spell.Mode ~= "selfcc"
+end
+
+local function IsMergedSpellEnabled(spell)
+	local ok = true
+	if SpellUsesSelfCc(spell) then
+		ok = ok and AuraSounds():IsSelfCcGroupEnabled(spell)
+	end
+	if SpellUsesEnemy(spell) then
+		ok = ok and AuraSounds():IsSpellGroupEnabled(spell)
+	end
+	return ok
+end
+
+local function SetMergedSpellEnabled(spell, enabled)
+	if SpellUsesSelfCc(spell) then
+		AuraSounds():SetSelfCcGroupEnabled(spell, enabled)
+	end
+	if SpellUsesEnemy(spell) then
+		AuraSounds():SetSpellGroupEnabled(spell, enabled)
+	end
+end
+
+---Merge enemy-buff + self-CC catalogs into one class list for the Spells tab.
+---@return table[] { Key, Name, Spells = { { Id, File, Mode, Ids? }, ... } }
+local function BuildMergedClasses()
+	local byKey = {}
+
+	local function Ensure(key, name)
+		if not byKey[key] then
+			byKey[key] = { Key = key, Name = name, Spells = {} }
+		end
+		return byKey[key]
+	end
+
+	if catalog and catalog.Classes then
+		for _, classEntry in ipairs(catalog.Classes) do
+			local entry = Ensure(classEntry.Key, classEntry.Name)
+			for _, spell in ipairs(classEntry.Spells) do
+				entry.Spells[#entry.Spells + 1] = {
+					Id = spell.Id,
+					File = spell.File,
+					Mode = "enemy",
+				}
+			end
+		end
+	end
+
+	if selfCcCatalog and selfCcCatalog.Classes then
+		for _, classEntry in ipairs(selfCcCatalog.Classes) do
+			local entry = Ensure(classEntry.Key, classEntry.Name)
+			for _, spell in ipairs(classEntry.Spells) do
+				entry.Spells[#entry.Spells + 1] = {
+					Id = spell.Id,
+					File = spell.File,
+					Mode = "selfcc",
+					Ids = spell.Ids,
+				}
+			end
+		end
+	end
+
+	local list = {}
+	local seen = {}
+	for _, key in ipairs(CLASS_ORDER) do
+		if byKey[key] and #byKey[key].Spells > 0 then
+			byKey[key].Spells = DedupeSpells(byKey[key].Spells)
+			list[#list + 1] = byKey[key]
+			seen[key] = true
+		end
+	end
+	for key, entry in pairs(byKey) do
+		if not seen[key] and #entry.Spells > 0 then
+			entry.Spells = DedupeSpells(entry.Spells)
+			list[#list + 1] = entry
+		end
+	end
+	return list
+end
+
+---@param spells table[]
+---@return table[] buffs
+---@return table[] ccs
+local function SplitClassSpells(spells)
+	local buffs, ccs = {}, {}
+	for _, spell in ipairs(spells) do
+		-- Prefer CC section when a row is (also) self-CC — avoids CC showing under buffs.
+		if SpellUsesSelfCc(spell) then
+			ccs[#ccs + 1] = spell
+		elseif SpellUsesEnemy(spell) then
+			buffs[#buffs + 1] = spell
+		end
+	end
+	return buffs, ccs
+end
+
+---One category block: optional divider + select all/none + 2-col checkboxes.
+---@param parent Frame
+---@param anchor Region
+---@param spells table[]
+---@param dividerText string?
+---@return Region bottom
+local function BuildSpellGroup(parent, anchor, spells, dividerText)
+	if not spells or #spells == 0 then
+		return anchor
+	end
+
+	local last = anchor
+	if dividerText then
+		local divider = mini:Divider({
+			Parent = parent,
+			Text = dividerText,
+		})
+		divider:SetPoint("LEFT", parent, "LEFT")
+		divider:SetPoint("RIGHT", parent, "RIGHT")
+		divider:SetPoint("TOP", anchor, "BOTTOM", 0, -verticalSpacing * 2)
+		last = divider
+	end
+
+	local selectAll = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+	selectAll:SetSize(100, 22)
+	selectAll:SetPoint("TOPLEFT", last, "BOTTOMLEFT", 0, -verticalSpacing)
+	selectAll:SetText(L["Select All"])
+	selectAll:SetScript("OnClick", function()
+		for _, spell in ipairs(spells) do
+			SetMergedSpellEnabled(spell, true)
+		end
+		if parent.MiniRefresh then parent:MiniRefresh() end
+	end)
+
+	local selectNone = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+	selectNone:SetSize(100, 22)
+	selectNone:SetPoint("LEFT", selectAll, "RIGHT", horizontalSpacing, 0)
+	selectNone:SetText(L["Select None"])
+	selectNone:SetScript("OnClick", function()
+		for _, spell in ipairs(spells) do
+			SetMergedSpellEnabled(spell, false)
+		end
+		if parent.MiniRefresh then parent:MiniRefresh() end
+	end)
+
+	local columns = 2
 	local columnWidth = mini:ColumnWidth(columns, 0, 0)
+	local lastLeft, lastRight = selectAll, selectAll
 
-	local function GetZone()
-		return db.Zones[zoneKey]
-	end
+	for i, spell in ipairs(spells) do
+		local spellId = spell.Id
+		local file = spell.File
+		local col = (i - 1) % columns
+		local row = math.floor((i - 1) / columns)
 
-	-- Global Enabled checkbox at top (总开关)
-	local enabledChk = mini:Checkbox({
-		Parent = content,
-		LabelText = L["Enabled (Master)"],
-		Tooltip = L["Master switch: enable all announcements in this zone."],
-		GetValue = function() return GetZone().Enabled end,
-		SetValue = function(value)
-			GetZone().Enabled = value
-			M:Apply()
-		end,
-	})
-	enabledChk:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
-
-	-- ==================== Section 1: Important Spells ====================
-	local importantDivider = mini:Divider({
-		Parent = content,
-		Text = L["Important Spells Section"],
-	})
-	importantDivider:SetPoint("LEFT", content, "LEFT")
-	importantDivider:SetPoint("RIGHT", content, "RIGHT")
-	importantDivider:SetPoint("TOP", enabledChk, "BOTTOM", 0, -verticalSpacing * 1.5)
-
-	local importantEnabledChk = mini:Checkbox({
-		Parent = content,
-		LabelText = L["Enabled"],
-		Tooltip = L["Enable important and defensive spell announcements."],
-		GetValue = function() return GetZone().ImportantEnabled ~= false end,
-		SetValue = function(value)
-			GetZone().ImportantEnabled = value
-			M:Apply()
-		end,
-	})
-	importantEnabledChk:SetPoint("TOPLEFT", importantDivider, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	-- Monitor Range dropdown (not for Arena — arena always monitors all arena units)
-	local importantLastElement = importantEnabledChk
-	if zoneKey ~= "Arena" then
-		local monitorRangeLabel = mini:TextLine({
-			Parent = content,
-			Text = L["Important Monitor Range"],
-			Tooltip = L["Only monitor your target and focus instead of all enemy nameplates."],
-		})
-		monitorRangeLabel:SetPoint("TOPLEFT", importantEnabledChk, "BOTTOMLEFT", 0, -verticalSpacing)
-
-		local monitorRangeItems = { "TargetFocus", "All" }
-		local monitorRangeDropdown = mini:Dropdown({
-			Parent = content,
-			Items = monitorRangeItems,
-			Width = 200,
+		local chk = mini:Checkbox({
+			Parent = parent,
+			LabelText = SpellLabel(spellId, spell.Name),
+			Tooltip = string.format(L["spell_toggle_tooltip"], spellId, file),
 			GetValue = function()
-				return GetZone().TargetFocusOnly ~= false and "TargetFocus" or "All"
+				return IsMergedSpellEnabled(spell)
 			end,
 			SetValue = function(value)
-				GetZone().TargetFocusOnly = (value == "TargetFocus")
-				M:Apply()
-			end,
-			GetText = function(value)
-				if value == "TargetFocus" then return L["Target/Focus Only Short"]
-				else return L["All Enemies"]
+				SetMergedSpellEnabled(spell, value and true or false)
+				if value then
+					local path = voicePack:Path(file)
+					if path then
+						pcall(PlaySoundFile, path, db.Sound and db.Sound.Channel or "Master")
+					end
 				end
 			end,
 		})
-		monitorRangeDropdown:SetPoint("TOPLEFT", monitorRangeLabel, "BOTTOMLEFT", 0, -verticalSpacing * 0.5)
-		monitorRangeDropdown:SetWidth(200)
 
-		importantLastElement = monitorRangeDropdown
-	end
-
-	-- Important Spells checkbox
-	local importantChk = mini:Checkbox({
-		Parent = content,
-		LabelText = L["Important Spells"],
-		Tooltip = L["Announce important (offensive) spell names via TTS when enemies cast them."],
-		GetValue = function() return GetZone().Important end,
-		SetValue = function(value)
-			GetZone().Important = value
-			M:Apply()
-		end,
-	})
-	importantChk:SetPoint("TOPLEFT", importantLastElement, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	-- Defensive Spells checkbox (same row as Important)
-	local defensiveChk = mini:Checkbox({
-		Parent = content,
-		LabelText = L["Defensive Spells"],
-		Tooltip = L["Announce defensive spell names via TTS when enemies cast them."],
-		GetValue = function() return GetZone().Defensive end,
-		SetValue = function(value)
-			GetZone().Defensive = value
-			M:Apply()
-		end,
-	})
-	defensiveChk:SetPoint("LEFT", importantChk, "RIGHT", 160, 0)
-
-	-- Important filter mode (Detailed / Simple)
-	local importantModeLabel = mini:TextLine({
-		Parent = content,
-		Text = L["Important Filter Mode"],
-		Tooltip = L["Choose how strictly important buffs are filtered."],
-	})
-	importantModeLabel:SetPoint("TOPLEFT", importantChk, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	-- "AllBuffs" (verbose, v1.0.8-style) is offered only in the World zone.
-	local importantModeItems = (zoneKey == "World")
-		and { "Detailed", "Simple", "AllBuffs" }
-		or { "Detailed", "Simple" }
-	local importantModeDropdown = mini:Dropdown({
-		Parent = content,
-		Items = importantModeItems,
-		Width = 260,
-		GetValue = function()
-			return GetZone().ImportantFilterMode or "Simple"
-		end,
-		SetValue = function(value)
-			GetZone().ImportantFilterMode = value
-			M:Apply()
-		end,
-		GetText = function(value)
-			if value == "Simple" then return L["Important Mode Simple"]
-			elseif value == "AllBuffs" then return L["Important Mode AllBuffs"]
-			else return L["Important Mode Detailed"]
-			end
-		end,
-	})
-	importantModeDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
-	importantModeDropdown:SetPoint("TOP", importantModeLabel, "TOP", 0, 8)
-	importantModeDropdown:SetWidth(260)
-
-	-- ==================== Section 2: CC Spells ====================
-	local ccDivider = mini:Divider({
-		Parent = content,
-		Text = L["CC Spells Section"],
-	})
-	ccDivider:SetPoint("LEFT", content, "LEFT")
-	ccDivider:SetPoint("RIGHT", content, "RIGHT")
-	ccDivider:SetPoint("TOP", importantModeLabel, "BOTTOM", 0, -verticalSpacing * 2.5)
-
-	local ccEnabledChk = mini:Checkbox({
-		Parent = content,
-		LabelText = L["Enabled"],
-		Tooltip = L["Enable CC spell announcements."],
-		GetValue = function() return GetZone().CCEnabled ~= false end,
-		SetValue = function(value)
-			GetZone().CCEnabled = value
-			M:Apply()
-		end,
-	})
-	ccEnabledChk:SetPoint("TOPLEFT", ccDivider, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	local ccModeLabel = mini:TextLine({
-		Parent = content,
-		Text = L["CC Mode"],
-		Tooltip = L["Announce CC on self or party via TTS."],
-	})
-	ccModeLabel:SetPoint("TOPLEFT", ccEnabledChk, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	local ccModeItems = { "Self", "Party", "All" }
-	local ccModeDropdown = mini:Dropdown({
-		Parent = content,
-		Items = ccModeItems,
-		Width = 160,
-		GetValue = function()
-			local mode = GetZone().CCMode or "Self"
-			if mode == "Off" then mode = "Self" end
-			return mode
-		end,
-		SetValue = function(value)
-			GetZone().CCMode = value
-			M:Apply()
-		end,
-		GetText = function(value)
-			if value == "Self" then return L["Self Only"]
-			elseif value == "Party" then return L["Party Only"]
-			else return L["Self + Party"]
-			end
-		end,
-	})
-	ccModeDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
-	ccModeDropdown:SetPoint("TOP", ccModeLabel, "TOP", 0, 8)
-	ccModeDropdown:SetWidth(160)
-
-	-- ==================== Section 3: Cast Bar ====================
-	local castDivider = mini:Divider({
-		Parent = content,
-		Text = L["CastBar Section"],
-	})
-	castDivider:SetPoint("LEFT", content, "LEFT")
-	castDivider:SetPoint("RIGHT", content, "RIGHT")
-	castDivider:SetPoint("TOP", ccModeLabel, "BOTTOM", 0, -verticalSpacing * 2.5)
-
-	local castBarChk = mini:Checkbox({
-		Parent = content,
-		LabelText = L["Enabled"],
-		Tooltip = L["Announce enemy spell casts via TTS."],
-		GetValue = function() return GetZone().CastBar end,
-		SetValue = function(value)
-			GetZone().CastBar = value
-			M:Apply()
-		end,
-	})
-	castBarChk:SetPoint("TOPLEFT", castDivider, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	-- CastBar range dropdown (Target Only / All Enemies)
-	local castRangeLabel = mini:TextLine({
-		Parent = content,
-		Text = L["CastBar Range"],
-		Tooltip = L["Choose which enemies' casts to announce."],
-	})
-	castRangeLabel:SetPoint("TOPLEFT", castBarChk, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	local castRangeItems = { "TargetOnly", "TargetingMe", "All" }
-	local castRangeDropdown = mini:Dropdown({
-		Parent = content,
-		Items = castRangeItems,
-		Width = 160,
-		GetValue = function()
-			local val = GetZone().CastBarTargetOnly
-			if val == "TargetingMe" then return "TargetingMe" end
-			if val ~= false then return "TargetOnly" end
-			return "All"
-		end,
-		SetValue = function(value)
-			if value == "TargetingMe" then
-				GetZone().CastBarTargetOnly = "TargetingMe"
-			else
-				GetZone().CastBarTargetOnly = (value == "TargetOnly")
-			end
-			M:Apply()
-		end,
-		GetText = function(value)
-			if value == "TargetOnly" then return L["Target Only"]
-			elseif value == "TargetingMe" then return L["Targeting Me"]
-			else return L["All Enemies"]
-			end
-		end,
-	})
-	castRangeDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
-	castRangeDropdown:SetPoint("TOP", castRangeLabel, "TOP", 0, 8)
-	castRangeDropdown:SetWidth(160)
-
-	local castExcludePetsChk = mini:Checkbox({
-		Parent = content,
-		LabelText = L["Exclude Pets"],
-		Tooltip = L["Exclude pet and guardian casts (e.g. Water Elemental). Only announce player casts."],
-		GetValue = function() return GetZone().CastBarExcludePets ~= false end,
-		SetValue = function(value)
-			GetZone().CastBarExcludePets = value
-			M:Apply()
-		end,
-	})
-	castExcludePetsChk:SetPoint("TOPLEFT", castRangeLabel, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	-- ==================== Section 4: Interrupt Alert ====================
-	local interruptDivider = mini:Divider({
-		Parent = content,
-		Text = L["Interrupt Section"],
-	})
-	interruptDivider:SetPoint("LEFT", content, "LEFT")
-	interruptDivider:SetPoint("RIGHT", content, "RIGHT")
-	interruptDivider:SetPoint("TOP", castExcludePetsChk, "BOTTOM", 0, -verticalSpacing * 2.5)
-
-	local interruptChk = mini:Checkbox({
-		Parent = content,
-		LabelText = L["Enabled"],
-		Tooltip = L["Announce via TTS when you successfully interrupt an enemy cast."],
-		GetValue = function() return GetZone().InterruptAlert end,
-		SetValue = function(value)
-			GetZone().InterruptAlert = value
-			M:Apply()
-		end,
-	})
-	interruptChk:SetPoint("TOPLEFT", interruptDivider, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	-- Interrupt Range dropdown
-	local interruptRangeLabel = mini:TextLine({
-		Parent = content,
-		Text = L["Interrupt Range"],
-	})
-	interruptRangeLabel:SetPoint("TOPLEFT", interruptChk, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	local interruptRangeItems = { "Target", "TargetFocus", "All" }
-	local interruptRangeDropdown = mini:Dropdown({
-		Parent = content,
-		Items = interruptRangeItems,
-		Width = 160,
-		GetValue = function()
-			return GetZone().InterruptMode or "Target"
-		end,
-		SetValue = function(value)
-			GetZone().InterruptMode = value
-			M:Apply()
-		end,
-		GetText = function(value)
-			if value == "Target" then return L["Target Only"]
-			elseif value == "TargetFocus" then return L["Target + Focus"]
-			else return L["All Enemies"]
-			end
-		end,
-	})
-	interruptRangeDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
-	interruptRangeDropdown:SetPoint("TOP", interruptRangeLabel, "TOP", 0, 8)
-	interruptRangeDropdown:SetWidth(160)
-
-	local interruptExcludePetsChk = mini:Checkbox({
-		Parent = content,
-		LabelText = L["Exclude Pets"],
-		Tooltip = L["Exclude pet and guardian interrupts (e.g. Water Elemental). Only announce player interrupts."],
-		GetValue = function() return GetZone().InterruptExcludePets ~= false end,
-		SetValue = function(value)
-			GetZone().InterruptExcludePets = value
-			M:Apply()
-		end,
-	})
-	interruptExcludePetsChk:SetPoint("TOPLEFT", interruptRangeLabel, "BOTTOMLEFT", 0, -verticalSpacing)
-
-	local lastElement = interruptExcludePetsChk
-
-	-- ==================== Section 5: Healer CC (Arena and BattleGrounds) ====================
-	if zoneKey == "Arena" or zoneKey == "BattleGrounds" then
-		local healerCCDivider = mini:Divider({
-			Parent = content,
-			Text = L["Healer CC Section"],
-		})
-		healerCCDivider:SetPoint("LEFT", content, "LEFT")
-		healerCCDivider:SetPoint("RIGHT", content, "RIGHT")
-		healerCCDivider:SetPoint("TOP", lastElement, "BOTTOM", 0, -verticalSpacing * 1.5)
-
-		local healerCCChk = mini:Checkbox({
-			Parent = content,
-			LabelText = L["Enabled"],
-			Tooltip = L["Announce via TTS when the enemy healer is crowd controlled."],
-			GetValue = function() return GetZone().HealerCC end,
-			SetValue = function(value)
-				GetZone().HealerCC = value
-				M:Apply()
-			end,
-		})
-		healerCCChk:SetPoint("TOPLEFT", healerCCDivider, "BOTTOMLEFT", 0, -verticalSpacing)
-
-		-- Mode: TTS or Sound File
-		local healerCCModeLabel = mini:TextLine({
-			Parent = content,
-			Text = L["Healer CC Mode"],
-		})
-		healerCCModeLabel:SetPoint("TOPLEFT", healerCCChk, "BOTTOMLEFT", 0, -verticalSpacing)
-
-		local healerCCModeItems = { "TTS", "Sound" }
-		local healerCCModeDropdown = mini:Dropdown({
-			Parent = content,
-			Items = healerCCModeItems,
-			Width = 160,
-			GetValue = function()
-				return GetZone().HealerCCMode or "TTS"
-			end,
-			SetValue = function(value)
-				GetZone().HealerCCMode = value
-				M:Apply()
-				-- Refresh to show/hide TTS text vs sound file controls
-				if content.MiniRefresh then content:MiniRefresh() end
-			end,
-			GetText = function(value)
-				if value == "TTS" then return L["TTS Mode"]
-				else return L["Sound File Mode"]
+		chk:HookScript("OnEnter", function(self)
+			if C_Spell and C_Spell.GetSpellLink then
+				local link = C_Spell.GetSpellLink(spellId)
+				if link then
+					GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+					GameTooltip:SetHyperlink(link)
+					GameTooltip:Show()
 				end
-			end,
-		})
-		healerCCModeDropdown:SetPoint("TOPLEFT", healerCCModeLabel, "BOTTOMLEFT", 0, -verticalSpacing * 0.5)
-		healerCCModeDropdown:SetWidth(160)
-
-		-- TTS text input (shown when mode == TTS)
-		local healerCCTextLabel = mini:TextLine({
-			Parent = content,
-			Text = L["Healer CC TTS Text"],
-			Tooltip = L["The text to speak when enemy healer is CCed."],
-		})
-		healerCCTextLabel:SetPoint("TOPLEFT", healerCCModeDropdown, "BOTTOMLEFT", 0, -verticalSpacing)
-
-		local healerCCTextBox = mini:EditBox({
-			Parent = content,
-			Width = 200,
-			GetValue = function()
-				return GetZone().HealerCCText or "治疗被控"
-			end,
-			SetValue = function(value)
-				GetZone().HealerCCText = value
-				M:Apply()
-			end,
-		})
-		healerCCTextBox:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
-		healerCCTextBox:SetPoint("TOP", healerCCTextLabel, "TOP", 0, 4)
-
-		-- Sound file dropdown (shown when mode == Sound)
-		local soundFileLabel = mini:TextLine({
-			Parent = content,
-			Text = L["Healer CC Sound File"],
-		})
-		soundFileLabel:SetPoint("TOPLEFT", healerCCModeDropdown, "BOTTOMLEFT", 0, -verticalSpacing)
-
-		local soundFileDropdown = mini:Dropdown({
-			Parent = content,
-			Items = soundFiles,
-			Width = 200,
-			GetValue = function()
-				return GetZone().HealerCCSoundFile or "夏一可_控制成功.ogg"
-			end,
-			SetValue = function(value)
-				GetZone().HealerCCSoundFile = value
-				M:Apply()
-			end,
-			GetText = function(value)
-				return value and value:gsub("%.ogg$", "") or ""
-			end,
-		})
-		soundFileDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
-		soundFileDropdown:SetPoint("TOP", soundFileLabel, "TOP", 0, 8)
-		soundFileDropdown:SetWidth(200)
-
-		-- Preview button (always visible)
-		local previewBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
-		previewBtn:SetSize(80, 22)
-		previewBtn:SetPoint("LEFT", healerCCModeDropdown, "RIGHT", horizontalSpacing, 0)
-		previewBtn:SetText(L["Preview"])
-		previewBtn:SetScript("OnClick", function()
-			local mode = GetZone().HealerCCMode or "TTS"
-			if mode == "Sound" then
-				PreviewSoundFile(GetZone().HealerCCSoundFile or "夏一可_控制成功.ogg")
-			else
-				local voiceId = db.TTS and db.TTS.VoiceID or 0
-				local vol = db.TTS and db.TTS.Volume or 100
-				local rate = db.TTS and db.TTS.SpeechRate or 7
-				local text = GetZone().HealerCCText or "治疗被控"
-				C_VoiceChat.SpeakText(voiceId, text, rate, vol, true)
 			end
 		end)
 
-		-- Show/hide based on mode
-		local function RefreshHealerCCMode()
-			local mode = GetZone().HealerCCMode or "TTS"
-			local isTTS = (mode == "TTS")
-			healerCCTextLabel:SetShown(isTTS)
-			healerCCTextBox:SetShown(isTTS)
-			soundFileLabel:SetShown(not isTTS)
-			soundFileDropdown:SetShown(not isTTS)
-		end
-
-		RefreshHealerCCMode()
-
-		content.OnMiniRefresh = function()
-			RefreshHealerCCMode()
+		if col == 0 then
+			if row == 0 then
+				chk:SetPoint("TOPLEFT", selectAll, "BOTTOMLEFT", 0, -verticalSpacing)
+			else
+				chk:SetPoint("TOPLEFT", lastLeft, "BOTTOMLEFT", 0, -4)
+			end
+			lastLeft = chk
+		else
+			if row == 0 then
+				chk:SetPoint("TOPLEFT", selectAll, "BOTTOMLEFT", columnWidth + horizontalSpacing, -verticalSpacing)
+			else
+				chk:SetPoint("TOPLEFT", lastRight, "BOTTOMLEFT", 0, -4)
+			end
+			lastRight = chk
 		end
 	end
+
+	return lastLeft
 end
 
--- ==================== Init ====================
+---@param parent Frame
+---@param anchor Region
+---@param classEntry table
+---@param opts table? { showDivider = boolean?, splitCategories = boolean? }
+---@return Region bottom
+local function BuildClassSection(parent, anchor, classEntry, opts)
+	opts = opts or {}
+	local last = anchor
+
+	if opts.showDivider ~= false then
+		local divider = mini:Divider({
+			Parent = parent,
+			Text = L[classEntry.Name] or classEntry.Name,
+		})
+		divider:SetPoint("LEFT", parent, "LEFT")
+		divider:SetPoint("RIGHT", parent, "RIGHT")
+		divider:SetPoint("TOP", anchor, "BOTTOM", 0, -verticalSpacing * 2)
+		last = divider
+	end
+
+	local buffs, ccs = SplitClassSpells(classEntry.Spells)
+	local debuffTitle = (classEntry.Key == "General") and L["spell_group_debuffs_general"] or L["spell_group_debuffs"]
+
+	if opts.splitCategories ~= false then
+		last = BuildSpellGroup(parent, last, buffs, L["spell_group_buffs"])
+		last = BuildSpellGroup(parent, last, ccs, debuffTitle)
+		return last
+	end
+
+	-- Fallback: single list (unused; keep for safety).
+	local all = {}
+	for i = 1, #buffs do all[#all + 1] = buffs[i] end
+	for i = 1, #ccs do all[#all + 1] = ccs[i] end
+	return BuildSpellGroup(parent, last, all, nil)
+end
+
+local function BuildChangelogTab(content)
+	local block = mini:TextBlock({
+		Parent = content,
+		Lines = {
+			L["changelog_v4.1.0"],
+			" ",
+			L["changelog_v4.0.1"],
+			" ",
+			L["changelog_v4.0.0"],
+			" ",
+			L["changelog_v2.0.3"],
+		},
+	})
+	block:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+end
 
 function M:Init()
 	local rawDb = mini:GetSavedVars()
 	MigrateV1(rawDb)
-	MigrateV2(rawDb)
-	MigrateV3(rawDb)
-	MigrateV4(rawDb)
-	MigrateV5(rawDb)
-	MigrateV6(rawDb)
-	MigrateV7(rawDb)
-	MigrateV8(rawDb)
-	MigrateV9(rawDb)
+	MigrateThroughV11(rawDb)
+	MigrateV13(rawDb)
+		MigrateV14(rawDb)
+	MigrateV16(rawDb)
+	MigrateV17(rawDb)
+	MigrateV18(rawDb)
+	MigrateV19(rawDb)
+	MigrateV20(rawDb)
 
+	dbDefaults.Spells = BuildDefaultSpells()
+	dbDefaults.SelfCcSpells = BuildDefaultSelfCcSpells()
 	db = mini:GetSavedVars(dbDefaults)
+	EnsureSpellDefaults(db)
+	EnsureSelfCcDefaults(db)
+	EnsureZoneDefaults(db)
+	-- ExtraVoicePacks is a free-form list; empty-template CleanTable would wipe entries in-place.
+	-- Must copy into a NEW table — saving the same reference then restoring does nothing.
+	local savedExtraPacks = {}
+	if type(db.ExtraVoicePacks) == "table" then
+		for k, v in pairs(db.ExtraVoicePacks) do
+			savedExtraPacks[k] = v
+		end
+	end
+	-- Do NOT CleanTable Spells against defaults in a way that drops false — defaults include all keys.
 	mini:CleanTable(db, dbDefaults, true, true)
+	db.ExtraVoicePacks = savedExtraPacks
+	EnsureSpellDefaults(db)
+	EnsureSelfCcDefaults(db)
+	EnsureZoneDefaults(db)
+	voicePack:Init()
 
-	BuildVoiceList()
-	AutoSelectVoice()
-	BuildSoundFileList()
-
-	-- ==================== Main scroll panel ====================
 	local scroll = CreateFrame("ScrollFrame", nil, nil, "UIPanelScrollFrameTemplate")
 	scroll.name = addonName
 
@@ -1183,7 +945,8 @@ function M:Init()
 	local panel = CreateFrame("Frame", nil, scroll)
 	local width, height = mini:SettingsSize()
 	panel:SetWidth(width)
-	panel:SetHeight(height * 3)
+	-- Tall enough for all classes listed on one Spells page.
+	panel:SetHeight(math.max(height * 8, 5000))
 	scroll:SetScrollChild(panel)
 
 	scroll:EnableMouseWheel(true)
@@ -1198,7 +961,6 @@ function M:Init()
 		end
 	end)
 
-	-- ==================== Title ====================
 	local title = panel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 	local version = C_AddOns.GetAddOnMetadata(addonName, "Version")
 	title:SetPoint("TOPLEFT", 0, -verticalSpacing)
@@ -1206,9 +968,7 @@ function M:Init()
 
 	local descBlock = mini:TextBlock({
 		Parent = panel,
-		Lines = {
-			L["addon_description"],
-		},
+		Lines = { L["addon_description"] },
 	})
 	descBlock:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -6)
 
@@ -1216,138 +976,157 @@ function M:Init()
 	authorLine:SetText(L["Author: DK-姜世离（燃烧之刃）"])
 	authorLine:SetPoint("TOPLEFT", descBlock, "BOTTOMLEFT", 0, -4)
 
-	-- ==================== Donate button ====================
-	local donateBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
-	donateBtn:SetSize(80, 22)
-	donateBtn:SetPoint("LEFT", authorLine, "RIGHT", horizontalSpacing, 2)
-	donateBtn:SetText(L["Donate"])
-
-	local donatePopup = CreateFrame("Frame", "PVPSoundDonatePopup", UIParent, "BasicFrameTemplateWithInset")
-	donatePopup:SetSize(440, 140)
-	donatePopup:SetPoint("CENTER")
-	donatePopup:SetFrameStrata("DIALOG")
-	donatePopup:EnableMouse(true)
-	donatePopup:SetMovable(true)
-	donatePopup:RegisterForDrag("LeftButton")
-	donatePopup:SetScript("OnDragStart", donatePopup.StartMoving)
-	donatePopup:SetScript("OnDragStop", donatePopup.StopMovingOrSizing)
-	donatePopup:Hide()
-	donatePopup.TitleText:SetText(L["Donate Popup Title"])
-
-	local donateHint = donatePopup:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-	donateHint:SetText(L["Donate Popup Hint"])
-	donateHint:SetPoint("TOP", donatePopup, "TOP", 0, -32)
-
-	local donateURL = "https://vitocichen.github.io/DK-jiangshili/"
-	local donateEditBox = CreateFrame("EditBox", nil, donatePopup, "InputBoxTemplate")
-	donateEditBox:SetSize(300, 20)
-	donateEditBox:SetPoint("TOP", donateHint, "BOTTOM", -20, -12)
-	donateEditBox:SetAutoFocus(false)
-	donateEditBox:SetText(donateURL)
-	donateEditBox:SetCursorPosition(0)
-	donateEditBox:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
-	donateEditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-	donateEditBox:SetScript("OnTextChanged", function(self)
-		self:SetText(donateURL)
-		self:HighlightText()
-	end)
-
-	local donateCopyBtn = CreateFrame("Button", nil, donatePopup, "UIPanelButtonTemplate")
-	donateCopyBtn:SetSize(60, 22)
-	donateCopyBtn:SetPoint("LEFT", donateEditBox, "RIGHT", 8, 0)
-	donateCopyBtn:SetText(L["Copy"])
-	donateCopyBtn:SetScript("OnClick", function(self)
-		donateEditBox:SetText(donateURL)
-		donateEditBox:HighlightText()
-		donateEditBox:SetFocus()
-		self:SetText(L["Copied"])
-		C_Timer.After(1.5, function() self:SetText(L["Copy"]) end)
-	end)
-
-	local donateOpenHint = donatePopup:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	donateOpenHint:SetText(L["Donate Open Hint"])
-	donateOpenHint:SetPoint("TOP", donateEditBox, "BOTTOM", -20, -8)
-
-	donateBtn:SetScript("OnClick", function()
-		if donatePopup:IsShown() then
-			donatePopup:Hide()
-		else
-			donatePopup:Show()
-			donateEditBox:SetText(donateURL)
-			donateEditBox:SetCursorPosition(0)
-		end
-	end)
-
-	-- ==================== Tabs ====================
 	local tabsPanel = CreateFrame("Frame", nil, panel)
 	tabsPanel:SetPoint("TOPLEFT", authorLine, "BOTTOMLEFT", 0, -verticalSpacing)
 	tabsPanel:SetPoint("RIGHT", panel, "RIGHT", 0, 0)
 	tabsPanel:SetPoint("BOTTOM", panel, "BOTTOM", 0, verticalSpacing * 2)
 
-	local tabController = mini:CreateTabs({
+	local function BuildGeneralSpellsTab(content)
+		local intro = mini:TextBlock({
+			Parent = content,
+			Lines = { L["spells_tab_intro"] },
+		})
+		intro:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+
+		local merged = BuildMergedClasses()
+		local generalEntry
+		for _, classEntry in ipairs(merged) do
+			if classEntry.Key == "General" then
+				generalEntry = classEntry
+				break
+			end
+		end
+		if generalEntry then
+			BuildClassSection(content, intro, generalEntry, { showDivider = false })
+		end
+	end
+
+	local function BuildClassSpellsTab(content)
+		local merged = BuildMergedClasses()
+		local classItems = {}
+		local classByKey = {}
+		for _, classEntry in ipairs(merged) do
+			if classEntry.Key ~= "General" then
+				classItems[#classItems + 1] = classEntry.Key
+				classByKey[classEntry.Key] = classEntry
+			end
+		end
+		if #classItems == 0 then
+			return
+		end
+
+		local classLabel = mini:TextLine({
+			Parent = content,
+			Text = L["Class"],
+		})
+		classLabel:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+
+		local classColumnWidth = mini:ColumnWidth(2, 0, 0)
+		local selectedKey = classItems[1]
+		local spellHost = CreateFrame("Frame", nil, content)
+		spellHost:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+		spellHost:SetHeight(4000)
+
+		local function ClearHost()
+			for _, child in ipairs({ spellHost:GetChildren() }) do
+				child:Hide()
+				child:SetParent(nil)
+			end
+			spellHost.MiniControls = nil
+			spellHost.MiniRefresh = nil
+		end
+
+		local function RebuildClassSpells()
+			ClearHost()
+			local entry = classByKey[selectedKey]
+			if not entry then
+				return
+			end
+			local dummy = CreateFrame("Frame", nil, spellHost)
+			dummy:SetPoint("TOPLEFT", spellHost, "TOPLEFT", 0, 0)
+			dummy:SetSize(1, 1)
+			BuildClassSection(spellHost, dummy, entry, { showDivider = false })
+		end
+
+		local classDropdown = mini:Dropdown({
+			Parent = content,
+			Items = classItems,
+			Width = 200,
+			GetValue = function()
+				return selectedKey
+			end,
+			SetValue = function(value)
+				selectedKey = value
+				RebuildClassSpells()
+			end,
+			GetText = function(value)
+				local entry = classByKey[value]
+				if entry then
+					return L[entry.Name] or entry.Name
+				end
+				return value or ""
+			end,
+		})
+		classDropdown:SetPoint("LEFT", content, "LEFT", classColumnWidth, 0)
+		classDropdown:SetPoint("TOP", classLabel, "TOP", 0, 8)
+		classDropdown:SetWidth(200)
+
+		spellHost:SetPoint("TOPLEFT", classLabel, "BOTTOMLEFT", 0, -verticalSpacing * 3)
+		RebuildClassSpells()
+	end
+
+	local tabs = {
+		{
+			Key = "Home",
+			Title = addonName,
+			Build = function(content) BuildHomeTab(content) end,
+		},
+		{
+			Key = "Zones",
+			Title = L["Zones"],
+			Build = function(content) BuildZonesTab(content) end,
+		},
+		{
+			Key = "GeneralSpells",
+			Title = L["General Spells"],
+			Build = function(content) BuildGeneralSpellsTab(content) end,
+		},
+		{
+			Key = "ClassSpells",
+			Title = L["Class Spells"],
+			Build = function(content) BuildClassSpellsTab(content) end,
+		},
+		{
+			Key = "Changelog",
+			Title = L["Changelog"],
+			Build = function(content) BuildChangelogTab(content) end,
+		},
+	}
+
+	M.TabController = mini:CreateTabs({
 		Parent = tabsPanel,
 		InitialKey = "Home",
 		ContentInsets = { Top = verticalSpacing },
-		Tabs = {
-			{
-				Key = "Home",
-				Title = addonName,
-				Build = function(content) BuildHomeTab(content) end,
-			},
-			{
-				Key = "World",
-				Title = L["World"],
-				Build = function(content) BuildZoneTab(content, "World") end,
-			},
-			{
-				Key = "Arena",
-				Title = L["Arena"],
-				Build = function(content) BuildZoneTab(content, "Arena") end,
-			},
-			{
-				Key = "BattleGrounds",
-				Title = L["Battlegrounds"],
-				Build = function(content) BuildZoneTab(content, "BattleGrounds") end,
-			},
-			{
-				Key = "PvE",
-				Title = L["PvE"],
-				Build = function(content) BuildZoneTab(content, "PvE") end,
-			},
-			{
-				Key = "Changelog",
-				Title = L["Changelog"],
-				Build = function(content) BuildChangelogTab(content) end,
-			},
-		},
+		Tabs = tabs,
 	})
 
-	M.TabController = tabController
-
-	-- ==================== Confirm popup ====================
 	StaticPopupDialogs["PVPSOUND_CONFIRM"] = {
 		text = "%s",
 		button1 = YES,
 		button2 = NO,
 		OnAccept = function(_, data)
-			if data and data.OnYes then
-				data.OnYes()
-			end
+			if data and data.OnYes then data.OnYes() end
 		end,
 		OnCancel = function(_, data)
-			if data and data.OnNo then
-				data.OnNo()
-			end
+			if data and data.OnNo then data.OnNo() end
 		end,
 		timeout = 0,
 		whileDead = true,
 		hideOnEscape = true,
 	}
 
-	-- ==================== Slash commands ====================
 	SLASH_PVPSOUND1 = "/pvpsound"
 	SLASH_PVPSOUND2 = "/ps"
-
 	SlashCmdList.PVPSOUND = function(msg)
 		msg = msg and msg:lower():match("^%s*(.-)%s*$") or ""
 		if msg == "test" then

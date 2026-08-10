@@ -35,9 +35,20 @@ function M:GetZoneConfig()
 	return db.Zones[self:GetZoneKey()]
 end
 
--- Returns whether the module is enabled for the current zone
+-- Returns whether enemy-buff alerts are enabled for the current zone.
 function M:IsEnabled()
 	local zone = self:GetZoneConfig()
 	if not zone then return true end
 	return zone.Enabled or false
+end
+
+-- Cast-start / totems / interrupt must not follow buff-only `Enabled`.
+-- Active when any zone alert is on (buff, debuff, or healer-CC).
+function M:IsCastAlertsEnabled()
+	local zone = self:GetZoneConfig()
+	if not zone then return true end
+	if zone.Enabled then return true end
+	if zone.CcEnabled ~= false then return true end
+	if zone.HealerCcEnabled ~= false then return true end
+	return false
 end

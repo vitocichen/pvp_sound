@@ -1,64 +1,79 @@
 ---@type string, Addon
 local _, addon = ...
-local moduleUtil = addon.Utils.ModuleUtil
-local units = addon.Utils.Units
-
--- Temporary diagnostic for important-buff detection.
--- Run /pvpsdiag while targeting an enemy with buffs up.
-
-local function fmt(v)
-	if v == nil then return "nil" end
-	if issecretvalue(v) then return "|cffff5555SEC|r" end
-	return tostring(v)
-end
-
-local function CountBuffList(unit)
-	local np = C_NamePlate.GetNamePlateForUnit(unit)
-	local af = np and np.UnitFrame and np.UnitFrame.AurasFrame
-	if not af or not af.buffList or not af.buffList.Iterate then
-		return 0, false
-	end
-	local n = 0
-	pcall(function()
-		af.buffList:Iterate(function()
-			n = n + 1
-		end)
-	end)
-	return n, true
-end
 
 SLASH_PVPSDIAG1 = "/pvpsdiag"
 SlashCmdList["PVPSDIAG"] = function()
-	print("|cff33ff99=== PVPS diag ===|r")
+	local moduleUtil = addon.Utils.ModuleUtil
+	local voicePack = addon.Core.VoicePack
+	local auraSounds = addon.Core.AuraSounds
+	local units = addon.Utils.Units
+	local auraMod = addon.Modules.AuraSoundModule
+	local db = addon.Core.Framework:GetSavedVars()
 
-	local zone = moduleUtil:GetZoneConfig()
-	print(string.format("  enabled=%s zoneKey=%s | Important=%s Defensive=%s TargetFocusOnly=%s",
-		tostring(moduleUtil:IsEnabled()), tostring(moduleUtil:GetZoneKey()),
-		zone and tostring(zone.Important) or "?",
-		zone and tostring(zone.Defensive) or "?",
-		zone and tostring(zone.TargetFocusOnly) or "?"))
-
-	local unit = "target"
-	if not UnitExists(unit) then print("  (no target)") print("|cff33ff99=== end ===|r") return end
-	print(string.format("  target=%s isEnemy=%s combat=%s",
-		UnitName(unit) or "?", tostring(units:IsEnemy(unit)), tostring(UnitAffectingCombat(unit))))
-
-	local np = C_NamePlate.GetNamePlateForUnit(unit)
-	local uf = np and np.UnitFrame
-	local af = uf and uf.AurasFrame
-	local buffListCount, hasBuffList = CountBuffList(unit)
-	print(string.format("  nameplate=%s UnitFrame=%s AurasFrame=%s buffList=%s count=%d",
-		tostring(np ~= nil), tostring(uf ~= nil), tostring(af ~= nil),
-		tostring(hasBuffList), buffListCount))
-
-	if hasBuffList then
-		pcall(function()
-			np.UnitFrame.AurasFrame.buffList:Iterate(function(auraInstanceID)
-				local data = C_UnitAuras.GetAuraDataByAuraInstanceID(unit, auraInstanceID)
-				print(string.format("    buffList id=%s name=%s",
-					fmt(auraInstanceID), data and fmt(data.name) or "?"))
-			end)
-		end)
+	local enabled, disabled = 0, 0
+	if db.Spells then
+		for spellId in pairs(addon.Data.EnemyBuffSounds) do
+			if db.Spells[spellId] == false then
+				disabled = disabled + 1
+			else
+				enabled = enabled + 1
+			end
+		end
+	else
+		for _ in pairs(addon.Data.EnemyBuffSounds) do
+			enabled = enabled + 1
+		end
 	end
+
+	print("|cff33ff99=== PVP Sound diag ===|r")
+	local zoneKey = moduleUtil:GetZoneKey()
+	local zone = moduleUtil:GetZoneConfig()
+	local buffOn = zone and zone.Enabled == true
+	local debuffOn = not zone or zone.CcEnabled ~= false
+	local buffRange = (zone and zone.TargetFocusOnly == false) and "所有人" or "仅目标+焦点"
+	local debuffRange = (zone and zone.CcScope == "party") and "自己+队友" or "自己"
+	print(string.format("  zone=%s AddAuraSound=%s", tostring(zoneKey), tostring(auraSounds:IsAvailable())))
+	print(string.format("  buff: enabled=%s range=%s (TargetFocusOnly=%s)",
+		tostring(buffOn), buffRange, tostring(zone and zone.TargetFocusOnly)))
+	print(string.format("  debuff: enabled=%s range=%s (CcScope=%s)",
+		tostring(debuffOn), debuffRange, tostring(zone and zone.CcScope)))
+	print(string.format("  healerCC: enabled=%s healers=%d sound=Sonar.ogg",
+		tostring(not zone or zone.HealerCcEnabled ~= false),
+		#(units:FindHealers())))
+	print(string.format("  cast/interrupt: enabled=%s",
+		tostring(moduleUtil:IsCastAlertsEnabled())))
+	print(string.format("  voicePack=%s path=%s",
+		tostring(voicePack:GetSelectedPack()),
+		tostring(voicePack:GetBasePath())))
+	print(string.format("  spells on=%d off=%d", enabled, disabled))
+	local byToken, total = auraMod:GetRegistrationStats()
+	print(string.format("  registered handles=%d", total))
+	for token, n in pairs(byToken) do
+		if token:find("%(selfCC%)$") or token:find("%(healerCC%)$") then
+			print(string.format("    %s handles=%d", token, n))
+		else
+			local exists = UnitExists(token)
+			local canAtk = units:CanAttack(token)
+			local isEnemy = units:IsEnemy(token)
+			local isPlayer = UnitIsPlayer(token)
+			print(string.format("    %s handles=%d exists=%s canAttack=%s isEnemy=%s isPlayer=%s",
+				token, n, tostring(exists), tostring(canAtk), tostring(isEnemy), tostring(isPlayer)))
+		end
+	end
+
+	if total == 0 then
+		print("  |cffff6666无注册：选中敌对玩家，或关掉「仅目标/焦点」并打开姓名板；debuff 应有 player(selfCC)|r")
+	end
+
+	if UnitExists("target") then
+		print(string.format("  target: enemyPlayer=%s canAttack=%s isEnemy=%s",
+			tostring(units:IsEnemyPlayer("target")),
+			tostring(units:CanAttack("target")),
+			tostring(units:IsEnemy("target"))))
+	else
+		print("  target: (none)")
+	end
+
+	print("|cff33ff99/pvpsoundtest [spellID]|r 试播（默认 45438；风暴之锤可用 132169）")
 	print("|cff33ff99=== end ===|r")
 end

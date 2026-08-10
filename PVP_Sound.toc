@@ -1,10 +1,10 @@
-## Interface: 120007
+## Interface: 120100, 120007
 ## Title: PVP Sound
-## Notes: TTS voice announcements for PvP important, defensive, CC spells, cast bar monitoring, and interrupt alerts.
+## Notes: PvP voice alerts (enemy buffs + debuffs + healer CC) via AddAuraSound (12.1), bundled Xia Yike voices.
 ## Title-zhCN: PVP Sound - PvP语音播报
-## Notes-zhCN: PvP技能TTS语音播报，支持重要技能、防御技能、控制技能、读条监控和打断提醒。
+## Notes-zhCN: 内置夏一可语音 + 12.1 AddAuraSound：敌方 buff、自身/队友 debuff、治疗被控语音播报。
 ## Author: DK-姜世离（燃烧之刃）
-## Version: 2.0.3
+## Version: 4.1.0
 ## SavedVariables: PVPSoundDB
 ## IconTexture: Interface\Icons\Spell_Holy_MindSooth
 ## X-Curse-Project-ID: 1479674
@@ -22,8 +22,20 @@ Utils\Units.lua
 Utils\SpellCache.lua
 Utils\ModuleUtil.lua
 
-Core\UnitAuraWatcher.lua
+Data\EnemyBuffSounds.lua
+Data\EnemyBuffCatalog.lua
+Data\SelfCcSounds.lua
+Data\SelfCcCatalog.lua
+Data\CcSounds.lua
+Data\CcSpellIds.lua
+Data\CastSounds.lua
+Data\CastSuccessSounds.lua
+Data\VoicePackManifest.lua
 
+Core\VoicePack.lua
+Core\AuraSounds.lua
+
+Modules\AuraSoundModule.lua
 Modules\SoundModule.lua
 
 Config\Config.lua

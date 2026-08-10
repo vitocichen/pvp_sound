@@ -4,13 +4,13 @@ local mini = addon.Core.Framework
 local scheduler = addon.Utils.Scheduler
 local config = addon.Config
 local soundModule = addon.Modules.SoundModule
+local auraSoundModule = addon.Modules.AuraSoundModule
 local L = addon.L
 local eventsFrame
 local db
 
 -- Bump this when there's a change worth popping a "What's New" dialog for.
--- The dialog body is the matching changelog string.
-local WHATS_NEW_VERSION = "2.0.3"
+local WHATS_NEW_VERSION = "4.1.0"
 
 local function ShowWhatsNew()
 	if not db then return end
@@ -19,7 +19,6 @@ local function ShowWhatsNew()
 
 	local key = "changelog_v" .. WHATS_NEW_VERSION
 	local body = L[key]
-	-- L returns the key itself when a string is missing; skip if so.
 	if not body or body == "" or body == key then return end
 
 	C_Timer.After(3, function()
@@ -43,6 +42,7 @@ local function OnAddonLoaded()
 	scheduler:Init()
 	addon.Utils.ModuleUtil:Init()
 
+	auraSoundModule:Init()
 	soundModule:Init()
 
 	db = mini:GetSavedVars()
@@ -54,6 +54,7 @@ end
 
 function addon:Refresh()
 	soundModule:Refresh()
+	auraSoundModule:Refresh("addon:Refresh")
 end
 
 mini:WaitForAddonLoad(OnAddonLoaded)
