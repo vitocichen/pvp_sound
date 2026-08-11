@@ -91,7 +91,7 @@ L:SetDefaultStrings({
 
 	["Changelog"] = "Changelog",
 	["PVP Sound - What's New?"] = "PVP Sound - What's New?",
-	["changelog_v3.0.0"] = "|cFFFFD100v3.0.0|r — Dual-engine release: detects AddAuraSound support. On 12.1+ uses Xia Yike voice packs (Media\\pack) for enemy buffs / debuffs / healer-CC; older clients auto-fallback to the v2.0.3 TTS UI and logic — no manual switch.",
+	["changelog_v3.0.0"] = "|cFFFFD100v3.0.0|r — Major update: Xia Yike custom voice packs are back, with per-class spell filters so you can toggle which buffs/debuffs to watch. Custom voice packs are supported — just replace files using the same layout.",
 	["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — New \"All Buffs\" mode for the World zone: announces skills like Shadowstep / Sovereign / Crimson Vial, but also many useless buffs — best for open-world 1v1 duels.",
 
 	["Donate"] = "Donate",
