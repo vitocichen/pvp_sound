@@ -10,7 +10,7 @@ local CACHED_BASE
 local CACHED_PACK
 local db
 
-local DEFAULT_PACK = "夏一可"
+local DEFAULT_PACK = "夏一可1.25x"
 
 local function MediaRoot()
 	return "Interface\\AddOns\\" .. addonName .. "\\Media\\"
@@ -73,7 +73,7 @@ function M:SetSelectedPack(packName)
 	self:Invalidate()
 end
 
----Packs shown in the dropdown: manifest + user extras (deduped, 夏一可 first).
+---Packs shown in the dropdown: manifest + user extras (deduped, default pack first).
 ---@return string[]
 function M:ListPacks()
 	local seen = {}
@@ -85,7 +85,7 @@ function M:ListPacks()
 		list[#list + 1] = name
 	end
 
-	-- Prefer 夏一可 first.
+	-- Prefer default pack first.
 	add(DEFAULT_PACK)
 
 	local manifest = addon.Data.VoicePackManifest

@@ -9,7 +9,7 @@ local enemyBuffSounds = addon.Data.EnemyBuffSounds
 local selfCcSounds = addon.Data.SelfCcSounds
 local ccSpellIds = addon.Data.CcSpellIds
 
-local HEALER_CC_SOUND = "Sonar.ogg"
+local MEDIA_ROOT = "Interface\\AddOns\\PVP_Sound\\Media\\"
 
 ---@class AuraSoundModule
 local M = {}
@@ -54,6 +54,25 @@ local function HealerCcZoneEnabled()
 	local zone = moduleUtil:GetZoneConfig()
 	if not zone then return true end
 	return zone.HealerCcEnabled ~= false
+end
+
+---@return string
+local function HealerCcSoundFile()
+	local file = db and db.HealerCcSoundFile
+	if type(file) == "string" and file ~= "" then
+		return file
+	end
+	return "夏一可_控制成功.ogg"
+end
+
+---Sonar.ogg resolves from the selected voice pack; other clips live under Media\.
+---@return string?
+local function ResolveHealerCcSoundPath()
+	local file = HealerCcSoundFile()
+	if file == "Sonar.ogg" then
+		return voicePack:Path("Sonar.ogg")
+	end
+	return MEDIA_ROOT .. file
 end
 
 ---"self" = player only; "party" = player + party/raid teammates (per zone).
@@ -270,8 +289,8 @@ end
 
 ---MiniAuras HealerCC: register full CC list on each party/raid healer (not the player).
 local function RefreshHealerCc(basePath, channel, active)
-	local wantActive = active and basePath ~= nil and ccSpellIds ~= nil and next(ccSpellIds) ~= nil
-	local soundPath = wantActive and voicePack:Path(HEALER_CC_SOUND) or nil
+	local soundPath = active and ResolveHealerCcSoundPath() or nil
+	local wantActive = active and soundPath ~= nil and ccSpellIds ~= nil and next(ccSpellIds) ~= nil
 	if wantActive and not soundPath then
 		wantActive = false
 	end
@@ -281,6 +300,7 @@ local function RefreshHealerCc(basePath, channel, active)
 	local sig = auraSounds:Signature(
 		wantActive,
 		soundPath or "",
+		HealerCcSoundFile(),
 		channel,
 		inGroup,
 		inRaid,
@@ -373,7 +393,7 @@ function M:Refresh(reason)
 	RefreshSelfCc(basePath, channel, ccActive)
 
 	-- --- healer-in-CC (other healers only; MiniAuras-style) ---
-	local healerActive = HealerCcZoneEnabled() and basePath ~= nil
+	local healerActive = HealerCcZoneEnabled()
 	RefreshHealerCc(basePath, channel, healerActive)
 end
 
@@ -557,8 +577,5 @@ function M:Init()
 		end
 	end)
 
-	SLASH_PVPSOUNDTEST1 = "/pvpsoundtest"
-	SlashCmdList.PVPSOUNDTEST = function(msg)
-		M:PlayTest(tonumber(msg))
-	end
+	-- Dev-only preview stays on the settings Test button (not a public slash).
 end

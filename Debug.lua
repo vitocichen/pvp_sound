@@ -1,8 +1,8 @@
 ---@type string, Addon
 local _, addon = ...
 
-SLASH_PVPSDIAG1 = "/pvpsdiag"
-SlashCmdList["PVPSDIAG"] = function()
+-- Internal diagnostics only (not registered as a public slash command).
+function addon.DebugDiag()
 	local moduleUtil = addon.Utils.ModuleUtil
 	local auraSounds = addon.Core.AuraSounds
 	local units = addon.Utils.Units
@@ -55,9 +55,10 @@ SlashCmdList["PVPSDIAG"] = function()
 		tostring(buffOn), buffRange, tostring(zone and zone.TargetFocusOnly)))
 	print(string.format("  debuff: enabled=%s range=%s (CcScope=%s)",
 		tostring(debuffOn), debuffRange, tostring(zone and zone.CcScope)))
-	print(string.format("  healerCC: enabled=%s healers=%d sound=Sonar.ogg",
+	print(string.format("  healerCC: enabled=%s healers=%d sound=%s",
 		tostring(not zone or zone.HealerCcEnabled ~= false),
-		#(units:FindHealers())))
+		#(units:FindHealers()),
+		tostring(db.HealerCcSoundFile or "夏一可_控制成功.ogg")))
 	print(string.format("  cast/interrupt: enabled=%s",
 		tostring(moduleUtil:IsCastAlertsEnabled())))
 	print(string.format("  voicePack=%s path=%s",
@@ -92,6 +93,5 @@ SlashCmdList["PVPSDIAG"] = function()
 		print("  target: (none)")
 	end
 
-	print("|cff33ff99/pvpsoundtest [spellID]|r 试播（默认 45438；风暴之锤可用 132169）")
 	print("|cff33ff99=== end ===|r")
 end

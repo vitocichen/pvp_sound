@@ -32,10 +32,12 @@ local function BuildDefaultSelfCcSpells()
 end
 
 local dbDefaults = {
-	Version = 20,
+	Version = 21,
 	WhatsNewVersion = false,
-	VoicePack = "夏一可",
+	VoicePack = "夏一可1.25x",
 	ExtraVoicePacks = {},
+	-- Healer-CC alert clip: Sonar.ogg lives in voice pack; others under Media\.
+	HealerCcSoundFile = "夏一可_控制成功.ogg",
 	Sound = {
 		Channel = "Master",
 		CastInterval = 0.0,
@@ -117,7 +119,7 @@ end
 -- v16: multi voice-pack folders under Media\<name>\.
 local function MigrateV16(savedDb)
 	if not savedDb or (savedDb.Version and savedDb.Version >= 16) then return end
-	savedDb.VoicePack = savedDb.VoicePack or "夏一可"
+	savedDb.VoicePack = savedDb.VoicePack or "夏一可1.25x"
 	savedDb.ExtraVoicePacks = savedDb.ExtraVoicePacks or {}
 	savedDb.Version = 16
 end
@@ -201,6 +203,20 @@ local function MigrateV20(savedDb)
 	savedDb.Version = 20
 end
 
+-- v21: selectable healer-CC sound (v2.0.3 Media\ clips + voice-pack Sonar).
+local function MigrateV21(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 21) then return end
+	if type(savedDb.HealerCcSoundFile) ~= "string" or savedDb.HealerCcSoundFile == "" then
+		local legacy = savedDb.Zones and savedDb.Zones.Arena and savedDb.Zones.Arena.HealerCCSoundFile
+		if type(legacy) == "string" and legacy ~= "" then
+			savedDb.HealerCcSoundFile = legacy
+		else
+			savedDb.HealerCcSoundFile = "夏一可_控制成功.ogg"
+		end
+	end
+	savedDb.Version = 21
+end
+
 local function EnsureSpellDefaults(savedDb)
 	savedDb.Spells = savedDb.Spells or {}
 	for spellId in pairs(addon.Data.EnemyBuffSounds) do
@@ -252,6 +268,50 @@ end
 
 local channelItems = { "Master", "SFX", "Ambience", "Dialog", "Music" }
 
+-- v2.0.3 Media\ root clips + Sonar.ogg (current voice pack, MiniAuras-style).
+local healerCcSoundFiles = {
+	"夏一可_控制成功.ogg",
+	"Sonar.ogg",
+	"PS_Alert.ogg",
+	"PS_Chime.ogg",
+	"PS_Error.ogg",
+	"PS_Horn.ogg",
+	"PS_Impact.ogg",
+	"PS_Ping.ogg",
+	"PS_Pop.ogg",
+	"PS_Radar.ogg",
+	"PS_Shock.ogg",
+	"PS_Swoosh.ogg",
+	"PS_Warm.ogg",
+}
+
+local MEDIA_ROOT = "Interface\\AddOns\\" .. addonName .. "\\Media\\"
+
+local function ResolveHealerCcSoundPath(fileName)
+	fileName = fileName or (db and db.HealerCcSoundFile) or "夏一可_控制成功.ogg"
+	if fileName == "Sonar.ogg" then
+		return voicePack:Path("Sonar.ogg")
+	end
+	return MEDIA_ROOT .. fileName
+end
+
+local function PreviewHealerCcSound(fileName)
+	local path = ResolveHealerCcSoundPath(fileName)
+	if path then
+		pcall(PlaySoundFile, path, db and db.Sound and db.Sound.Channel or "Master")
+	end
+end
+
+local function HealerCcSoundLabel(fileName)
+	if fileName == "Sonar.ogg" then
+		return L["Healer CC Sound Sonar"]
+	end
+	if fileName == "夏一可_控制成功.ogg" then
+		return L["Healer CC Sound Xia"]
+	end
+	return (fileName or ""):gsub("%.ogg$", ""):gsub("%.mp3$", "")
+end
+
 local function DoTest()
 	AuraSounds():PlayTest(45438)
 end
@@ -261,9 +321,9 @@ local function BuildHomeTab(content)
 		Parent = content,
 		Lines = {
 			L["home_intro_1"],
-			L["home_intro_voice_warning"],
-			" ",
-			L["home_intro_enemy_buffs"],
+			L["home_intro_buff"],
+			L["home_intro_debuff"],
+			L["home_intro_healer"],
 			" ",
 			L["home_intro_7"],
 		},
@@ -556,14 +616,26 @@ local function BuildZonesTab(content)
 				db.Zones[zoneKey].HealerCcEnabled = value and true or false
 				M:Apply()
 				if value then
-					local path = voicePack:Path("Sonar.ogg")
-					if path then
-						pcall(PlaySoundFile, path, db.Sound and db.Sound.Channel or "Master")
-					end
+					PreviewHealerCcSound(db.HealerCcSoundFile)
 				end
 			end,
 		})
 		healerChk:SetPoint("TOPLEFT", ccChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+		PlaceRangeRow(
+			healerChk,
+			L["Healer CC Sound File"],
+			healerCcSoundFiles,
+			function()
+				return db.HealerCcSoundFile or "夏一可_控制成功.ogg"
+			end,
+			function(value)
+				db.HealerCcSoundFile = value
+				M:Apply()
+				PreviewHealerCcSound(value)
+			end,
+			HealerCcSoundLabel
+		)
 
 		last = healerChk
 	end
@@ -915,6 +987,7 @@ function M:Init()
 	MigrateV18(rawDb)
 	MigrateV19(rawDb)
 	MigrateV20(rawDb)
+	MigrateV21(rawDb)
 
 	dbDefaults.Spells = BuildDefaultSpells()
 	dbDefaults.SelfCcSpells = BuildDefaultSelfCcSpells()
@@ -977,6 +1050,67 @@ function M:Init()
 	local authorLine = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
 	authorLine:SetText(L["Author: DK-姜世离（燃烧之刃）"])
 	authorLine:SetPoint("TOPLEFT", descBlock, "BOTTOMLEFT", 0, -4)
+
+	local donateBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+	donateBtn:SetSize(80, 22)
+	donateBtn:SetPoint("LEFT", authorLine, "RIGHT", horizontalSpacing, 2)
+	donateBtn:SetText(L["Donate"])
+
+	local donatePopup = CreateFrame("Frame", "PVPSoundDonatePopup", UIParent, "BasicFrameTemplateWithInset")
+	donatePopup:SetSize(440, 140)
+	donatePopup:SetPoint("CENTER")
+	donatePopup:SetFrameStrata("DIALOG")
+	donatePopup:EnableMouse(true)
+	donatePopup:SetMovable(true)
+	donatePopup:RegisterForDrag("LeftButton")
+	donatePopup:SetScript("OnDragStart", donatePopup.StartMoving)
+	donatePopup:SetScript("OnDragStop", donatePopup.StopMovingOrSizing)
+	donatePopup:Hide()
+	donatePopup.TitleText:SetText(L["Donate Popup Title"])
+
+	local donateHint = donatePopup:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	donateHint:SetText(L["Donate Popup Hint"])
+	donateHint:SetPoint("TOP", donatePopup, "TOP", 0, -32)
+
+	local donateURL = "https://vitocichen.github.io/DK-jiangshili/"
+	local donateEditBox = CreateFrame("EditBox", nil, donatePopup, "InputBoxTemplate")
+	donateEditBox:SetSize(300, 20)
+	donateEditBox:SetPoint("TOP", donateHint, "BOTTOM", -20, -12)
+	donateEditBox:SetAutoFocus(false)
+	donateEditBox:SetText(donateURL)
+	donateEditBox:SetCursorPosition(0)
+	donateEditBox:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+	donateEditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+	donateEditBox:SetScript("OnTextChanged", function(self)
+		self:SetText(donateURL)
+		self:HighlightText()
+	end)
+
+	local donateCopyBtn = CreateFrame("Button", nil, donatePopup, "UIPanelButtonTemplate")
+	donateCopyBtn:SetSize(60, 22)
+	donateCopyBtn:SetPoint("LEFT", donateEditBox, "RIGHT", 8, 0)
+	donateCopyBtn:SetText(L["Copy"])
+	donateCopyBtn:SetScript("OnClick", function(self)
+		donateEditBox:SetText(donateURL)
+		donateEditBox:HighlightText()
+		donateEditBox:SetFocus()
+		self:SetText(L["Copied"])
+		C_Timer.After(1.5, function() self:SetText(L["Copy"]) end)
+	end)
+
+	local donateOpenHint = donatePopup:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	donateOpenHint:SetText(L["Donate Open Hint"])
+	donateOpenHint:SetPoint("TOP", donateEditBox, "BOTTOM", -20, -8)
+
+	donateBtn:SetScript("OnClick", function()
+		if donatePopup:IsShown() then
+			donatePopup:Hide()
+		else
+			donatePopup:Show()
+			donateEditBox:SetText(donateURL)
+			donateEditBox:SetCursorPosition(0)
+		end
+	end)
 
 	local tabsPanel = CreateFrame("Frame", nil, panel)
 	tabsPanel:SetPoint("TOPLEFT", authorLine, "BOTTOMLEFT", 0, -verticalSpacing)
@@ -1130,11 +1264,6 @@ function M:Init()
 	SLASH_PVPSOUND1 = "/pvpsound"
 	SLASH_PVPSOUND2 = "/ps"
 	SlashCmdList.PVPSOUND = function(msg)
-		msg = msg and msg:lower():match("^%s*(.-)%s*$") or ""
-		if msg == "test" then
-			DoTest()
-			return
-		end
 		mini:OpenSettings(category, scroll)
 	end
 end

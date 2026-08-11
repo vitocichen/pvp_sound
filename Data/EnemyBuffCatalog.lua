@@ -24,6 +24,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 55233, File = "VampiricBlood.ogg" },
 				{ Id = 51271, File = "PillarofFrost.ogg" },
 				{ Id = 48707, File = "AntiMagicShell.ogg" },
+				{ Id = 410358, File = "AntiMagicShell.ogg" }, -- Spellwarding talent aura
 				{ Id = 152279, File = "BreathOfSindragosa.ogg" },
 				{ Id = 219809, File = "tombstone.ogg" },
 				{ Id = 194679, File = "runetap.ogg" },
@@ -105,10 +106,10 @@ addon.Data.EnemyBuffCatalog = {
 			Key = "Hunter",
 			Name = "Hunter",
 			Spells = {
-				{ Id = 19263, File = "Deterrence.ogg" },
+				{ Id = 186265, File = "Deterrence.ogg" }, -- Aspect of the Turtle (file is Xia Yike「灵龟守护」)
+				{ Id = 437461, File = "Deterrence.ogg" }, -- Aspect of the Turtle variant
 				{ Id = 53271, File = "MastersCall.ogg" },
 				{ Id = 53480, File = "roarOfSacrifice.ogg" },
-				{ Id = 186265, File = "Deterrence.ogg" },
 				{ Id = 186257, File = "cheetah.ogg" },
 				{ Id = 288613, File = "trueShot.ogg" },
 				{ Id = 193530, File = "aspectOfTheWild.ogg" },
@@ -126,6 +127,8 @@ addon.Data.EnemyBuffCatalog = {
 			Name = "Mage",
 			Spells = {
 				{ Id = 45438, File = "IceBlock.ogg" },
+				{ Id = 11426, File = "mageShield.ogg" }, -- Ice Barrier
+				{ Id = 414661, File = "mageShield.ogg" }, -- Ice Barrier (talent variant)
 				{ Id = 12472, File = "icyveins.ogg" },
 				{ Id = 198111, File = "temporalShield.ogg" },
 				{ Id = 198144, File = "iceForm.ogg" },
