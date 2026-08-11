@@ -118,18 +118,32 @@ local function IsTargetFocusOnly()
 end
 
 local function GetEnemyWatchTokens()
+	-- One registration per unit GUID. Otherwise target/focus + arenaN / nameplate
+	-- for the same enemy would AddAuraSound twice and double-play.
 	local tokens = {}
+	local seenGuid = {}
+
+	local function AddToken(unitToken)
+		if not unitToken then return end
+		local guid = UnitGUID(unitToken)
+		if guid and not issecretvalue(guid) then
+			if seenGuid[guid] then return end
+			seenGuid[guid] = true
+		end
+		tokens[#tokens + 1] = unitToken
+	end
+
 	local _, instanceType = IsInInstance()
 	local targetFocusOnly = IsTargetFocusOnly()
 
-	tokens[#tokens + 1] = "target"
-	tokens[#tokens + 1] = "focus"
+	AddToken("target")
+	AddToken("focus")
 
 	if instanceType == "arena" then
 		if not targetFocusOnly then
-			tokens[#tokens + 1] = "arena1"
-			tokens[#tokens + 1] = "arena2"
-			tokens[#tokens + 1] = "arena3"
+			AddToken("arena1")
+			AddToken("arena2")
+			AddToken("arena3")
 		end
 		return tokens
 	end
@@ -138,7 +152,7 @@ local function GetEnemyWatchTokens()
 		for _, nameplate in ipairs(C_NamePlate.GetNamePlates() or {}) do
 			local unitToken = nameplate.unitToken
 			if units:IsEnemyPlayer(unitToken) then
-				tokens[#tokens + 1] = unitToken
+				AddToken(unitToken)
 			end
 		end
 	end
@@ -515,8 +529,22 @@ function M:Init()
 			if (not IsTargetFocusOnly()) and units:IsEnemyPlayer(arg1) then
 				local basePath = voicePack:GetBasePath()
 				if BuffZoneEnabled() and basePath then
-					RebuildEnabledEnemySounds()
-					RegisterEnemyToken(arg1, basePath, Channel())
+					-- Skip if this enemy is already watched as target/focus (different token, same GUID).
+					local guid = UnitGUID(arg1)
+					local already = false
+					if guid and not issecretvalue(guid) then
+						for token in pairs(enemyByToken) do
+							local g = UnitGUID(token)
+							if g and not issecretvalue(g) and g == guid then
+								already = true
+								break
+							end
+						end
+					end
+					if not already then
+						RebuildEnabledEnemySounds()
+						RegisterEnemyToken(arg1, basePath, Channel())
+					end
 				end
 			end
 		elseif event == "NAME_PLATE_UNIT_REMOVED" then
