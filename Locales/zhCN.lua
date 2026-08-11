@@ -11,7 +11,7 @@ L:SetStrings({
 	["Author: DK-姜世离（燃烧之刃）"] = "作者：DK-姜世离（燃烧之刃）",
 	["General"] = "通用",
 
-	["home_intro_1"] = "PVP Sound 在敌人获得 buff、以及你/队友身上出现 debuff 时播放语音提示。12.1+ 用引擎 AddAuraSound；更早版本自动回退为 main 分支 TTS（v2.0.3）。",
+	["home_intro_1"] = "PVP Sound 在敌人获得 buff、以及你/队友身上出现 debuff 时播放语音提示。v3.0.0 起自动双引擎：12.1+ 用 AddAuraSound + 夏一可语音包；更早版本回退 TTS（v2.0.3）。",
 	["home_intro_voice_warning"] = "|cFF00FF00语音包|r 放在 Media\\包名\\ 下（可用内置包或自建文件夹）。",
 	["home_intro_enemy_buffs"] = "技能勾选全局共用。区域页可分别开关 buff / debuff / 治疗被控，并设置监控范围。",
 	["home_intro_7"] = "|cFFFFD100/pvpsound|r 或 |cFFFFD100/ps|r 打开设置，|cFFFFD100/ps test|r 试听冰箱，|cFFFFD100/pvpsdiag|r 查看注册。",
@@ -95,14 +95,8 @@ L:SetStrings({
 
 	["Changelog"] = "更新记录",
 	["PVP Sound - What's New?"] = "PVP Sound — 更新内容",
-	["changelog_v4.1.2"] = "|cFFFFD100v4.1.2|r — 旧引擎改为 main 分支 TTS（v2.0.3），不再使用 xiayike PrivateAura。",
-	["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — 旧版 TTS 路径（main 分支，12.1 之前）。",
-	["changelog_v4.1.1"] = "|cFFFFD100v4.1.1|r — 双引擎：12.1+ 用 AddAuraSound；更早版本自动回退为 main 分支 TTS（v2.0.3）。",
-	["changelog_v3.0.2"] = "|cFFFFD100v3.0.2|r — 旧版 TTS / PrivateAura 路径（12.1 之前）。",
-	["changelog_v4.1.0"] = "|cFFFFD100v4.1.0|r — 语音包选择（Media\\包名）。内置夏一可与夏一可1.5x；支持自建文件夹。",
-	["changelog_v4.0.1"] = "|cFFFFD100v4.0.1|r — Debuff：在 player 上注册（破胆怒吼、风暴之锤等）。",
-	["changelog_v4.0.0"] = "|cFFFFD100v4.0.0|r — 适配 12.1：AddAuraSound + 夏一可语音。区域仅开关；技能按职业全局勾选（buff / debuff）。",
-	["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — 上一版 TTS 时代版本。",
+	["changelog_v3.0.0"] = "|cFFFFD100v3.0.0|r — 双引擎发布：检测客户端是否支持 AddAuraSound。12.1+ 自动使用夏一可语音包（Media\\包名）播报敌方 buff / debuff / 治疗被控；更早客户端自动回退为 v2.0.3 TTS 界面与逻辑，无需手动换版本。",
+	["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — 野外新增「全部增益」模式，如暗影步/君王/腥红之瓶均能播放，但是也会伴随诸多无用 buff，适用于插旗单人 PK。",
 
 	["Donate"] = "打赏支持",
 	["Donate Popup Title"] = "打赏支持",
@@ -190,7 +184,6 @@ L:SetStrings({
 	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — 新增治疗被控监控。",
 	["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — 修复了读条重复播放的问题，新增多目标的打断成功监控。",
 	["changelog_v2.0.2"] = "|cFFFFD100v2.0.2|r — 简易版重要法术播报已与 MiniCC 保持一致；新增 1 秒播报间隔，一定程度修复了愈合导言的频繁播放。",
-	["changelog_v3.0.0"] = "|cFFFFD100v3.0.0|r — 重要/防御法术改用 AddPrivateAuraAppliedSound，按 GSA2 spelllist 映射播放夏一可语音（已从 MoP 包夏一可目录拷贝至 Media）；控制、读条、治疗被控仍用 TTS。需在脱战/竞技场准备阶段注册。",
 	["changelog_v2.0.1"] = "|cFFFFD100v2.0.1|r — 重要法术新增「详细版/简易版」过滤模式：详细版含自由祝福（可能多回春/智力等），简易版过滤可驱散非减伤 buff（同 MiniCC）。",
 	["changelog_v2.0.0"] = "|cFFFFD100v2.0.0|r — 现在重要法术播放已经实现，可以只播放重要的进攻技能，忽略常驻buff和不必要的buff。",
 	["changelog_v1.0.13"] = "|cFFFFD100v1.0.13|r — 进攻播报改为读取姓名板内部的「重要增益」数据列表（与 Platynator 相同方式），不再依赖屏幕上的增益图标，也不再强制修改暴雪「敌方增益」设置。耐力/智力等无用常驻增益不会再被播报。",

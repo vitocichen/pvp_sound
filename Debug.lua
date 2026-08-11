@@ -24,7 +24,7 @@ SlashCmdList["PVPSDIAG"] = function()
 			tostring(zone and zone.ImportantEnabled),
 			tostring(zone and zone.CCEnabled),
 			tostring(zone and zone.CastBar)))
-		print("  legacy engine = main v2.0.3 (TTS + nameplate buffList)")
+		print("  legacy engine = TTS + nameplate buffList (v2.0.3 path)")
 		print("|cff33ff99=== end (legacy) ===|r")
 		return
 	end

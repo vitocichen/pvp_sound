@@ -890,13 +890,15 @@ local function BuildChangelogTab(content)
 	local block = mini:TextBlock({
 		Parent = content,
 		Lines = {
-			L["changelog_v4.1.0"],
-			" ",
-			L["changelog_v4.0.1"],
-			" ",
-			L["changelog_v4.0.0"],
+			L["changelog_v3.0.0"],
 			" ",
 			L["changelog_v2.0.3"],
+			" ",
+			L["changelog_v2.0.2"],
+			" ",
+			L["changelog_v2.0.1"],
+			" ",
+			L["changelog_v2.0.0"],
 		},
 	})
 	block:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)

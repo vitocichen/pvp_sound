@@ -7,7 +7,7 @@ L:SetDefaultStrings({
 	["Author: DK-姜世离（燃烧之刃）"] = "Author: DK-姜世离（燃烧之刃）",
 	["General"] = "General",
 
-	["home_intro_1"] = "PVP Sound plays voice alerts when enemies gain buffs, and when you/teammates get debuffs. On 12.1+ the engine plays them via AddAuraSound; older clients auto-fallback to main-branch TTS (v2.0.3).",
+	["home_intro_1"] = "PVP Sound plays voice alerts when enemies gain buffs, and when you/teammates get debuffs. From v3.0.0: dual engine — AddAuraSound + voice packs on 12.1+; TTS (v2.0.3) on older clients.",
 	["home_intro_voice_warning"] = "|cFF00FF00Voice packs|r live under Media\\<pack name>\\ (built-in packs or your own folder).",
 	["home_intro_enemy_buffs"] = "Spell checkboxes are global. Zone tab toggles buff / debuff / healer-CC per zone and sets monitor ranges.",
 	["home_intro_7"] = "|cFFFFD100/pvpsound|r or |cFFFFD100/ps|r opens settings. |cFFFFD100/ps test|r previews Ice Block. |cFFFFD100/pvpsdiag|r shows registrations.",
@@ -91,14 +91,8 @@ L:SetDefaultStrings({
 
 	["Changelog"] = "Changelog",
 	["PVP Sound - What's New?"] = "PVP Sound - What's New?",
-	["changelog_v4.1.2"] = "|cFFFFD100v4.1.2|r — Legacy engine uses main-branch TTS (v2.0.3), not xiayike PrivateAura.",
-	["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — Legacy TTS path (main branch, pre-12.1).",
-	["changelog_v4.1.1"] = "|cFFFFD100v4.1.1|r — Dual engine: AddAuraSound on 12.1+, automatic fallback to main-branch TTS (v2.0.3) on older clients.",
-	["changelog_v3.0.2"] = "|cFFFFD100v3.0.2|r — Legacy TTS / PrivateAura path (pre-12.1).",
-	["changelog_v4.1.0"] = "|cFFFFD100v4.1.0|r — Voice pack picker (Media\\包名). Bundled 夏一可 + 夏一可1.5x. Custom folders supported.",
-	["changelog_v4.0.1"] = "|cFFFFD100v4.0.1|r — Debuffs: announce when effects land on you (player via AddAuraSound). Warrior Storm Bolt / Intimidating Shout included.",
-	["changelog_v4.0.0"] = "|cFFFFD100v4.0.0|r — 12.1 rewrite: AddAuraSound + GladiatorlosSA voices. Zones are on/off only; spells are chosen globally by class (buff / debuff).",
-	["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — Previous TTS-era release.",
+	["changelog_v3.0.0"] = "|cFFFFD100v3.0.0|r — Dual-engine release: detects AddAuraSound support. On 12.1+ uses Xia Yike voice packs (Media\\pack) for enemy buffs / debuffs / healer-CC; older clients auto-fallback to the v2.0.3 TTS UI and logic — no manual switch.",
+	["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — New \"All Buffs\" mode for the World zone: announces skills like Shadowstep / Sovereign / Crimson Vial, but also many useless buffs — best for open-world 1v1 duels.",
 
 	["Donate"] = "Donate",
 	["Donate Popup Title"] = "Support PVP Sound",
@@ -186,7 +180,6 @@ L:SetDefaultStrings({
 	["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — Added Healer CC monitoring.",
 	["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — Fixed cast bar duplicate announcements; added multi-target interrupt alert monitoring.",
 	["changelog_v2.0.2"] = "|cFFFFD100v2.0.2|r — Simple mode for important spells now matches MiniCC. Added a 1-second announcement gap to reduce Prayer of Mending spam.",
-	["changelog_v3.0.0"] = "|cFFFFD100v3.0.0|r — Important and defensive enemy buffs use AddPrivateAuraAppliedSound with Xia Yike clips copied from GSA MoP pack (spellID mapped via GSA2 auraApplied). CC, cast bar, and healer CC still use TTS. Register out of combat (arena prep).",
 	["changelog_v2.0.1"] = "|cFFFFD100v2.0.1|r — Added Detailed/Simple filter modes for important spells: Detailed includes Blessing of Freedom (may also announce Rejuv/Intellect etc.); Simple filters purgeable non-defensive buffs (like MiniCC).",
 	["changelog_v2.0.0"] = "|cFFFFD100v2.0.0|r — Important spell playback is now implemented, only playing important offensive skills and ignoring permanent/unnecessary buffs.",
 	["changelog_v1.0.13"] = "|cFFFFD100v1.0.13|r — Offensive announcements now read the nameplate's internal important-buff data list (same approach as Platynator), not on-screen buff icons. No more auto-forcing Blizzard's 'Enemy Buffs' CVar. Stamina/intel and other junk permanent buffs are no longer announced.",
