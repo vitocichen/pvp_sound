@@ -2,22 +2,25 @@
 local _, addon = ...
 local mini = addon.Core.Framework
 local scheduler = addon.Utils.Scheduler
-local config = addon.Config
-local soundModule = addon.Modules.SoundModule
-local auraSoundModule = addon.Modules.AuraSoundModule
 local L = addon.L
 local eventsFrame
 local db
 
--- Bump this when there's a change worth popping a "What's New" dialog for.
-local WHATS_NEW_VERSION = "4.1.0"
+-- Bump when there's a change worth popping a "What's New" dialog.
+local WHATS_NEW_VERSION_MODERN = "4.1.0"
+local WHATS_NEW_VERSION_LEGACY = "3.0.2"
+
+local function UseModern()
+	return addon.Core.Compat:UseAddAuraSound()
+end
 
 local function ShowWhatsNew()
 	if not db then return end
-	if db.WhatsNewVersion == WHATS_NEW_VERSION then return end
-	db.WhatsNewVersion = WHATS_NEW_VERSION
+	local version = UseModern() and WHATS_NEW_VERSION_MODERN or WHATS_NEW_VERSION_LEGACY
+	if db.WhatsNewVersion == version then return end
+	db.WhatsNewVersion = version
 
-	local key = "changelog_v" .. WHATS_NEW_VERSION
+	local key = "changelog_v" .. version
 	local body = L[key]
 	if not body or body == "" or body == key then return end
 
@@ -38,12 +41,19 @@ local function OnEvent(_, event)
 end
 
 local function OnAddonLoaded()
-	config:Init()
+	local modern = UseModern()
+	addon.Config = modern and addon.ConfigModern or addon.ConfigLegacy
+	addon.Config:Init()
+
 	scheduler:Init()
 	addon.Utils.ModuleUtil:Init()
 
-	auraSoundModule:Init()
-	soundModule:Init()
+	if modern then
+		addon.Modules.AuraSoundModule:Init()
+		addon.Modules.SoundModule:Init()
+	else
+		addon.Modules.SoundModuleLegacy:Init()
+	end
 
 	db = mini:GetSavedVars()
 
@@ -53,8 +63,18 @@ local function OnAddonLoaded()
 end
 
 function addon:Refresh()
-	soundModule:Refresh()
-	auraSoundModule:Refresh("addon:Refresh")
+	if UseModern() then
+		if addon.Modules.SoundModule and addon.Modules.SoundModule.Refresh then
+			addon.Modules.SoundModule:Refresh()
+		end
+		if addon.Modules.AuraSoundModule and addon.Modules.AuraSoundModule.Refresh then
+			addon.Modules.AuraSoundModule:Refresh("addon:Refresh")
+		end
+	else
+		if addon.Modules.SoundModuleLegacy and addon.Modules.SoundModuleLegacy.Refresh then
+			addon.Modules.SoundModuleLegacy:Refresh()
+		end
+	end
 end
 
 mini:WaitForAddonLoad(OnAddonLoaded)

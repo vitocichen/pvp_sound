@@ -4,11 +4,36 @@ local _, addon = ...
 SLASH_PVPSDIAG1 = "/pvpsdiag"
 SlashCmdList["PVPSDIAG"] = function()
 	local moduleUtil = addon.Utils.ModuleUtil
-	local voicePack = addon.Core.VoicePack
 	local auraSounds = addon.Core.AuraSounds
 	local units = addon.Utils.Units
-	local auraMod = addon.Modules.AuraSoundModule
 	local db = addon.Core.Framework:GetSavedVars()
+	local modern = addon.Core.Compat:UseAddAuraSound()
+
+	print("|cff33ff99=== PVP Sound diag ===|r")
+	print(string.format("  engine=%s AddAuraSound=%s",
+		modern and "modern(12.1+)" or "legacy(PrivateAura+TTS)",
+		tostring(auraSounds and auraSounds:IsAvailable())))
+
+	local zoneKey = moduleUtil:GetZoneKey()
+	local zone = moduleUtil:GetZoneConfig()
+	print(string.format("  zone=%s", tostring(zoneKey)))
+
+	if not modern then
+		print(string.format("  master Enabled=%s ImportantEnabled=%s CCEnabled=%s CastBar=%s",
+			tostring(zone and zone.Enabled),
+			tostring(zone and zone.ImportantEnabled),
+			tostring(zone and zone.CCEnabled),
+			tostring(zone and zone.CastBar)))
+		local pas = addon.Modules.PrivateAuraSound
+		if pas and pas.DumpRegistrations then
+			pas:DumpRegistrations()
+		end
+		print("|cff33ff99=== end (legacy) ===|r")
+		return
+	end
+
+	local voicePack = addon.Core.VoicePack
+	local auraMod = addon.Modules.AuraSoundModule
 
 	local enabled, disabled = 0, 0
 	if db.Spells then
@@ -25,14 +50,10 @@ SlashCmdList["PVPSDIAG"] = function()
 		end
 	end
 
-	print("|cff33ff99=== PVP Sound diag ===|r")
-	local zoneKey = moduleUtil:GetZoneKey()
-	local zone = moduleUtil:GetZoneConfig()
 	local buffOn = zone and zone.Enabled == true
 	local debuffOn = not zone or zone.CcEnabled ~= false
 	local buffRange = (zone and zone.TargetFocusOnly == false) and "所有人" or "仅目标+焦点"
 	local debuffRange = (zone and zone.CcScope == "party") and "自己+队友" or "自己"
-	print(string.format("  zone=%s AddAuraSound=%s", tostring(zoneKey), tostring(auraSounds:IsAvailable())))
 	print(string.format("  buff: enabled=%s range=%s (TargetFocusOnly=%s)",
 		tostring(buffOn), buffRange, tostring(zone and zone.TargetFocusOnly)))
 	print(string.format("  debuff: enabled=%s range=%s (CcScope=%s)",

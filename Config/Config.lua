@@ -52,7 +52,7 @@ local dbDefaults = {
 	SelfCcSpells = {},
 }
 
-local M = addon.Config
+local M = addon.ConfigModern
 
 function M:Apply()
 	addon:Refresh()
