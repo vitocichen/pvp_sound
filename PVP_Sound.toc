@@ -1,10 +1,10 @@
 ## Interface: 120100, 120007
 ## Title: PVP Sound
-## Notes: PvP voice alerts — AddAuraSound on 12.1+, legacy PrivateAura+TTS on older clients.
+## Notes: PvP voice alerts — AddAuraSound on 12.1+; pre-12.1 uses main-branch TTS (v2.0.3).
 ## Title-zhCN: PVP Sound - PvP语音播报
-## Notes-zhCN: 12.1+ 使用 AddAuraSound + 夏一可语音包；更早版本自动回退到 PrivateAura + TTS。
+## Notes-zhCN: 12.1+ 使用 AddAuraSound + 夏一可语音包；更早版本自动回退为 main 分支 TTS（v2.0.3）。
 ## Author: DK-姜世离（燃烧之刃）
-## Version: 4.1.1
+## Version: 4.1.2
 ## SavedVariables: PVPSoundDB
 ## IconTexture: Interface\Icons\Spell_Holy_MindSooth
 ## X-Curse-Project-ID: 1479674
@@ -31,8 +31,6 @@ Data\CcSpellIds.lua
 Data\CastSounds.lua
 Data\CastSuccessSounds.lua
 Data\VoicePackManifest.lua
-Data\EnemyBuffSpellIds.lua
-Data\SpellSoundMap.lua
 
 Core\VoicePack.lua
 Core\AuraSounds.lua
@@ -41,7 +39,6 @@ Core\UnitAuraWatcher.lua
 
 Modules\AuraSoundModule.lua
 Modules\SoundModule.lua
-Modules\PrivateAuraSound.lua
 Modules\SoundModule_Legacy.lua
 
 Config\Config.lua

@@ -24,10 +24,7 @@ SlashCmdList["PVPSDIAG"] = function()
 			tostring(zone and zone.ImportantEnabled),
 			tostring(zone and zone.CCEnabled),
 			tostring(zone and zone.CastBar)))
-		local pas = addon.Modules.PrivateAuraSound
-		if pas and pas.DumpRegistrations then
-			pas:DumpRegistrations()
-		end
+		print("  legacy engine = main v2.0.3 (TTS + nameplate buffList)")
 		print("|cff33ff99=== end (legacy) ===|r")
 		return
 	end

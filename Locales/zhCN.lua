@@ -11,7 +11,7 @@ L:SetStrings({
 	["Author: DK-姜世离（燃烧之刃）"] = "作者：DK-姜世离（燃烧之刃）",
 	["General"] = "通用",
 
-	["home_intro_1"] = "PVP Sound 在敌人获得 buff、以及你/队友身上出现 debuff 时播放语音提示。12.1+ 用引擎 AddAuraSound；更早版本自动回退 PrivateAura + TTS。",
+	["home_intro_1"] = "PVP Sound 在敌人获得 buff、以及你/队友身上出现 debuff 时播放语音提示。12.1+ 用引擎 AddAuraSound；更早版本自动回退为 main 分支 TTS（v2.0.3）。",
 	["home_intro_voice_warning"] = "|cFF00FF00语音包|r 放在 Media\\包名\\ 下（可用内置包或自建文件夹）。",
 	["home_intro_enemy_buffs"] = "技能勾选全局共用。区域页可分别开关 buff / debuff / 治疗被控，并设置监控范围。",
 	["home_intro_7"] = "|cFFFFD100/pvpsound|r 或 |cFFFFD100/ps|r 打开设置，|cFFFFD100/ps test|r 试听冰箱，|cFFFFD100/pvpsdiag|r 查看注册。",
@@ -95,7 +95,9 @@ L:SetStrings({
 
 	["Changelog"] = "更新记录",
 	["PVP Sound - What's New?"] = "PVP Sound — 更新内容",
-	["changelog_v4.1.1"] = "|cFFFFD100v4.1.1|r — 双引擎：12.1+ 用 AddAuraSound；更早版本自动回退 PrivateAura + TTS。",
+	["changelog_v4.1.2"] = "|cFFFFD100v4.1.2|r — 旧引擎改为 main 分支 TTS（v2.0.3），不再使用 xiayike PrivateAura。",
+	["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — 旧版 TTS 路径（main 分支，12.1 之前）。",
+	["changelog_v4.1.1"] = "|cFFFFD100v4.1.1|r — 双引擎：12.1+ 用 AddAuraSound；更早版本自动回退为 main 分支 TTS（v2.0.3）。",
 	["changelog_v3.0.2"] = "|cFFFFD100v3.0.2|r — 旧版 TTS / PrivateAura 路径（12.1 之前）。",
 	["changelog_v4.1.0"] = "|cFFFFD100v4.1.0|r — 语音包选择（Media\\包名）。内置夏一可与夏一可1.5x；支持自建文件夹。",
 	["changelog_v4.0.1"] = "|cFFFFD100v4.0.1|r — Debuff：在 player 上注册（破胆怒吼、风暴之锤等）。",

@@ -7,7 +7,7 @@ L:SetDefaultStrings({
 	["Author: DK-姜世离（燃烧之刃）"] = "Author: DK-姜世离（燃烧之刃）",
 	["General"] = "General",
 
-	["home_intro_1"] = "PVP Sound plays voice alerts when enemies gain buffs, and when you/teammates get debuffs. On 12.1+ the engine plays them via AddAuraSound; older clients auto-fallback to PrivateAura + TTS.",
+	["home_intro_1"] = "PVP Sound plays voice alerts when enemies gain buffs, and when you/teammates get debuffs. On 12.1+ the engine plays them via AddAuraSound; older clients auto-fallback to main-branch TTS (v2.0.3).",
 	["home_intro_voice_warning"] = "|cFF00FF00Voice packs|r live under Media\\<pack name>\\ (built-in packs or your own folder).",
 	["home_intro_enemy_buffs"] = "Spell checkboxes are global. Zone tab toggles buff / debuff / healer-CC per zone and sets monitor ranges.",
 	["home_intro_7"] = "|cFFFFD100/pvpsound|r or |cFFFFD100/ps|r opens settings. |cFFFFD100/ps test|r previews Ice Block. |cFFFFD100/pvpsdiag|r shows registrations.",
@@ -91,7 +91,9 @@ L:SetDefaultStrings({
 
 	["Changelog"] = "Changelog",
 	["PVP Sound - What's New?"] = "PVP Sound - What's New?",
-	["changelog_v4.1.1"] = "|cFFFFD100v4.1.1|r — Dual engine: AddAuraSound on 12.1+, automatic fallback to PrivateAura+TTS on older clients.",
+	["changelog_v4.1.2"] = "|cFFFFD100v4.1.2|r — Legacy engine uses main-branch TTS (v2.0.3), not xiayike PrivateAura.",
+	["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — Legacy TTS path (main branch, pre-12.1).",
+	["changelog_v4.1.1"] = "|cFFFFD100v4.1.1|r — Dual engine: AddAuraSound on 12.1+, automatic fallback to main-branch TTS (v2.0.3) on older clients.",
 	["changelog_v3.0.2"] = "|cFFFFD100v3.0.2|r — Legacy TTS / PrivateAura path (pre-12.1).",
 	["changelog_v4.1.0"] = "|cFFFFD100v4.1.0|r — Voice pack picker (Media\\包名). Bundled 夏一可 + 夏一可1.5x. Custom folders supported.",
 	["changelog_v4.0.1"] = "|cFFFFD100v4.0.1|r — Debuffs: announce when effects land on you (player via AddAuraSound). Warrior Storm Bolt / Intimidating Shout included.",

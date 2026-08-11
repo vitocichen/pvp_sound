@@ -651,7 +651,8 @@ local function BuildChangelogTab(content)
 	local changelogBlock = mini:TextBlock({
 		Parent = content,
 		Lines = {
-			L["changelog_v3.0.0"],
+			L["changelog_v2.0.3"],
+			" ",
 			L["changelog_v2.0.2"],
 			" ",
 			L["changelog_v2.0.1"],
@@ -770,7 +771,7 @@ local function BuildZoneTab(content, zoneKey)
 	local importantChk = mini:Checkbox({
 		Parent = content,
 		LabelText = L["Important Spells"],
-		Tooltip = L["Announce important enemy buffs via Xia Yike voice clips."],
+		Tooltip = L["Announce important (offensive) spell names via TTS when enemies cast them."],
 		GetValue = function() return GetZone().Important end,
 		SetValue = function(value)
 			GetZone().Important = value
@@ -783,7 +784,7 @@ local function BuildZoneTab(content, zoneKey)
 	local defensiveChk = mini:Checkbox({
 		Parent = content,
 		LabelText = L["Defensive Spells"],
-		Tooltip = L["Announce defensive enemy buffs via Xia Yike voice clips."],
+		Tooltip = L["Announce defensive spell names via TTS when enemies cast them."],
 		GetValue = function() return GetZone().Defensive end,
 		SetValue = function(value)
 			GetZone().Defensive = value
@@ -792,6 +793,40 @@ local function BuildZoneTab(content, zoneKey)
 	})
 	defensiveChk:SetPoint("LEFT", importantChk, "RIGHT", 160, 0)
 
+	-- Important filter mode (Detailed / Simple)
+	local importantModeLabel = mini:TextLine({
+		Parent = content,
+		Text = L["Important Filter Mode"],
+		Tooltip = L["Choose how strictly important buffs are filtered."],
+	})
+	importantModeLabel:SetPoint("TOPLEFT", importantChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	-- "AllBuffs" (verbose, v1.0.8-style) is offered only in the World zone.
+	local importantModeItems = (zoneKey == "World")
+		and { "Detailed", "Simple", "AllBuffs" }
+		or { "Detailed", "Simple" }
+	local importantModeDropdown = mini:Dropdown({
+		Parent = content,
+		Items = importantModeItems,
+		Width = 260,
+		GetValue = function()
+			return GetZone().ImportantFilterMode or "Simple"
+		end,
+		SetValue = function(value)
+			GetZone().ImportantFilterMode = value
+			M:Apply()
+		end,
+		GetText = function(value)
+			if value == "Simple" then return L["Important Mode Simple"]
+			elseif value == "AllBuffs" then return L["Important Mode AllBuffs"]
+			else return L["Important Mode Detailed"]
+			end
+		end,
+	})
+	importantModeDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+	importantModeDropdown:SetPoint("TOP", importantModeLabel, "TOP", 0, 8)
+	importantModeDropdown:SetWidth(260)
+
 	-- ==================== Section 2: CC Spells ====================
 	local ccDivider = mini:Divider({
 		Parent = content,
@@ -799,7 +834,7 @@ local function BuildZoneTab(content, zoneKey)
 	})
 	ccDivider:SetPoint("LEFT", content, "LEFT")
 	ccDivider:SetPoint("RIGHT", content, "RIGHT")
-	ccDivider:SetPoint("TOP", importantChk, "BOTTOM", 0, -verticalSpacing * 2.5)
+	ccDivider:SetPoint("TOP", importantModeLabel, "BOTTOM", 0, -verticalSpacing * 2.5)
 
 	local ccEnabledChk = mini:Checkbox({
 		Parent = content,
@@ -1120,7 +1155,7 @@ end
 -- ==================== Init ====================
 
 
--- If DB was upgraded on a 12.1+ client (modern schema), rebuild a usable legacy profile.
+-- If DB was upgraded on a 12.1+ client (modern schema), rebuild a usable main/legacy profile.
 local function DowngradeFromModernSchema(savedDb)
 	if not savedDb then return end
 	if not savedDb.Version or savedDb.Version < 12 then return end
@@ -1172,7 +1207,12 @@ local function DowngradeFromModernSchema(savedDb)
 	end
 
 	savedDb.Zones = {
-		World = Zone(zoneEnabled.World, { TargetFocusOnly = true, CastBarExcludePets = false, InterruptExcludePets = false }),
+		World = Zone(zoneEnabled.World, {
+			TargetFocusOnly = true,
+			ImportantFilterMode = "Simple",
+			CastBarExcludePets = false,
+			InterruptExcludePets = false,
+		}),
 		Arena = Zone(zoneEnabled.Arena, {
 			TargetFocusOnly = false,
 			CastBarExcludePets = true,
@@ -1253,15 +1293,14 @@ local function ApplyLegacyLocaleOverrides()
 			["Target/Focus Only Short"] = "仅目标/焦点",
 			["Important Spells"] = "重要法术（进攻技能）",
 			["Announce important (offensive) spell names via TTS when enemies cast them."] = "当敌人施放重要进攻技能时，用TTS语音播报技能名称。",
-			["Announce important enemy buffs via Xia Yike voice clips."] = "敌人身上出现重要进攻 buff 时，播放夏一可语音（按 GSA 法术 ID 映射，Media 目录内对应 ogg/mp3）。",
 			["Defensive Spells"] = "防御法术",
 			["Announce defensive spell names via TTS when enemies cast them."] = "当敌人施放防御技能时，用TTS语音播报技能名称。",
-			["Announce defensive enemy buffs via Xia Yike voice clips."] = "敌人身上出现防御 buff 时，播放夏一可语音（按 GSA 法术 ID 映射，Media 目录内对应 ogg/mp3）。",
 			["Only monitor your target and focus instead of all enemy nameplates."] = "仅监控你的目标和焦点，而不是所有敌方姓名板。",
 			["Important Filter Mode"] = "重要法术过滤",
 			["Choose how strictly important buffs are filtered."] = "选择重要法术的过滤严格程度。",
 			["Important Mode Detailed"] = "详细版（含自由祝福，可能多回春/智力等）",
 			["Important Mode Simple"] = "简易版（过滤可驱散非减伤，同MiniCC）",
+			["Important Mode AllBuffs"] = "全部增益（全部buff播放，推荐插旗环境使用）",
 			["CC Spells Section"] = "控制技能语音",
 			["Enable CC spell announcements."] = "启用控制技能语音播报。",
 			["CC Mode"] = "播报范围",
@@ -1303,17 +1342,15 @@ local function ApplyLegacyLocaleOverrides()
 			["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — 新增读条和打断监控。",
 			["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — 新增治疗被控监控。",
 			["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — 修复了读条重复播放的问题，新增多目标的打断成功监控。",
+			["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — 野外新增「全部增益」模式，如暗影步/君王/腥红之瓶均能播放，但是也会伴随诸多无用 buff，适用于插旗单人 PK。",
 			["changelog_v2.0.2"] = "|cFFFFD100v2.0.2|r — 简易版重要法术播报已与 MiniCC 保持一致；新增 1 秒播报间隔，一定程度修复了愈合导言的频繁播放。",
-			["changelog_v3.0.0"] = "|cFFFFD100v3.0.0|r — 重要/防御法术改用 AddPrivateAuraAppliedSound，按 GSA2 spelllist 映射播放夏一可语音（已从 MoP 包夏一可目录拷贝至 Media）；控制、读条、治疗被控仍用 TTS。需在脱战/竞技场准备阶段注册。",
 			["changelog_v2.0.1"] = "|cFFFFD100v2.0.1|r — 重要法术新增「详细版/简易版」过滤模式：详细版含自由祝福（可能多回春/智力等），简易版过滤可驱散非减伤 buff（同 MiniCC）。",
 			["changelog_v2.0.0"] = "|cFFFFD100v2.0.0|r — 现在重要法术播放已经实现，可以只播放重要的进攻技能，忽略常驻buff和不必要的buff。",
 			["changelog_v1.0.13"] = "|cFFFFD100v1.0.13|r — 进攻播报改为读取姓名板内部的「重要增益」数据列表（与 Platynator 相同方式），不再依赖屏幕上的增益图标，也不再强制修改暴雪「敌方增益」设置。耐力/智力等无用常驻增益不会再被播报。",
 			["changelog_v1.0.12"] = "|cFFFFD100v1.0.12|r — 升级被控语音模块，添加了仅队友选项，支持只播放队友的控制技能，适用于治疗职业。",
 			["changelog_v1.0.11"] = "|cFFFFD100v1.0.11|r — 修复与 BetterBlizzPlates 等姓名板插件冲突：它们常会关掉系统的「敌方增益」显示，导致进攻播报失效。现在插件会在登录/进场时自动开启该显示（位域 nameplateEnemyPlayerAuraDisplay 的 Buffs 位）。可在设置里「自动开启姓名板敌方增益」关闭此行为。",
 			["changelog_v1.0.10"] = "|cFFFFD100v1.0.10|r — 修复：①重要技能偶尔不播报（如法师镜像首次施放）——改用光环「新增事件」判定是否为新 buff，免疫光环编号复用与图标渲染时序问题，并加补扫兜底；②常驻增益（如德鲁伊全能）被姓名板2格上限挤出后回归时被重复播报（身上已有的 buff 一律视为旧的、永不播报，只播报你监视期间新出现的）；③读条/打断的「排除宠物」现在也能正确排除法师镜像、术士宝宝等守护者类单位，且即使你把它们设为目标也不会播报。",
-			["changelog_v1.0.9"] = "|cFFFFD100v1.0.9|r — 适配12.0.7：暴雪移除了「重要」技能名单，进攻类无法再用光环数据精准识别。改为直接读取暴雪姓名板「敌方增益」已经精选好的 buff 图标来播报进攻技能，效果与系统姓名板一致；防御/控制播报不受影响。
-
-|cffff3030【必读】进攻播报依赖系统姓名板，请在暴雪原版界面设置里：①开启「显示敌方姓名板」（按 V 或在「界面-姓名板」里勾选）；②把姓名板的「敌方增益」勾上。否则进攻技能不会播报！|r",
+			["changelog_v1.0.9"] = "|cFFFFD100v1.0.9|r — 适配12.0.7：暴雪移除了「重要」技能名单，进攻类无法再用光环数据精准识别。改为直接读取暴雪姓名板「敌方增益」已经精选好的 buff 图标来播报进攻技能，效果与系统姓名板一致；防御/控制播报不受影响。\n\n|cffff3030【必读】进攻播报依赖系统姓名板，请在暴雪原版界面设置里：①开启「显示敌方姓名板」（按 V 或在「界面-姓名板」里勾选）；②把姓名板的「敌方增益」勾上。否则进攻技能不会播报！|r",
 			["changelog_v1.0.8"] = "|cFFFFD100v1.0.8|r — 真实目标施法监控仅支持检测「目标是我」的施法，焦点/鼠标指向施法受API限制无法实现过滤。",
 			["changelog_v1.0.7"] = "|cFFFFD100v1.0.7|r — TTS语速调节范围扩大至-10~10，推荐Xiaoxiao最低5，Huihui最低7，否则会延时播报。",
 			["changelog_v1.0.6"] = "|cFFFFD100v1.0.6|r — 新增读条/打断的「排除宠物」选项；适配Mac语音选择多列布局。",
@@ -1372,15 +1409,14 @@ local function ApplyLegacyLocaleOverrides()
 			["Target/Focus Only Short"] = "Target/Focus Only",
 			["Important Spells"] = "Important Spells",
 			["Announce important (offensive) spell names via TTS when enemies cast them."] = "Announce important (offensive) spell names via TTS when enemies cast them.",
-			["Announce important enemy buffs via Xia Yike voice clips."] = "Play Xia Yike voice clips when important enemy buffs are applied (GSA spell mapping + Media/*.ogg).",
 			["Defensive Spells"] = "Defensive Spells",
 			["Announce defensive spell names via TTS when enemies cast them."] = "Announce defensive spell names via TTS when enemies cast them.",
-			["Announce defensive enemy buffs via Xia Yike voice clips."] = "Play Xia Yike voice clips when defensive enemy buffs are applied (GSA spell mapping + Media/*.ogg).",
 			["Only monitor your target and focus instead of all enemy nameplates."] = "Only monitor your target and focus instead of all enemy nameplates.",
 			["Important Filter Mode"] = "Important Filter Mode",
 			["Choose how strictly important buffs are filtered."] = "Choose how strictly important buffs are filtered.",
 			["Important Mode Detailed"] = "Detailed (incl. Blessing of Freedom, may add Rejuv/Intellect etc.)",
 			["Important Mode Simple"] = "Simple (filters purgeable non-defensive, like MiniCC)",
+			["Important Mode AllBuffs"] = "All Buffs (World only, announces every new buff, for duels)",
 			["CC Spells Section"] = "CC Spells",
 			["Enable CC spell announcements."] = "Enable CC spell announcements.",
 			["CC Mode"] = "Mode",
@@ -1422,17 +1458,15 @@ local function ApplyLegacyLocaleOverrides()
 			["changelog_v1.0.2"] = "|cFFFFD100v1.0.2|r — Added Cast Bar and Interrupt monitoring.",
 			["changelog_v1.0.3"] = "|cFFFFD100v1.0.3|r — Added Healer CC monitoring.",
 			["changelog_v1.0.5"] = "|cFFFFD100v1.0.5|r — Fixed cast bar duplicate announcements; added multi-target interrupt alert monitoring.",
+			["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — New \"All Buffs\" mode for the World zone: announces skills like Shadowstep / Sovereign / Crimson Vial, but also many useless buffs — best for open-world 1v1 duels.",
 			["changelog_v2.0.2"] = "|cFFFFD100v2.0.2|r — Simple mode for important spells now matches MiniCC. Added a 1-second announcement gap to reduce Prayer of Mending spam.",
-			["changelog_v3.0.0"] = "|cFFFFD100v3.0.0|r — Important and defensive enemy buffs use AddPrivateAuraAppliedSound with Xia Yike clips copied from GSA MoP pack (spellID mapped via GSA2 auraApplied). CC, cast bar, and healer CC still use TTS. Register out of combat (arena prep).",
 			["changelog_v2.0.1"] = "|cFFFFD100v2.0.1|r — Added Detailed/Simple filter modes for important spells: Detailed includes Blessing of Freedom (may also announce Rejuv/Intellect etc.); Simple filters purgeable non-defensive buffs (like MiniCC).",
 			["changelog_v2.0.0"] = "|cFFFFD100v2.0.0|r — Important spell playback is now implemented, only playing important offensive skills and ignoring permanent/unnecessary buffs.",
 			["changelog_v1.0.13"] = "|cFFFFD100v1.0.13|r — Offensive announcements now read the nameplate's internal important-buff data list (same approach as Platynator), not on-screen buff icons. No more auto-forcing Blizzard's 'Enemy Buffs' CVar. Stamina/intel and other junk permanent buffs are no longer announced.",
 			["changelog_v1.0.12"] = "|cFFFFD100v1.0.12|r — CC voice module update: added 'Party Only' mode—announce teammates' crowd control without announcing your own. Ideal for healers.",
 			["changelog_v1.0.11"] = "|cFFFFD100v1.0.11|r — Fixes a conflict with nameplate addons like BetterBlizzPlates, which often turn off Blizzard's 'Enemy Buffs' nameplate display and thereby break offensive announcements. The addon now auto-enables that display at login/zone-in (the Buffs bit of the nameplateEnemyPlayerAuraDisplay bitfield). Toggle it off via the 'Auto-enable nameplate Enemy Buffs' option.",
 			["changelog_v1.0.10"] = "|cFFFFD100v1.0.10|r — Fixes: (1) an important spell sometimes wasn't announced (e.g. a Mage's first Mirror Image) - new buffs are now detected from UNIT_AURA added-aura events, which is immune to auraInstanceID reuse and icon render timing, plus a catch-up scan; (2) a persistent buff (e.g. a Druid's versatility buff) was re-announced when Blizzard's 2-slot nameplate cap cycled it back into view (anything the enemy already had is treated as old and never announced; only buffs gained while you're watching are announced); (3) the Cast Bar / Interrupt 'Exclude Pets' option now also excludes guardians like Mage Mirror Images and Warlock minions, and keeps ignoring them even when you target them.",
-			["changelog_v1.0.9"] = "|cFFFFD100v1.0.9|r — 12.0.7 fix: Blizzard removed the IMPORTANT spell whitelist, so offensive buffs can no longer be identified from aura data. Important announcements now read the buff icons Blizzard already curates onto the enemy nameplate, matching the default UI exactly. Defensive/CC announcements are unaffected.
-
-|cffff3030[REQUIRED] Important announcements rely on the default nameplates: in Blizzard's UI options, (1) enable showing enemy nameplates (press V, or check it under Interface > Nameplates), and (2) enable the nameplate 'Enemy Buffs' option. Otherwise offensive spells won't be announced!|r",
+			["changelog_v1.0.9"] = "|cFFFFD100v1.0.9|r — 12.0.7 fix: Blizzard removed the IMPORTANT spell whitelist, so offensive buffs can no longer be identified from aura data. Important announcements now read the buff icons Blizzard already curates onto the enemy nameplate, matching the default UI exactly. Defensive/CC announcements are unaffected.\n\n|cffff3030[REQUIRED] Important announcements rely on the default nameplates: in Blizzard's UI options, (1) enable showing enemy nameplates (press V, or check it under Interface > Nameplates), and (2) enable the nameplate 'Enemy Buffs' option. Otherwise offensive spells won't be announced!|r",
 			["changelog_v1.0.8"] = "|cFFFFD100v1.0.8|r — Real-target cast detection only supports 'targeting me' casts; focus/mouseover cast filtering is not possible due to API limitations.",
 			["changelog_v1.0.7"] = "|cFFFFD100v1.0.7|r — Expanded TTS speech rate range to -10~10. Recommend Xiaoxiao min 5, Huihui min 7, or TTS may be delayed.",
 			["changelog_v1.0.6"] = "|cFFFFD100v1.0.6|r — Added 'Exclude Pets' option for Cast Bar and Interrupt; adapted voice dropdown layout for Mac.",
@@ -1447,7 +1481,6 @@ local function ApplyLegacyLocaleOverrides()
 		})
 	end
 end
-
 
 function M:Init()
 	local rawDb = mini:GetSavedVars()
