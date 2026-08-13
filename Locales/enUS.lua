@@ -92,6 +92,7 @@ L:SetDefaultStrings({
 
 	["Changelog"] = "Changelog",
 	["PVP Sound - What's New?"] = "PVP Sound - What's New?",
+	["changelog_v3.0.2"] = "|cFFFFD100v3.0.2|r — Fix: casting Kingsbane on an enemy no longer announces for the casting Rogue. Removed caster-side amp buff IDs; only keep harmful auras that land on you/teammates.",
 	["changelog_v3.0.1"] = "|cFFFFD100v3.0.1|r — Added English (Female) voice packs (incl. 1.25x / 1.5x); added and corrected several spell IDs (e.g. Anti-Magic Shell/Zone, Wraith Walk, Divine Steed, Celestial Alignment).",
 	["changelog_v3.0.0"] = "|cFFFFD100v3.0.0|r — Major update for 12.1: Xia Yike custom voice packs are back, with per-class spell filters so you can toggle which buffs/debuffs to watch. Custom voice packs are supported — just replace files using the same layout.",
 	["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — New \"All Buffs\" mode for the World zone: announces skills like Shadowstep / Sovereign / Crimson Vial, but also many useless buffs — best for open-world 1v1 duels.",

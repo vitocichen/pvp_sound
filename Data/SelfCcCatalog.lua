@@ -120,7 +120,7 @@ addon.Data.SelfCcCatalog = {
 				{ Id = 1833, File = "cheapShot.ogg", Name = "Cheap Shot", Ids = { [1833] = true, [6409] = true, [14902] = true, [30986] = true, [31819] = true, [31843] = true, [34243] = true, [132651] = true, [133002] = true, [138412] = true, [145424] = true, [171953] = true, [188148] = true, [209238] = true, [257738] = true, [263640] = true, [268987] = true, [268993] = true, [283655] = true, [288588] = true, [326696] = true, [374615] = true, [396359] = true, [403988] = true, [1248196] = true, [1257275] = true, [1259727] = true, [1269396] = true, [1289080] = true, [1302853] = true } },
 				{ Id = 1776, File = "gouge.ogg", Name = "Gouge", Ids = { [1776] = true, [12540] = true, [13579] = true, [24698] = true, [28456] = true, [29425] = true, [34940] = true, [36862] = true, [38863] = true, [76582] = true, [143301] = true, [143939] = true, [175939] = true, [372410] = true, [1297360] = true } },
 				{ Id = 1330, File = "garrote.ogg", Name = "Garrote - Silence", Ids = { [1330] = true, [102926] = true, [128904] = true, [230122] = true, [280322] = true } },
-				{ Id = 385627, File = "kingsbane.ogg", Name = "Kingsbane", Ids = { [192759] = true, [192853] = true, [214320] = true, [214905] = true, [385627] = true, [394095] = true } },
+				{ Id = 385627, File = "kingsbane.ogg", Name = "Kingsbane", Ids = { [192759] = true, [214905] = true, [385627] = true } },
 				{ Id = 360194, File = "Deathmark.ogg", Name = "Deathmark", Ids = { [360194] = true } },
 			},
 		},

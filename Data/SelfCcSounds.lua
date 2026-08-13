@@ -844,11 +844,11 @@ addon.Data.SelfCcSounds = {
 	-- Rogue offensive debuffs (on you / teammates)
 	[79140] = "Vendetta.ogg",
 	[77606] = "darksimulacrum.ogg",
+	-- Kingsbane: only harmful auras that land on you / teammates.
+	-- Do NOT include caster-side amp buffs (192853 / 214320 / 394095) — those apply to the rogue
+	-- when THEY cast Kingsbane and would false-trigger AddAuraSound on player.
 	[192759] = "kingsbane.ogg",
-	[192853] = "kingsbane.ogg",
-	[214320] = "kingsbane.ogg",
 	[214905] = "kingsbane.ogg",
 	[360194] = "Deathmark.ogg",
 	[385627] = "kingsbane.ogg",
-	[394095] = "kingsbane.ogg",
 }
