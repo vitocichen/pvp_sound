@@ -607,9 +607,19 @@ function M:Slider(options)
 	local slider = CreateFrame("Slider", addonName .. "Slider" .. sliderId, options.Parent, "OptionsSliderTemplate")
 	sliderId = sliderId + 1
 
+	-- Clear template title so it does not sit on top of the value box.
+	local templateText = _G[slider:GetName() .. "Text"]
+	if templateText then
+		templateText:SetText("")
+		templateText:Hide()
+	end
+
 	local label = slider:CreateFontString(nil, "ARTWORK", "GameFontWhite")
 	label:SetPoint("BOTTOMLEFT", slider, "TOPLEFT", 0, 8)
-	label:SetText(options.LabelText)
+	label:SetText(options.LabelText or "")
+	if not options.LabelText or options.LabelText == "" then
+		label:Hide()
+	end
 
 	slider:SetOrientation("HORIZONTAL")
 	slider:SetMinMaxValues(options.Min, options.Max)
@@ -649,9 +659,11 @@ function M:Slider(options)
 		return letters
 	end
 
-	box:SetPoint("CENTER", slider, "CENTER", 0, 30)
+	-- Value box on the right — avoids overlapping the title above the track.
+	box:ClearAllPoints()
+	box:SetPoint("LEFT", slider, "RIGHT", 12, 0)
 	box:SetFontObject("GameFontWhite")
-	box:SetSize(50, 20)
+	box:SetSize(56, 20)
 	box:SetAutoFocus(false)
 	box:SetMaxLetters(GetMaxLetters(options.Min, options.Max, options.Step))
 	box:SetText(tostring(options.GetValue()))

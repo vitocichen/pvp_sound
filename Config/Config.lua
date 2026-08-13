@@ -46,7 +46,7 @@ local function BuildDefaultSelfCcSpells()
 end
 
 local dbDefaults = {
-	Version = 27,
+	Version = 28,
 	WhatsNewVersion = false,
 	VoicePack = "夏一可1.25x",
 	ExtraVoicePacks = {},
@@ -58,14 +58,18 @@ local dbDefaults = {
 		Channel = "Master",
 		CastInterval = 0.0,
 	},
+	-- PreferredMode: 0 off / 1 cast start / 2 cast end (system CAATargetCastMode when zone CastBar on).
+	SysCast = {
+		PreferredMode = 1,
+	},
 	-- Enabled = enemy buff; CcEnabled = self/party debuff; HealerCcEnabled = healer-in-CC;
-	-- InterruptAlert = cast-interrupted voice; CastBar = enemy cast-start / channel voice.
+	-- InterruptAlert = cast-interrupted voice; CastBar = system target-cast announce gate.
 	-- TargetFocusOnly = buff monitor (false = all enemies); CcScope = self|party for debuffs.
 	Zones = {
-		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
-		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
-		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
-		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
+		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
+		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
+		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
+		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
 	},
 	-- Sparse disable maps: key=spellId, value=true means unchecked/disabled.
 	-- Missing key = enabled (default on). Avoids huge Spells={all true} SavedVariables issues.
@@ -177,9 +181,9 @@ local function MigrateV18(savedDb)
 				savedDb.Zones[key].TargetFocusOnly = global and true or false
 			else
 				savedDb.Zones[key].TargetFocusOnly = defaultValue
+				end
 			end
 		end
-	end
 	savedDb.TargetFocusOnly = nil
 	savedDb.Version = 18
 end
@@ -203,8 +207,8 @@ local function MigrateV19(savedDb)
 		end
 		if zone.CcScope ~= "self" and zone.CcScope ~= "party" then
 			zone.CcScope = scope
+			end
 		end
-	end
 	savedDb.SelfCcScope = nil
 	savedDb.Version = 19
 end
@@ -237,8 +241,8 @@ local function MigrateV21(savedDb)
 			savedDb.HealerCcSoundFile = legacy
 		else
 			savedDb.HealerCcSoundFile = "夏一可_控制成功.ogg"
+			end
 		end
-	end
 	savedDb.Version = 21
 end
 
@@ -261,8 +265,8 @@ local function NormalizeSpellIdKeys(spellTable)
 		if spellTable[entry.id] == nil then
 			spellTable[entry.id] = entry.value and true or false
 		end
+		end
 	end
-end
 
 -- v22: normalize Spells/SelfCcSpells keys + keep plain booleans for SavedVariables.
 local function MigrateV22(savedDb)
@@ -291,8 +295,8 @@ local function MigrateLegacySpellMapsToDisabled(savedDb)
 				savedDb.DisabledSelfCcSpells[spellId] = true
 			end
 		end
+		end
 	end
-end
 
 -- v23: sparse DisabledEnemySpells / DisabledSelfCcSpells become the source of truth.
 local function MigrateV23(savedDb)
@@ -380,6 +384,38 @@ local function MigrateV27(savedDb)
 	savedDb.Version = 27
 end
 
+-- v28: system cast page — CastBar default on + SysCast preferred mode in profiles.
+local function MigrateV28(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 28) then return end
+	savedDb.SysCast = savedDb.SysCast or {}
+	if savedDb.SysCast.PreferredMode == nil then
+		local mode = tonumber(GetCVar and GetCVar("CAATargetCastMode")) or 1
+		if mode < 1 then
+			mode = 1
+		end
+		savedDb.SysCast.PreferredMode = mode
+	end
+	savedDb.Zones = savedDb.Zones or {}
+	for _, key in ipairs({ "World", "Arena", "BattleGrounds", "PvE" }) do
+		savedDb.Zones[key] = savedDb.Zones[key] or {}
+		-- Previous default was off; turn on for the new system-cast flow.
+		savedDb.Zones[key].CastBar = true
+	end
+	savedDb.Version = 28
+end
+
+local function EnsureSysCastDefaults(savedDb)
+	savedDb.SysCast = savedDb.SysCast or {}
+	local mode = tonumber(savedDb.SysCast.PreferredMode)
+	if mode == nil then
+		savedDb.SysCast.PreferredMode = 1
+	else
+		if mode < 0 then mode = 0 end
+		if mode > 2 then mode = 2 end
+		savedDb.SysCast.PreferredMode = mode
+	end
+end
+
 local function EnsureSpellDefaults(savedDb)
 	-- Keep legacy maps present but empty-ish; runtime uses Disabled* maps.
 	savedDb.Spells = savedDb.Spells or {}
@@ -412,10 +448,10 @@ end
 local function EnsureZoneDefaults(savedDb)
 	savedDb.Zones = savedDb.Zones or {}
 	local defaults = {
-		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
-		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
-		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
-		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
+		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
+		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
+		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
+		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
 	}
 	for key, def in pairs(defaults) do
 		savedDb.Zones[key] = savedDb.Zones[key] or {}
@@ -453,6 +489,11 @@ local function EnsureZoneDefaults(savedDb)
 		else
 			zone.CastBar = zone.CastBar and true or false
 		end
+		if zone.CastBarTargetOnly == nil then
+			zone.CastBarTargetOnly = def.CastBarTargetOnly
+		else
+			zone.CastBarTargetOnly = zone.CastBarTargetOnly and true or false
+		end
 	end
 end
 
@@ -462,17 +503,17 @@ local channelItems = { "Master", "SFX", "Ambience", "Dialog", "Music" }
 
 -- First entry = clip inside the selected voice pack; the rest are generic Media\ PS_* files.
 local genericAlertSoundFiles = {
-	"PS_Alert.ogg",
-	"PS_Chime.ogg",
-	"PS_Error.ogg",
-	"PS_Horn.ogg",
-	"PS_Impact.ogg",
-	"PS_Ping.ogg",
-	"PS_Pop.ogg",
-	"PS_Radar.ogg",
-	"PS_Shock.ogg",
-	"PS_Swoosh.ogg",
-	"PS_Warm.ogg",
+		"PS_Alert.ogg",
+		"PS_Chime.ogg",
+		"PS_Error.ogg",
+		"PS_Horn.ogg",
+		"PS_Impact.ogg",
+		"PS_Ping.ogg",
+		"PS_Pop.ogg",
+		"PS_Radar.ogg",
+		"PS_Shock.ogg",
+		"PS_Swoosh.ogg",
+		"PS_Warm.ogg",
 }
 
 local healerCcSoundFiles = { "HealerCcAlert.ogg" }
@@ -621,7 +662,7 @@ local function BuildHomeTab(content)
 		SetValue = function(value)
 			db.Sound = db.Sound or {}
 			db.Sound.Channel = value
-			M:Apply()
+				M:Apply()
 		end,
 		GetText = function(value)
 			local key = "channel_" .. (value or "Master")
@@ -766,6 +807,9 @@ local function BuildZonesTab(content)
 	intro:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
 
 	local columnWidth = mini:ColumnWidth(2, 0, 0)
+	-- Fixed right-column label width so every dropdown lines up (长标签如「打断成功音效」不再把框挤歪).
+	local rightLabelWidth = 110
+	local rightControlX = columnWidth + rightLabelWidth + 8
 	local buffRangeItems = { "TargetFocus", "All" }
 	local ccScopeItems = { "self", "party" }
 	local last = intro
@@ -784,7 +828,8 @@ local function BuildZonesTab(content)
 		})
 		rangeLabel:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
 		rangeLabel:SetPoint("TOP", anchorChk, "TOP", 0, 0)
-		rangeLabel:SetWidth(math.max(1, rangeLabel:GetStringWidth() + 2))
+		rangeLabel:SetWidth(rightLabelWidth)
+		rangeLabel:SetJustifyH("LEFT")
 
 		local rangeDropdown = mini:Dropdown({
 			Parent = content,
@@ -794,7 +839,7 @@ local function BuildZonesTab(content)
 			SetValue = setValue,
 			GetText = getText,
 		})
-		rangeDropdown:SetPoint("LEFT", rangeLabel, "RIGHT", 8, 0)
+		rangeDropdown:SetPoint("LEFT", content, "LEFT", rightControlX, 0)
 		rangeDropdown:SetPoint("TOP", anchorChk, "TOP", 0, 8)
 		rangeDropdown:SetWidth(180)
 		return rangeDropdown
@@ -852,19 +897,19 @@ local function BuildZonesTab(content)
 
 		-- Row 2: debuff enable + debuff monitor scope
 		local ccChk = mini:Checkbox({
-			Parent = content,
+		Parent = content,
 			LabelText = L["Enable Debuff Alerts"],
 			Tooltip = L["Enable self-debuff voice alerts in this zone."],
 			GetValue = function()
 				local zone = db.Zones[zoneKey]
 				return zone and zone.CcEnabled ~= false
 			end,
-			SetValue = function(value)
+		SetValue = function(value)
 				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
 				db.Zones[zoneKey].CcEnabled = value and true or false
-				M:Apply()
-			end,
-		})
+			M:Apply()
+		end,
+	})
 		ccChk:SetPoint("TOPLEFT", buffChk, "BOTTOMLEFT", 0, -verticalSpacing)
 
 		PlaceRangeRow(
@@ -878,8 +923,8 @@ local function BuildZonesTab(content)
 			function(value)
 				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
 				db.Zones[zoneKey].CcScope = (value == "party") and "party" or "self"
-				M:Apply()
-			end,
+			M:Apply()
+		end,
 			function(value)
 				if value == "party" then
 					return L["Self CC Scope Party"]
@@ -890,22 +935,22 @@ local function BuildZonesTab(content)
 
 		-- Row 3: healer-in-CC (MiniAuras-style; always watches group healers)
 		local healerChk = mini:Checkbox({
-			Parent = content,
+		Parent = content,
 			LabelText = L["Enable Healer CC Alerts"],
 			Tooltip = L["Enable healer-in-CC voice alerts in this zone."],
-			GetValue = function()
+		GetValue = function()
 				local zone = db.Zones[zoneKey]
 				return zone and zone.HealerCcEnabled ~= false
-			end,
-			SetValue = function(value)
+		end,
+		SetValue = function(value)
 				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
 				db.Zones[zoneKey].HealerCcEnabled = value and true or false
-				M:Apply()
+			M:Apply()
 				if value then
 					PreviewHealerCcSound(db.HealerCcSoundFile)
-				end
-			end,
-		})
+			end
+		end,
+	})
 		healerChk:SetPoint("TOPLEFT", ccChk, "BOTTOMLEFT", 0, -verticalSpacing)
 
 		PlaceRangeRow(
@@ -917,31 +962,57 @@ local function BuildZonesTab(content)
 			end,
 			function(value)
 				db.HealerCcSoundFile = value
-				M:Apply()
+			M:Apply()
 				PreviewHealerCcSound(value)
-			end,
+		end,
 			HealerCcSoundLabel
 		)
 
-		-- Row 4: interrupt alert (UNIT_SPELLCAST_INTERRUPTED) + shared sound picker
-		local interruptChk = mini:Checkbox({
+		-- Row 4: system target-cast announce (gated per zone)
+		local castChk = mini:Checkbox({
 			Parent = content,
-			LabelText = L["Enable Interrupt Alerts"],
-			Tooltip = L["Enable interrupt voice alerts in this zone."],
+			LabelText = L["Enable Cast Alerts"],
+			Tooltip = L["Enable cast voice alerts in this zone."],
 			GetValue = function()
 				local zone = db.Zones[zoneKey]
-				return zone and zone.InterruptAlert == true
+				return zone and zone.CastBar == true
 			end,
 			SetValue = function(value)
 				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
-				db.Zones[zoneKey].InterruptAlert = value and true or false
+				db.Zones[zoneKey].CastBar = value and true or false
 				M:Apply()
-				if value then
-					PreviewInterruptSound(db.InterruptSoundFile)
-				end
 			end,
 		})
-		interruptChk:SetPoint("TOPLEFT", healerChk, "BOTTOMLEFT", 0, -verticalSpacing)
+		castChk:SetPoint("TOPLEFT", healerChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+		local castHint = content:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+		castHint:SetText(L["SysCast Zone Hint"])
+		castHint:SetTextColor(1, 0.82, 0)
+		castHint:SetJustifyH("LEFT")
+		castHint:SetPoint("LEFT", content, "LEFT", rightControlX, 0)
+		castHint:SetPoint("TOP", castChk, "TOP", 0, -2)
+		castHint:SetWidth(180)
+		castHint:SetWordWrap(true)
+
+		-- Row 5: interrupt alert (UNIT_SPELLCAST_INTERRUPTED) + shared sound picker
+		local interruptChk = mini:Checkbox({
+		Parent = content,
+			LabelText = L["Enable Interrupt Alerts"],
+			Tooltip = L["Enable interrupt voice alerts in this zone."],
+		GetValue = function()
+				local zone = db.Zones[zoneKey]
+				return zone and zone.InterruptAlert == true
+		end,
+		SetValue = function(value)
+				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
+				db.Zones[zoneKey].InterruptAlert = value and true or false
+			M:Apply()
+				if value then
+					PreviewInterruptSound(db.InterruptSoundFile)
+			end
+		end,
+	})
+		interruptChk:SetPoint("TOPLEFT", castChk, "BOTTOMLEFT", 0, -verticalSpacing)
 
 		PlaceRangeRow(
 			interruptChk,
@@ -952,7 +1023,7 @@ local function BuildZonesTab(content)
 			end,
 			function(value)
 				db.InterruptSoundFile = value
-				M:Apply()
+			M:Apply()
 				PreviewInterruptSound(value)
 			end,
 			InterruptSoundLabel
@@ -960,6 +1031,415 @@ local function BuildZonesTab(content)
 
 		last = interruptChk
 	end
+end
+
+-- ---------- System target-cast page (Accessibility → Audio Assistance mirror) ----------
+
+local SYSCAST_MODE_ITEMS = { 0, 1, 2 }
+local SYSCAST_FORMAT_ITEMS = { 0, 1, 2, 3, 4, 5, 6 }
+
+local function SysCastEnums()
+	local unit = (Enum and Enum.CombatAudioAlertUnit and Enum.CombatAudioAlertUnit.Target) or 1
+	local alert = (Enum and Enum.CombatAudioAlertType and Enum.CombatAudioAlertType.Cast) or 1
+	local cat = (Enum and Enum.CombatAudioAlertCategory and Enum.CombatAudioAlertCategory.TargetCast) or 4
+	local throttle = (Enum and Enum.CombatAudioAlertThrottle and Enum.CombatAudioAlertThrottle.TargetCast) or 4
+	return unit, alert, cat, throttle
+end
+
+local function SysCastAvailable()
+	return C_CombatAudioAlert ~= nil
+end
+
+local function SysCastGetMaster()
+	local CAA = C_CombatAudioAlert
+	if CAA and CAA.IsEnabled then
+		local ok, v = pcall(CAA.IsEnabled)
+		if ok and v ~= nil then
+			return v and true or false
+		end
+	end
+	return (tonumber(GetCVar and GetCVar("CAAEnabled")) or 0) ~= 0
+end
+
+local function SysCastSetMaster(enabled)
+	enabled = not not enabled
+	local CAA = C_CombatAudioAlert
+	if CAA and CAA.SetEnabled then
+		pcall(CAA.SetEnabled, enabled)
+	end
+	pcall(SetCVar, "CAAEnabled", enabled and "1" or "0")
+end
+
+local function SysCastGetMode()
+	return tonumber(GetCVar and GetCVar("CAATargetCastMode")) or 0
+end
+
+local function SysCastSetMode(mode)
+	mode = tonumber(mode) or 0
+	if mode < 0 then mode = 0 end
+	if mode > 2 then mode = 2 end
+	db = db or mini:GetSavedVars()
+	db.SysCast = db.SysCast or {}
+	db.SysCast.PreferredMode = mode
+	if mode > 0 and not SysCastGetMaster() then
+		SysCastSetMaster(true)
+	end
+	pcall(SetCVar, "CAATargetCastMode", tostring(mode))
+	-- Re-apply zone gate (current zone may keep Mode off).
+	if addon.Modules.SoundModule and addon.Modules.SoundModule.SyncSysCastZoneGate then
+		addon.Modules.SoundModule:SyncSysCastZoneGate()
+	end
+end
+
+local function SysCastGetFormat()
+	local CAA = C_CombatAudioAlert
+	local unit, alert = SysCastEnums()
+	if CAA and CAA.GetFormatSetting then
+		local ok, v = pcall(CAA.GetFormatSetting, unit, alert)
+		if ok and v ~= nil then
+			return tonumber(v) or 0
+		end
+	end
+	return tonumber(GetCVar and GetCVar("CAATargetCastFormat")) or 0
+end
+
+local function SysCastSetFormat(fmt)
+	fmt = tonumber(fmt) or 0
+	if fmt < 0 then fmt = 0 end
+	if fmt > 6 then fmt = 6 end
+	local CAA = C_CombatAudioAlert
+	local unit, alert = SysCastEnums()
+	if CAA and CAA.SetFormatSetting then
+		pcall(CAA.SetFormatSetting, unit, alert, fmt)
+	end
+	pcall(SetCVar, "CAATargetCastFormat", tostring(fmt))
+end
+
+local function SysCastGetVoice()
+	local CAA = C_CombatAudioAlert
+	local _, _, cat = SysCastEnums()
+	if CAA and CAA.GetCategoryVoice then
+		local ok, v = pcall(CAA.GetCategoryVoice, cat)
+		if ok and v ~= nil then
+			return tonumber(v) or 0
+		end
+	end
+	return tonumber(GetCVar and GetCVar("CAAVoice")) or 0
+end
+
+local function SysCastSetVoice(voiceId)
+	voiceId = tonumber(voiceId) or 0
+	local CAA = C_CombatAudioAlert
+	local _, _, cat = SysCastEnums()
+	if CAA and CAA.SetCategoryVoice then
+		pcall(CAA.SetCategoryVoice, cat, voiceId)
+	end
+end
+
+local function SysCastGetVolume()
+	local CAA = C_CombatAudioAlert
+	local _, _, cat = SysCastEnums()
+	if CAA and CAA.GetCategoryVolume then
+		local ok, v = pcall(CAA.GetCategoryVolume, cat)
+		if ok and v ~= nil then
+			return tonumber(v) or 100
+		end
+	end
+	return tonumber(GetCVar and GetCVar("CAAVolume")) or 100
+end
+
+local function SysCastSetVolume(vol)
+	vol = tonumber(vol) or 100
+	if vol < 0 then vol = 0 end
+	if vol > 100 then vol = 100 end
+	vol = math.floor(vol + 0.5)
+	local CAA = C_CombatAudioAlert
+	local _, _, cat = SysCastEnums()
+	if CAA and CAA.SetCategoryVolume then
+		pcall(CAA.SetCategoryVolume, cat, vol)
+	end
+end
+
+local function SysCastGetThrottle()
+	local CAA = C_CombatAudioAlert
+	local _, _, _, throttleType = SysCastEnums()
+	if CAA and CAA.GetThrottle then
+		local ok, v = pcall(CAA.GetThrottle, throttleType)
+		if ok and v ~= nil then
+			return tonumber(v) or 0
+		end
+	end
+	return tonumber(GetCVar and GetCVar("CAATargetCastThrottle")) or 0
+end
+
+local function SysCastSetThrottle(sec)
+	sec = tonumber(sec) or 0
+	if sec < 0 then sec = 0 end
+	if sec > 10 then sec = 10 end
+	sec = tonumber(string.format("%.1f", sec)) or sec
+	local CAA = C_CombatAudioAlert
+	local _, _, _, throttleType = SysCastEnums()
+	if CAA and CAA.SetThrottle then
+		pcall(CAA.SetThrottle, throttleType, sec)
+	end
+	pcall(SetCVar, "CAATargetCastThrottle", tostring(sec))
+end
+
+local function SysCastGetMinTime()
+	return tonumber(GetCVar and GetCVar("CAATargetCastMinTime")) or 0.5
+end
+
+local function SysCastSetMinTime(sec)
+	sec = tonumber(sec) or 0.5
+	if sec < 0 then sec = 0 end
+	if sec > 10 then sec = 10 end
+	sec = tonumber(string.format("%.1f", sec)) or sec
+	pcall(SetCVar, "CAATargetCastMinTime", tostring(sec))
+end
+
+local function SysCastModeLabel(mode)
+	mode = tonumber(mode) or 0
+	if mode == 1 then return L["SysCast Mode Start"] end
+	if mode == 2 then return L["SysCast Mode End"] end
+	return L["SysCast Mode Off"]
+end
+
+local function SysCastFormatLabel(fmt)
+	fmt = tonumber(fmt) or 0
+	local key = "SysCast Format " .. tostring(fmt)
+	return L[key] or tostring(fmt)
+end
+
+local function SysCastBuildVoiceItems()
+	local items = {}
+	local names = {}
+	local voices = C_VoiceChat and C_VoiceChat.GetTtsVoices and C_VoiceChat.GetTtsVoices() or nil
+	if voices then
+		for _, v in ipairs(voices) do
+			if v and v.voiceID ~= nil then
+				items[#items + 1] = v.voiceID
+				names[v.voiceID] = v.name or tostring(v.voiceID)
+			end
+		end
+		table.sort(items, function(a, b)
+			return (names[a] or tostring(a)) < (names[b] or tostring(b))
+		end)
+	end
+	if #items == 0 then
+		local cur = SysCastGetVoice()
+		items[1] = cur
+		names[cur] = tostring(cur)
+	end
+	return items, names
+end
+
+local function BuildSysCastTab(content)
+	if not SysCastAvailable() then
+		local missing = mini:TextBlock({
+			Parent = content,
+			Lines = {
+				L["SysCast Unavailable"],
+			},
+		})
+		missing:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+		return
+	end
+
+	local intro = mini:TextBlock({
+		Parent = content,
+		Lines = {
+			L["syscast_intro_1"],
+			L["syscast_intro_2"],
+			L["syscast_intro_3"],
+			L["syscast_intro_4"],
+		},
+	})
+	intro:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+
+	local warn = content:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+	warn:SetJustifyH("LEFT")
+	warn:SetWordWrap(true)
+	warn:SetWidth(mini.TextMaxWidth or 520)
+	warn:SetTextColor(1, 0.2, 0.2)
+	warn:SetText(L["syscast_intro_warn"])
+	warn:SetPoint("TOPLEFT", intro, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	local divider = mini:Divider({
+		Parent = content,
+		Text = L["SysCast Settings"],
+	})
+	divider:SetPoint("LEFT", content, "LEFT")
+	divider:SetPoint("RIGHT", content, "RIGHT")
+	divider:SetPoint("TOP", warn, "BOTTOM", 0, -verticalSpacing * 1.5)
+
+	local columnWidth = mini:ColumnWidth(2, 0, 0)
+	local controlWidth = 260
+
+	local function PlaceLabeledDropdown(anchor, labelText, items, getValue, setValue, getText, gridMode)
+		local label = mini:TextLine({
+			Parent = content,
+			Text = labelText,
+		})
+		label:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -verticalSpacing * 1.5)
+		label:SetWidth(math.max(1, label:GetStringWidth() + 2))
+
+		local dropdown = mini:Dropdown({
+			Parent = content,
+			Items = items,
+			Width = controlWidth,
+			GridMode = gridMode,
+			GetValue = getValue,
+			SetValue = setValue,
+			GetText = getText,
+		})
+		dropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+		dropdown:SetPoint("TOP", label, "TOP", 0, 8)
+		dropdown:SetWidth(controlWidth)
+		return label, dropdown
+	end
+
+	local masterChk = mini:Checkbox({
+		Parent = content,
+		LabelText = L["SysCast Master"],
+		Tooltip = L["SysCast Master Tooltip"],
+		GetValue = function()
+			return SysCastGetMaster()
+		end,
+		SetValue = function(value)
+			SysCastSetMaster(value and true or false)
+		end,
+	})
+	masterChk:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	local modeLabel = PlaceLabeledDropdown(
+		masterChk,
+		L["SysCast Announce Target"],
+		SYSCAST_MODE_ITEMS,
+		function()
+			db = db or mini:GetSavedVars()
+			if db.SysCast and db.SysCast.PreferredMode ~= nil then
+				return tonumber(db.SysCast.PreferredMode) or 0
+			end
+			return SysCastGetMode()
+		end,
+		function(value)
+			SysCastSetMode(value)
+		end,
+		SysCastModeLabel
+	)
+
+	local formatLabel = PlaceLabeledDropdown(
+		modeLabel,
+		L["SysCast Format"],
+		SYSCAST_FORMAT_ITEMS,
+		function()
+			return SysCastGetFormat()
+		end,
+		function(value)
+			SysCastSetFormat(value)
+		end,
+		SysCastFormatLabel
+	)
+
+	local voiceItems, voiceNames = SysCastBuildVoiceItems()
+	local voiceLabel = PlaceLabeledDropdown(
+		formatLabel,
+		L["SysCast Voice"],
+		voiceItems,
+		function()
+			return SysCastGetVoice()
+		end,
+		function(value)
+			SysCastSetVoice(value)
+		end,
+		function(value)
+			return voiceNames[value] or tostring(value)
+		end,
+		true
+	)
+
+	local minDivider = mini:Divider({
+		Parent = content,
+		Text = L["SysCast Min Time"],
+	})
+	minDivider:SetPoint("LEFT", content, "LEFT")
+	minDivider:SetPoint("RIGHT", content, "RIGHT")
+	minDivider:SetPoint("TOP", voiceLabel, "BOTTOM", 0, -verticalSpacing * 2)
+
+	local minSlider = mini:Slider({
+		Parent = content,
+		Min = 0,
+		Max = 5,
+		Step = 0.1,
+		Width = (columnWidth * 2) - 80,
+		LabelText = "",
+		GetValue = function()
+			return SysCastGetMinTime()
+		end,
+		SetValue = function(v)
+			SysCastSetMinTime(v)
+		end,
+	})
+	minSlider.Slider:SetPoint("TOPLEFT", minDivider, "BOTTOMLEFT", 4, -verticalSpacing)
+
+	local throttleDivider = mini:Divider({
+		Parent = content,
+		Text = L["SysCast Interval"],
+	})
+	throttleDivider:SetPoint("LEFT", content, "LEFT")
+	throttleDivider:SetPoint("RIGHT", content, "RIGHT")
+	throttleDivider:SetPoint("TOP", minSlider.Slider, "BOTTOM", 0, -verticalSpacing * 2)
+
+	local throttleSlider = mini:Slider({
+		Parent = content,
+		Min = 0,
+		Max = 5,
+		Step = 0.1,
+		Width = (columnWidth * 2) - 80,
+		LabelText = "",
+		GetValue = function()
+			return SysCastGetThrottle()
+		end,
+		SetValue = function(v)
+			SysCastSetThrottle(v)
+		end,
+	})
+	throttleSlider.Slider:SetPoint("TOPLEFT", throttleDivider, "BOTTOMLEFT", 4, -verticalSpacing)
+
+	local volDivider = mini:Divider({
+		Parent = content,
+		Text = L["SysCast Volume"],
+	})
+	volDivider:SetPoint("LEFT", content, "LEFT")
+	volDivider:SetPoint("RIGHT", content, "RIGHT")
+	volDivider:SetPoint("TOP", throttleSlider.Slider, "BOTTOM", 0, -verticalSpacing * 2)
+
+	local volSlider = mini:Slider({
+		Parent = content,
+		Min = 0,
+		Max = 100,
+		Step = 1,
+		Width = (columnWidth * 2) - 80,
+		LabelText = "",
+		GetValue = function()
+			return SysCastGetVolume()
+		end,
+		SetValue = function(v)
+			SysCastSetVolume(v)
+		end,
+	})
+	volSlider.Slider:SetPoint("TOPLEFT", volDivider, "BOTTOMLEFT", 4, -verticalSpacing)
+
+	local preview = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	preview:SetSize(120, 22)
+	preview:SetText(L["SysCast Preview"])
+	preview:SetPoint("TOPLEFT", volSlider.Slider, "BOTTOMLEFT", -4, -verticalSpacing * 2)
+	preview:SetScript("OnClick", function()
+		local CAA = C_CombatAudioAlert
+		if not CAA or not CAA.SpeakText then return end
+		local _, _, cat = SysCastEnums()
+		pcall(CAA.SpeakText, L["SysCast Preview Text"], cat, true)
+	end)
 end
 
 ---@param spellId number
@@ -1281,19 +1761,19 @@ local function BuildSpellGroup(parent, anchor, spells, dividerText)
 			Parent = parent,
 			LabelText = SpellLabel(spellId, spell.Name),
 			Tooltip = string.format(L["spell_toggle_tooltip"], spellId, file),
-			GetValue = function()
+		GetValue = function()
 				return IsMergedSpellEnabled(spell)
-			end,
-			SetValue = function(value)
+		end,
+		SetValue = function(value)
 				SetMergedSpellEnabled(spell, value and true or false)
 				if value then
 					local path = voicePack:Path(file)
 					if path then
 						pcall(PlaySoundFile, path, db.Sound and db.Sound.Channel or "Master")
 					end
-				end
-			end,
-		})
+			end
+		end,
+	})
 
 		chk:HookScript("OnEnter", function(self)
 			if C_Spell and C_Spell.GetSpellLink then
@@ -1381,6 +1861,7 @@ local function MigrateSettingsSnapshot(savedDb)
 	MigrateV25(savedDb)
 	MigrateV26(savedDb)
 	MigrateV27(savedDb)
+	MigrateV28(savedDb)
 end
 
 local function RefreshFrameTree(frame)
@@ -1403,15 +1884,17 @@ local function AfterSettingsMutated(notifyMsg)
 	EnsureSpellDefaults(db)
 	EnsureSelfCcDefaults(db)
 	EnsureZoneDefaults(db)
+	EnsureSysCastDefaults(db)
 	voicePack:Init()
 	if addon.Modules.AuraSoundModule and addon.Modules.AuraSoundModule.InitDb then
 		addon.Modules.AuraSoundModule:InitDb()
 	end
-	if addon.Modules.SoundModule and addon.Modules.SoundModule.Init then
-		-- Re-bind interrupt sound module db if it caches a reference.
-		pcall(function()
-			addon.Modules.SoundModule:Init()
-		end)
+	if addon.Modules.SoundModule then
+		if addon.Modules.SoundModule.Refresh then
+			pcall(function()
+				addon.Modules.SoundModule:Refresh()
+			end)
+		end
 	end
 	addon:Refresh()
 	if M.TabController and M.TabController.Tabs then
@@ -1458,7 +1941,7 @@ end
 
 local function BuildProfilesTab(content)
 	local intro = mini:TextBlock({
-		Parent = content,
+			Parent = content,
 		Lines = {
 			L["profiles_intro_1"],
 			L["profiles_intro_2"],
@@ -1476,7 +1959,7 @@ local function BuildProfilesTab(content)
 	end
 
 	local schemeDivider = mini:Divider({
-		Parent = content,
+			Parent = content,
 		Text = L["profiles_section_schemes"],
 	})
 	schemeDivider:SetPoint("LEFT", content, "LEFT")
@@ -1484,7 +1967,7 @@ local function BuildProfilesTab(content)
 	schemeDivider:SetPoint("TOP", intro, "BOTTOM", 0, -verticalSpacing)
 
 	local activeLabel = mini:TextLine({
-		Parent = content,
+			Parent = content,
 		Text = L["profiles_active"],
 	})
 	activeLabel:SetPoint("TOPLEFT", schemeDivider, "BOTTOMLEFT", 0, -verticalSpacing)
@@ -1495,43 +1978,43 @@ local function BuildProfilesTab(content)
 	end
 
 	local profileDropdown = mini:Dropdown({
-		Parent = content,
+			Parent = content,
 		Items = profileItems,
 		Width = 200,
-		GetValue = function()
+			GetValue = function()
 			return selectedName
-		end,
-		SetValue = function(value)
+			end,
+			SetValue = function(value)
 			selectedName = value or ""
 			nameScratch = selectedName
-		end,
-		GetText = function(value)
+			end,
+			GetText = function(value)
 			if value and value ~= "" then
 				return value
-			end
+				end
 			return L["profiles_none"]
-		end,
-	})
+			end,
+		})
 	profileDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
 	profileDropdown:SetPoint("TOP", activeLabel, "TOP", 0, 8)
 	profileDropdown:SetWidth(200)
 
 	local nameLabel = mini:TextLine({
-		Parent = content,
+			Parent = content,
 		Text = L["profiles_name"],
-	})
+		})
 	nameLabel:SetPoint("TOPLEFT", activeLabel, "BOTTOMLEFT", 0, -verticalSpacing)
 
 	local nameBox = mini:EditBox({
-		Parent = content,
-		Width = 200,
-		GetValue = function()
+			Parent = content,
+			Width = 200,
+			GetValue = function()
 			return nameScratch
-		end,
-		SetValue = function(value)
+			end,
+			SetValue = function(value)
 			nameScratch = value or ""
-		end,
-	})
+			end,
+		})
 	nameBox:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
 	nameBox:SetPoint("TOP", nameLabel, "TOP", 0, 4)
 	nameBox:SetWidth(200)
@@ -1629,15 +2112,15 @@ local function BuildProfilesTab(content)
 	end)
 
 	local ioDivider = mini:Divider({
-		Parent = content,
+			Parent = content,
 		Text = L["profiles_section_io"],
-	})
+		})
 	ioDivider:SetPoint("LEFT", content, "LEFT")
 	ioDivider:SetPoint("RIGHT", content, "RIGHT")
 	ioDivider:SetPoint("TOP", saveBtn, "BOTTOM", 0, -verticalSpacing * 2)
 
 	local ioHint = mini:TextBlock({
-		Parent = content,
+			Parent = content,
 		Font = "GameFontWhite",
 		Lines = {
 			L["profiles_io_hint_1"],
@@ -1682,8 +2165,8 @@ local function BuildProfilesTab(content)
 			exportScratch = self:GetText() or ""
 		else
 			exportScratch = self:GetText() or ""
-		end
-	end)
+			end
+		end)
 	exportBox:SetScript("OnEscapePressed", function(self)
 		self:ClearFocus()
 	end)
@@ -1811,6 +2294,7 @@ function M:Init()
 	MigrateV25(rawDb)
 	MigrateV26(rawDb)
 	MigrateV27(rawDb)
+	MigrateV28(rawDb)
 
 	-- Spells defaults stay empty; Disabled* sparse maps are the source of truth.
 	dbDefaults.Spells = {}
@@ -1821,6 +2305,7 @@ function M:Init()
 	EnsureSpellDefaults(db)
 	EnsureSelfCcDefaults(db)
 	EnsureZoneDefaults(db)
+	EnsureSysCastDefaults(db)
 	-- Free-form / sparse tables must be copied out before CleanTable (empty {} template wipes them).
 	local savedExtraPacks = {}
 	if type(db.ExtraVoicePacks) == "table" then
@@ -1834,6 +2319,13 @@ function M:Init()
 			savedProfiles[k] = v
 		end
 	end
+	local savedSysCast = nil
+	if type(db.SysCast) == "table" then
+		savedSysCast = {}
+		for k, v in pairs(db.SysCast) do
+			savedSysCast[k] = v
+		end
+	end
 	local savedActiveProfile = db.ActiveProfileName
 	local savedDisabledEnemy = CopyDisableMap(db.DisabledEnemySpells)
 	local savedDisabledSelfCc = CopyDisableMap(db.DisabledSelfCcSpells)
@@ -1843,6 +2335,9 @@ function M:Init()
 	mini:CleanTable(db, dbDefaults, true, true)
 	db.ExtraVoicePacks = savedExtraPacks
 	db.Profiles = savedProfiles
+	if savedSysCast then
+		db.SysCast = savedSysCast
+	end
 	if type(savedActiveProfile) == "string" then
 		db.ActiveProfileName = savedActiveProfile
 	end
@@ -1869,6 +2364,7 @@ function M:Init()
 	EnsureSpellDefaults(db)
 	EnsureSelfCcDefaults(db)
 	EnsureZoneDefaults(db)
+	EnsureSysCastDefaults(db)
 	voicePack:Init()
 
 	local scroll = CreateFrame("ScrollFrame", nil, nil, "UIPanelScrollFrameTemplate")
@@ -1880,7 +2376,29 @@ function M:Init()
 	-- Register early: later UI build errors must not leave /ps dead.
 	SLASH_PVPSOUND1 = "/pvpsound"
 	SLASH_PVPSOUND2 = "/ps"
-	SlashCmdList.PVPSOUND = function()
+	SlashCmdList.PVPSOUND = function(msg)
+		msg = msg and msg:lower():match("^%s*(.-)%s*$") or ""
+		if msg == "casttest" or msg == "cast" then
+			if addon.Modules.SoundModule and addon.Modules.SoundModule.DebugCastTest then
+				addon.Modules.SoundModule:DebugCastTest()
+			else
+				print("|cffff3333[PVP Sound]|r SoundModule 未加载。")
+			end
+			return
+		end
+		local sysArg = msg:match("^syscast%s*(.*)$")
+		if sysArg ~= nil or msg == "sys" then
+			if addon.Modules.SoundModule and addon.Modules.SoundModule.DebugSysCast then
+				addon.Modules.SoundModule:DebugSysCast(sysArg or "")
+			else
+				print("|cffff3333[PVP Sound]|r SoundModule 未加载。")
+			end
+			return
+		end
+		if msg == "test" then
+			DoTest()
+			return
+		end
 		mini:OpenSettings(category, scroll)
 	end
 
@@ -2079,15 +2597,20 @@ function M:Init()
 	end
 
 	local tabs = {
-		{
-			Key = "Home",
-			Title = addonName,
-			Build = function(content) BuildHomeTab(content) end,
-		},
-		{
+			{
+				Key = "Home",
+				Title = addonName,
+				Build = function(content) BuildHomeTab(content) end,
+			},
+			{
 			Key = "Zones",
 			Title = L["Zones"],
 			Build = function(content) BuildZonesTab(content) end,
+		},
+		{
+			Key = "SysCast",
+			Title = L["SysCast Tab"],
+			Build = function(content) BuildSysCastTab(content) end,
 		},
 		{
 			Key = "GeneralSpells",
@@ -2116,12 +2639,12 @@ function M:Init()
 					msg:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
 				end
 			end,
-		},
-		{
-			Key = "Changelog",
-			Title = L["Changelog"],
-			Build = function(content) BuildChangelogTab(content) end,
-		},
+			},
+			{
+				Key = "Changelog",
+				Title = L["Changelog"],
+				Build = function(content) BuildChangelogTab(content) end,
+			},
 	}
 
 	M.TabController = mini:CreateTabs({

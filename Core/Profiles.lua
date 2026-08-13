@@ -18,6 +18,7 @@ local SETTINGS_KEYS = {
 	"HealerCcSoundFile",
 	"InterruptSoundFile",
 	"Sound",
+	"SysCast",
 	"Zones",
 	"DisabledEnemySpells",
 	"DisabledSelfCcSpells",
