@@ -19,6 +19,7 @@ addon.Data.SelfCcCatalog = {
 				{ Id = 93422, File = "asphyxiate.ogg", Name = "Asphyxiate", Ids = { [93422] = true, [108194] = true, [221562] = true, [285266] = true } },
 				{ Id = 47476, File = "Strangulate.ogg", Name = "Strangulate", Ids = { [47476] = true, [51131] = true, [55314] = true, [55334] = true, [66018] = true } },
 				{ Id = 91800, File = "Smash.ogg", Name = "Gnaw", Ids = { [91800] = true, [91797] = true, [212332] = true, [212337] = true } },
+				{ Id = 91802, File = "ShamblingRush.ogg", Name = "Shambling Rush", Ids = { [91802] = true } },
 				{ Id = 77606, File = "darksimulacrum.ogg", Name = "Dark Simulacrum", Ids = { [77606] = true } },
 			},
 		},
@@ -28,7 +29,6 @@ addon.Data.SelfCcCatalog = {
 			Spells = {
 				{ Id = 217832, File = "imprison.ogg", Name = "Imprison", Ids = { [217832] = true, [221527] = true, [332544] = true, [386761] = true, [1217930] = true, [1233620] = true } },
 				{ Id = 179057, File = "chaosNova.ogg", Name = "Chaos Nova", Ids = { [179057] = true, [190246] = true, [199828] = true, [222826] = true, [292224] = true } },
-				{ Id = 211881, File = "felEruption.ogg", Name = "Fel Eruption", Ids = { [211881] = true } },
 			},
 		},
 		{
@@ -122,6 +122,7 @@ addon.Data.SelfCcCatalog = {
 				{ Id = 1330, File = "garrote.ogg", Name = "Garrote - Silence", Ids = { [1330] = true, [102926] = true, [128904] = true, [230122] = true, [280322] = true } },
 				{ Id = 385627, File = "kingsbane.ogg", Name = "Kingsbane", Ids = { [192759] = true, [214905] = true, [385627] = true } },
 				{ Id = 360194, File = "Deathmark.ogg", Name = "Deathmark", Ids = { [360194] = true } },
+				{ Id = 207777, File = "disarm.ogg", Name = "Disarm", Ids = { [207777] = true } },
 			},
 		},
 		{
@@ -138,7 +139,7 @@ addon.Data.SelfCcCatalog = {
 			Name = "Warlock",
 			Spells = {
 				{ Id = 118699, File = "Fear.ogg", Name = "Fear", Ids = { [12096] = true, [12542] = true, [22678] = true, [26070] = true, [26580] = true, [26661] = true, [27641] = true, [27990] = true, [29168] = true, [29321] = true, [30002] = true, [30530] = true, [30584] = true, [30615] = true, [31358] = true, [31970] = true, [32241] = true, [33547] = true, [33924] = true, [34259] = true, [38154] = true, [38595] = true, [38660] = true, [39119] = true, [39176] = true, [39210] = true, [39415] = true, [41150] = true, [46561] = true, [51240] = true, [59669] = true, [65809] = true, [68950] = true, [70171] = true, [81442] = true, [113712] = true, [115186] = true, [118699] = true, [125204] = true, [128098] = true, [130616] = true, [130940] = true, [142884] = true, [173093] = true, [182806] = true, [204730] = true, [220540] = true, [221424] = true, [223170] = true, [240136] = true, [242084] = true, [242739] = true, [245902] = true, [248028] = true, [251419] = true, [259874] = true, [259995] = true, [266918] = true, [287685] = true, [288545] = true, [419865] = true, [1259782] = true, [1261911] = true } },
-				{ Id = 5484, File = "Fear4.ogg", Name = "Howl of Terror", Ids = { [5484] = true, [39048] = true, [130923] = true, [138562] = true, [178072] = true, [1267008] = true } },
+				{ Id = 5484, File = "terrorHowl.ogg", Name = "Howl of Terror", Ids = { [5484] = true, [39048] = true, [130923] = true, [138562] = true, [178072] = true, [1267008] = true } },
 				{ Id = 6789, File = "mortalCoil.ogg", Name = "Mortal Coil", Ids = { [6789] = true, [295459] = true, [361064] = true } },
 				{ Id = 710, File = "Banish.ogg", Name = "Banish", Ids = { [710] = true, [8994] = true, [27565] = true, [37527] = true, [37833] = true, [38009] = true, [38791] = true, [39622] = true, [39674] = true, [40370] = true, [44765] = true, [44836] = true, [71298] = true, [136466] = true, [181746] = true, [183578] = true, [464333] = true } },
 				{ Id = 6358, File = "seduction.ogg", Name = "Seduction", Ids = { [6358] = true, [29490] = true, [30850] = true, [31865] = true, [86377] = true, [86545] = true, [176177] = true, [183763] = true, [230159] = true, [238428] = true, [241799] = true, [261589] = true, [1201554] = true } },
@@ -151,6 +152,8 @@ addon.Data.SelfCcCatalog = {
 			Name = "Warrior",
 			Spells = {
 				{ Id = 5246, File = "Fear3.ogg", Name = "Intimidating Shout", Ids = { [5246] = true, [65930] = true, [65931] = true, [95199] = true, [97933] = true, [97934] = true, [155582] = true, [164464] = true, [164465] = true, [167259] = true, [167261] = true, [169432] = true, [223169] = true, [236353] = true, [240190] = true, [273867] = true, [316593] = true, [316595] = true, [372405] = true, [397242] = true, [397243] = true, [397244] = true, [1253030] = true } },
+				{ Id = 167105, File = "colossusSmash.ogg", Name = "Colossus Smash", Ids = { [167105] = true, [208086] = true, [262161] = true } },
+				{ Id = 236077, File = "disarm.ogg", Name = "Disarm", Ids = { [236077] = true, [236236] = true } },
 				{ Id = 20685, File = "stormBolt.ogg", Name = "Storm Bolt", Ids = { [20685] = true, [55958] = true, [61628] = true, [84831] = true, [132169] = true, [133396] = true, [139275] = true, [222897] = true, [259867] = true, [317277] = true, [348599] = true, [1240116] = true } },
 				{ Id = 25425, File = "shockwave.ogg", Name = "Shockwave", Ids = { [25425] = true, [33686] = true, [55636] = true, [55918] = true, [57728] = true, [57741] = true, [58947] = true, [58977] = true, [75343] = true, [75417] = true, [79872] = true, [83785] = true, [84715] = true, [86699] = true, [87759] = true, [88846] = true, [93325] = true, [99610] = true, [107102] = true, [108046] = true, [126833] = true, [129785] = true, [131570] = true, [132168] = true, [136847] = true, [139215] = true, [140446] = true, [145047] = true, [162634] = true, [164092] = true, [165751] = true, [165954] = true, [188284] = true, [189539] = true, [207979] = true, [210506] = true, [235692] = true, [236347] = true, [257404] = true, [269341] = true, [277161] = true, [298630] = true, [308890] = true, [330458] = true, [337347] = true, [342875] = true, [346605] = true } },
 			},

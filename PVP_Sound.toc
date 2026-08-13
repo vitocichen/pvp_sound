@@ -33,6 +33,7 @@ Data\CastSuccessSounds.lua
 Data\VoicePackManifest.lua
 
 Core\VoicePack.lua
+Core\Profiles.lua
 Core\AuraSounds.lua
 Core\Compat.lua
 Core\UnitAuraWatcher.lua

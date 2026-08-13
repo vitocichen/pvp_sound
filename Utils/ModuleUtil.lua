@@ -42,13 +42,16 @@ function M:IsEnabled()
 	return zone.Enabled or false
 end
 
--- Cast-start / totems / interrupt must not follow buff-only `Enabled`.
--- Active when any zone alert is on (buff, debuff, or healer-CC).
+-- Cast-start / channel / instant-cast voice: independent per-zone CastBar toggle.
 function M:IsCastAlertsEnabled()
 	local zone = self:GetZoneConfig()
-	if not zone then return true end
-	if zone.Enabled then return true end
-	if zone.CcEnabled ~= false then return true end
-	if zone.HealerCcEnabled ~= false then return true end
-	return false
+	if not zone then return false end
+	return zone.CastBar == true
+end
+
+-- Interrupt alert is an independent per-zone toggle (InterruptAlert); default off.
+function M:IsInterruptAlertsEnabled()
+	local zone = self:GetZoneConfig()
+	if not zone then return false end
+	return zone.InterruptAlert == true
 end

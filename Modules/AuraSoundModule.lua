@@ -62,15 +62,15 @@ local function HealerCcSoundFile()
 	if type(file) == "string" and file ~= "" then
 		return file
 	end
-	return "夏一可_控制成功.ogg"
+	return "HealerCcAlert.ogg"
 end
 
----Sonar.ogg resolves from the selected voice pack; other clips live under Media\.
+---HealerCcAlert.ogg resolves from the selected voice pack; PS_* clips live under Media\.
 ---@return string?
 local function ResolveHealerCcSoundPath()
 	local file = HealerCcSoundFile()
-	if file == "Sonar.ogg" then
-		return voicePack:Path("Sonar.ogg")
+	if file == "HealerCcAlert.ogg" or file == "HealerCC.ogg" then
+		return voicePack:Path("HealerCcAlert.ogg")
 	end
 	return MEDIA_ROOT .. file
 end

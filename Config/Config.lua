@@ -7,9 +7,23 @@ local horizontalSpacing = mini.HorizontalSpacing
 local catalog = addon.Data.EnemyBuffCatalog
 local selfCcCatalog = addon.Data.SelfCcCatalog
 local voicePack = addon.Core.VoicePack
+local profiles = addon.Core.Profiles
 
 ---@type Db
 local db
+
+-- StaticPopup data can be unreliable across client builds; keep confirm action here.
+local pendingConfirmYes
+local pendingConfirmNo
+
+local function ShowConfirm(message, onYes, onNo)
+	pendingConfirmYes = onYes
+	pendingConfirmNo = onNo
+	StaticPopup_Show("PVPSOUND_CONFIRM", message, nil, {
+		OnYes = onYes,
+		OnNo = onNo,
+	})
+end
 
 local function AuraSounds()
 	return addon.Modules.AuraSoundModule
@@ -32,23 +46,26 @@ local function BuildDefaultSelfCcSpells()
 end
 
 local dbDefaults = {
-	Version = 23,
+	Version = 27,
 	WhatsNewVersion = false,
 	VoicePack = "夏一可1.25x",
 	ExtraVoicePacks = {},
-	-- Healer-CC alert clip: Sonar.ogg lives in voice pack; others under Media\.
-	HealerCcSoundFile = "夏一可_控制成功.ogg",
+	-- Healer-CC alert clip: HealerCcAlert.ogg lives in the selected voice pack; PS_* under Media\.
+	HealerCcSoundFile = "HealerCcAlert.ogg",
+	-- Interrupt success clip: interrupted.ogg from voice pack; PS_* under Media\.
+	InterruptSoundFile = "interrupted.ogg",
 	Sound = {
 		Channel = "Master",
 		CastInterval = 0.0,
 	},
-	-- Enabled = enemy buff; CcEnabled = self/party debuff; HealerCcEnabled = healer-in-CC alert.
-	-- TargetFocusOnly = buff monitor; CcScope = self|party for debuffs.
+	-- Enabled = enemy buff; CcEnabled = self/party debuff; HealerCcEnabled = healer-in-CC;
+	-- InterruptAlert = cast-interrupted voice; CastBar = enemy cast-start / channel voice.
+	-- TargetFocusOnly = buff monitor (false = all enemies); CcScope = self|party for debuffs.
 	Zones = {
-		World = { Enabled = true, TargetFocusOnly = true, CcEnabled = true, CcScope = "self", HealerCcEnabled = true },
-		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "self", HealerCcEnabled = true },
-		BattleGrounds = { Enabled = true, TargetFocusOnly = true, CcEnabled = true, CcScope = "self", HealerCcEnabled = true },
-		PvE = { Enabled = false, TargetFocusOnly = true, CcEnabled = false, CcScope = "self", HealerCcEnabled = false },
+		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
+		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
+		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
+		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
 	},
 	-- Sparse disable maps: key=spellId, value=true means unchecked/disabled.
 	-- Missing key = enabled (default on). Avoids huge Spells={all true} SavedVariables issues.
@@ -57,6 +74,9 @@ local dbDefaults = {
 	-- Legacy full maps kept for migration / old readers; no longer the source of truth.
 	Spells = {},
 	SelfCcSpells = {},
+	-- Named config snapshots (multi-profile). Not wiped by settings CleanTable.
+	ActiveProfileName = "",
+	Profiles = {},
 }
 
 local M = addon.ConfigModern
@@ -281,6 +301,85 @@ local function MigrateV23(savedDb)
 	savedDb.Version = 23
 end
 
+-- v24: per-zone InterruptAlert + selectable InterruptSoundFile.
+local function MigrateV24(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 24) then return end
+	savedDb.Zones = savedDb.Zones or {}
+	local defaults = {
+		World = true,
+		Arena = true,
+		BattleGrounds = true,
+		PvE = false,
+	}
+	for key, def in pairs(defaults) do
+		savedDb.Zones[key] = savedDb.Zones[key] or {}
+		local zone = savedDb.Zones[key]
+		if zone.InterruptAlert == nil then
+			zone.InterruptAlert = def
+		end
+	end
+	if type(savedDb.InterruptSoundFile) ~= "string" or savedDb.InterruptSoundFile == "" then
+		savedDb.InterruptSoundFile = "interrupted.ogg"
+	end
+	savedDb.Version = 24
+end
+
+-- v25: healer-CC / interrupt dropdown = voice-pack clip + generic PS_* only.
+local function MigrateV25(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 25) then return end
+	local legacyHealer = {
+		["夏一可_控制成功.ogg"] = true,
+		["Sonar.ogg"] = true,
+	}
+	if type(savedDb.HealerCcSoundFile) ~= "string"
+		or savedDb.HealerCcSoundFile == ""
+		or legacyHealer[savedDb.HealerCcSoundFile]
+	then
+		savedDb.HealerCcSoundFile = "HealerCC.ogg"
+	elseif savedDb.HealerCcSoundFile ~= "HealerCC.ogg"
+		and not tostring(savedDb.HealerCcSoundFile):match("^PS_")
+	then
+		-- Unknown old value → fall back to pack clip.
+		savedDb.HealerCcSoundFile = "HealerCC.ogg"
+	end
+	if type(savedDb.InterruptSoundFile) ~= "string" or savedDb.InterruptSoundFile == "" then
+		savedDb.InterruptSoundFile = "interrupted.ogg"
+	elseif savedDb.InterruptSoundFile ~= "interrupted.ogg"
+		and not tostring(savedDb.InterruptSoundFile):match("^PS_")
+		and savedDb.InterruptSoundFile ~= "夏一可_控制成功.ogg"
+		and savedDb.InterruptSoundFile ~= "Sonar.ogg"
+	then
+		savedDb.InterruptSoundFile = "interrupted.ogg"
+	elseif savedDb.InterruptSoundFile == "夏一可_控制成功.ogg"
+		or savedDb.InterruptSoundFile == "Sonar.ogg"
+	then
+		-- Interrupt dropdown no longer offers these; keep interrupt on pack clip.
+		savedDb.InterruptSoundFile = "interrupted.ogg"
+	end
+	savedDb.Version = 25
+end
+
+-- v26: rename pack healer clip HealerCC.ogg → HealerCcAlert.ogg (bust WoW sound cache).
+local function MigrateV26(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 26) then return end
+	if savedDb.HealerCcSoundFile == "HealerCC.ogg" or type(savedDb.HealerCcSoundFile) ~= "string"
+		or savedDb.HealerCcSoundFile == ""
+	then
+		savedDb.HealerCcSoundFile = "HealerCcAlert.ogg"
+	end
+	savedDb.Version = 26
+end
+
+-- v27: multi-profile store (配置 page).
+local function MigrateV27(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 27) then return end
+	savedDb.Profiles = savedDb.Profiles or {}
+	if type(savedDb.ActiveProfileName) ~= "string" then
+		savedDb.ActiveProfileName = ""
+	end
+	savedDb.Version = 27
+end
+
 local function EnsureSpellDefaults(savedDb)
 	-- Keep legacy maps present but empty-ish; runtime uses Disabled* maps.
 	savedDb.Spells = savedDb.Spells or {}
@@ -313,10 +412,10 @@ end
 local function EnsureZoneDefaults(savedDb)
 	savedDb.Zones = savedDb.Zones or {}
 	local defaults = {
-		World = { Enabled = true, TargetFocusOnly = true, CcEnabled = true, CcScope = "self", HealerCcEnabled = true },
-		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "self", HealerCcEnabled = true },
-		BattleGrounds = { Enabled = true, TargetFocusOnly = true, CcEnabled = true, CcScope = "self", HealerCcEnabled = true },
-		PvE = { Enabled = false, TargetFocusOnly = true, CcEnabled = false, CcScope = "self", HealerCcEnabled = false },
+		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
+		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
+		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
+		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = false },
 	}
 	for key, def in pairs(defaults) do
 		savedDb.Zones[key] = savedDb.Zones[key] or {}
@@ -344,6 +443,16 @@ local function EnsureZoneDefaults(savedDb)
 		else
 			zone.HealerCcEnabled = zone.HealerCcEnabled and true or false
 		end
+		if zone.InterruptAlert == nil then
+			zone.InterruptAlert = def.InterruptAlert
+		else
+			zone.InterruptAlert = zone.InterruptAlert and true or false
+		end
+		if zone.CastBar == nil then
+			zone.CastBar = def.CastBar
+		else
+			zone.CastBar = zone.CastBar and true or false
+		end
 	end
 end
 
@@ -351,10 +460,8 @@ end
 
 local channelItems = { "Master", "SFX", "Ambience", "Dialog", "Music" }
 
--- v2.0.3 Media\ root clips + Sonar.ogg (current voice pack, MiniAuras-style).
-local healerCcSoundFiles = {
-	"夏一可_控制成功.ogg",
-	"Sonar.ogg",
+-- First entry = clip inside the selected voice pack; the rest are generic Media\ PS_* files.
+local genericAlertSoundFiles = {
 	"PS_Alert.ogg",
 	"PS_Chime.ogg",
 	"PS_Error.ogg",
@@ -368,12 +475,27 @@ local healerCcSoundFiles = {
 	"PS_Warm.ogg",
 }
 
+local healerCcSoundFiles = { "HealerCcAlert.ogg" }
+local interruptSoundFiles = { "interrupted.ogg" }
+for i = 1, #genericAlertSoundFiles do
+	healerCcSoundFiles[#healerCcSoundFiles + 1] = genericAlertSoundFiles[i]
+	interruptSoundFiles[#interruptSoundFiles + 1] = genericAlertSoundFiles[i]
+end
+
 local MEDIA_ROOT = "Interface\\AddOns\\" .. addonName .. "\\Media\\"
 
+local function IsPackHealerClip(fileName)
+	return fileName == "HealerCcAlert.ogg" or fileName == "HealerCC.ogg"
+end
+
+local function IsPackInterruptClip(fileName)
+	return fileName == "interrupted.ogg"
+end
+
 local function ResolveHealerCcSoundPath(fileName)
-	fileName = fileName or (db and db.HealerCcSoundFile) or "夏一可_控制成功.ogg"
-	if fileName == "Sonar.ogg" then
-		return voicePack:Path("Sonar.ogg")
+	fileName = fileName or (db and db.HealerCcSoundFile) or "HealerCcAlert.ogg"
+	if IsPackHealerClip(fileName) then
+		return voicePack:Path("HealerCcAlert.ogg")
 	end
 	return MEDIA_ROOT .. fileName
 end
@@ -386,11 +508,30 @@ local function PreviewHealerCcSound(fileName)
 end
 
 local function HealerCcSoundLabel(fileName)
-	if fileName == "Sonar.ogg" then
-		return L["Healer CC Sound Sonar"]
+	if IsPackHealerClip(fileName) then
+		return L["Healer CC Sound Pack"]
 	end
-	if fileName == "夏一可_控制成功.ogg" then
-		return L["Healer CC Sound Xia"]
+	return (fileName or ""):gsub("%.ogg$", ""):gsub("%.mp3$", "")
+end
+
+local function ResolveInterruptSoundPath(fileName)
+	fileName = fileName or (db and db.InterruptSoundFile) or "interrupted.ogg"
+	if IsPackInterruptClip(fileName) then
+		return voicePack:Path("interrupted.ogg")
+	end
+	return MEDIA_ROOT .. fileName
+end
+
+local function PreviewInterruptSound(fileName)
+	local path = ResolveInterruptSoundPath(fileName)
+	if path then
+		pcall(PlaySoundFile, path, db and db.Sound and db.Sound.Channel or "Master")
+	end
+end
+
+local function InterruptSoundLabel(fileName)
+	if IsPackInterruptClip(fileName) then
+		return L["Interrupt Sound Pack"]
 	end
 	return (fileName or ""):gsub("%.ogg$", ""):gsub("%.mp3$", "")
 end
@@ -407,6 +548,7 @@ local function BuildHomeTab(content)
 			L["home_intro_buff"],
 			L["home_intro_debuff"],
 			L["home_intro_healer"],
+			L["home_intro_cast"],
 			" ",
 			L["home_intro_tts_warning"],
 			" ",
@@ -426,18 +568,13 @@ local function BuildHomeTab(content)
 	soundDivider:SetPoint("RIGHT", content, "RIGHT")
 	soundDivider:SetPoint("TOP", intro, "BOTTOM", 0, -verticalSpacing)
 
-	local packHint = mini:TextBlock({
-		Parent = content,
-		Lines = { L["Voice Pack Hint"] },
-	})
-	packHint:SetPoint("TOPLEFT", soundDivider, "BOTTOMLEFT", 0, -verticalSpacing)
-
 	local packItems = voicePack:ListPacks()
+	local hintFont = "GameFontWhite"
 	local packLabel = mini:TextLine({
 		Parent = content,
 		Text = L["Voice Pack Select"],
 	})
-	packLabel:SetPoint("TOPLEFT", packHint, "BOTTOMLEFT", 0, -verticalSpacing)
+	packLabel:SetPoint("TOPLEFT", soundDivider, "BOTTOMLEFT", 0, -verticalSpacing)
 
 	local packDropdown = mini:Dropdown({
 		Parent = content,
@@ -458,11 +595,122 @@ local function BuildHomeTab(content)
 	packDropdown:SetPoint("TOP", packLabel, "TOP", 0, 8)
 	packDropdown:SetWidth(200)
 
+	local packHint = mini:TextBlock({
+		Parent = content,
+		Font = hintFont,
+		Lines = {
+			L["Voice Pack Select Hint"],
+			" ",
+		},
+	})
+	packHint:SetPoint("TOPLEFT", packLabel, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	local channelLabel = mini:TextLine({
+		Parent = content,
+		Text = L["Output Channel"],
+	})
+	channelLabel:SetPoint("TOPLEFT", packHint, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	local channelDropdown = mini:Dropdown({
+		Parent = content,
+		Items = channelItems,
+		Width = 200,
+		GetValue = function()
+			return db.Sound and db.Sound.Channel or "Master"
+		end,
+		SetValue = function(value)
+			db.Sound = db.Sound or {}
+			db.Sound.Channel = value
+			M:Apply()
+		end,
+		GetText = function(value)
+			local key = "channel_" .. (value or "Master")
+			return L[key] or value or L["channel_Master"]
+		end,
+	})
+	channelDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+	channelDropdown:SetPoint("TOP", channelLabel, "TOP", 0, 8)
+	channelDropdown:SetWidth(200)
+
+	local channelHint = mini:TextBlock({
+		Parent = content,
+		Font = hintFont,
+		Lines = {
+			" ",
+			L["Output Channel Hint"],
+		},
+	})
+	channelHint:SetPoint("TOPLEFT", channelLabel, "BOTTOMLEFT", 0, 0)
+
+	local testBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	testBtn:SetSize(140, 26)
+	testBtn:SetPoint("TOPLEFT", channelHint, "BOTTOMLEFT", 0, -verticalSpacing * 2)
+	testBtn:SetText(L["Test"])
+	testBtn:SetScript("OnClick", DoTest)
+
+	local resetBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	resetBtn:SetSize(120, 26)
+	resetBtn:SetPoint("LEFT", testBtn, "RIGHT", horizontalSpacing, 0)
+	resetBtn:SetText(L["Reset"])
+	resetBtn:SetScript("OnClick", function()
+		if InCombatLockdown() then
+			mini:NotifyCombatLockdown()
+			return
+		end
+		ShowConfirm(L["Are you sure you wish to reset to factory settings?"], function()
+				local keepProfiles = {}
+				if type(db.Profiles) == "table" then
+					for k, v in pairs(db.Profiles) do
+						keepProfiles[k] = v
+					end
+				end
+				local keepActive = db.ActiveProfileName
+				dbDefaults.Spells = {}
+				dbDefaults.SelfCcSpells = {}
+				dbDefaults.DisabledEnemySpells = {}
+				dbDefaults.DisabledSelfCcSpells = {}
+				mini:ResetSavedVars(dbDefaults)
+				db = mini:GetSavedVars()
+				db.Profiles = keepProfiles
+				if type(keepActive) == "string" then
+					db.ActiveProfileName = keepActive
+				end
+				EnsureSpellDefaults(db)
+				EnsureSelfCcDefaults(db)
+				EnsureZoneDefaults(db)
+				voicePack:Init()
+				if addon.Modules.AuraSoundModule and addon.Modules.AuraSoundModule.InitDb then
+					addon.Modules.AuraSoundModule:InitDb()
+				end
+				addon:Refresh()
+				mini:Notify(L["Settings reset to default."])
+			end)
+	end)
+
+	local diyDivider = mini:Divider({
+		Parent = content,
+		Text = L["Voice DIY Settings"],
+	})
+	diyDivider:SetPoint("LEFT", content, "LEFT")
+	diyDivider:SetPoint("RIGHT", content, "RIGHT")
+	diyDivider:SetPoint("TOP", testBtn, "BOTTOM", 0, -verticalSpacing * 2)
+
+	local diyHint = mini:TextBlock({
+		Parent = content,
+		Font = hintFont,
+		Lines = {
+			L["Voice DIY Hint 1"],
+			L["Voice DIY Hint 2"],
+			L["Voice DIY Hint 3"],
+		},
+	})
+	diyHint:SetPoint("TOPLEFT", diyDivider, "BOTTOMLEFT", 0, -verticalSpacing)
+
 	local customLabel = mini:TextLine({
 		Parent = content,
 		Text = L["Custom Voice Pack"],
 	})
-	customLabel:SetPoint("TOPLEFT", packLabel, "BOTTOMLEFT", 0, -verticalSpacing * 2)
+	customLabel:SetPoint("TOPLEFT", diyHint, "BOTTOMLEFT", 0, -verticalSpacing * 2)
 
 	local customScratch = ""
 	local customBox = mini:EditBox({
@@ -502,75 +750,18 @@ local function BuildHomeTab(content)
 			print("|cff33ff99[PVP Sound]|r " .. L["voice_pack_add_failed"])
 		end
 	end)
-
-	local channelLabel = mini:TextLine({
-		Parent = content,
-		Text = L["Output Channel"],
-	})
-	channelLabel:SetPoint("TOPLEFT", customLabel, "BOTTOMLEFT", 0, -verticalSpacing * 2)
-
-	local channelDropdown = mini:Dropdown({
-		Parent = content,
-		Items = channelItems,
-		Width = 200,
-		GetValue = function()
-			return db.Sound and db.Sound.Channel or "Master"
-		end,
-		SetValue = function(value)
-			db.Sound = db.Sound or {}
-			db.Sound.Channel = value
-			M:Apply()
-		end,
-		GetText = function(value)
-			local key = "channel_" .. (value or "Master")
-			return L[key] or value or L["channel_Master"]
-		end,
-	})
-	channelDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
-	channelDropdown:SetPoint("TOP", channelLabel, "TOP", 0, 8)
-	channelDropdown:SetWidth(200)
-
-	local testBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
-	testBtn:SetSize(140, 26)
-	testBtn:SetPoint("TOPLEFT", channelLabel, "BOTTOMLEFT", 0, -verticalSpacing * 2)
-	testBtn:SetText(L["Test"])
-	testBtn:SetScript("OnClick", DoTest)
-
-	local resetBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
-	resetBtn:SetSize(120, 26)
-	resetBtn:SetPoint("LEFT", testBtn, "RIGHT", horizontalSpacing, 0)
-	resetBtn:SetText(L["Reset"])
-	resetBtn:SetScript("OnClick", function()
-		if InCombatLockdown() then
-			mini:NotifyCombatLockdown()
-			return
-		end
-		StaticPopup_Show("PVPSOUND_CONFIRM", L["Are you sure you wish to reset to factory settings?"], nil, {
-			OnYes = function()
-				dbDefaults.Spells = {}
-				dbDefaults.SelfCcSpells = {}
-				dbDefaults.DisabledEnemySpells = {}
-				dbDefaults.DisabledSelfCcSpells = {}
-				mini:ResetSavedVars(dbDefaults)
-				db = mini:GetSavedVars()
-				EnsureSpellDefaults(db)
-				EnsureSelfCcDefaults(db)
-				EnsureZoneDefaults(db)
-				voicePack:Init()
-				if addon.Modules.AuraSoundModule and addon.Modules.AuraSoundModule.InitDb then
-					addon.Modules.AuraSoundModule:InitDb()
-				end
-				addon:Refresh()
-				mini:Notify(L["Settings reset to default."])
-			end,
-		})
-	end)
 end
 
 local function BuildZonesTab(content)
 	local intro = mini:TextBlock({
 		Parent = content,
-		Lines = { L["zones_intro"] },
+		Lines = {
+			L["zones_intro_buff"],
+			L["zones_intro_debuff"],
+			L["zones_intro_interrupt"],
+			L["zones_intro_healer"],
+			L["zones_intro_cast"],
+		},
 	})
 	intro:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
 
@@ -722,7 +913,7 @@ local function BuildZonesTab(content)
 			L["Healer CC Sound File"],
 			healerCcSoundFiles,
 			function()
-				return db.HealerCcSoundFile or "夏一可_控制成功.ogg"
+				return db.HealerCcSoundFile or "HealerCcAlert.ogg"
 			end,
 			function(value)
 				db.HealerCcSoundFile = value
@@ -732,7 +923,42 @@ local function BuildZonesTab(content)
 			HealerCcSoundLabel
 		)
 
-		last = healerChk
+		-- Row 4: interrupt alert (UNIT_SPELLCAST_INTERRUPTED) + shared sound picker
+		local interruptChk = mini:Checkbox({
+			Parent = content,
+			LabelText = L["Enable Interrupt Alerts"],
+			Tooltip = L["Enable interrupt voice alerts in this zone."],
+			GetValue = function()
+				local zone = db.Zones[zoneKey]
+				return zone and zone.InterruptAlert == true
+			end,
+			SetValue = function(value)
+				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
+				db.Zones[zoneKey].InterruptAlert = value and true or false
+				M:Apply()
+				if value then
+					PreviewInterruptSound(db.InterruptSoundFile)
+				end
+			end,
+		})
+		interruptChk:SetPoint("TOPLEFT", healerChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+		PlaceRangeRow(
+			interruptChk,
+			L["Interrupt Sound File"],
+			interruptSoundFiles,
+			function()
+				return db.InterruptSoundFile or "interrupted.ogg"
+			end,
+			function(value)
+				db.InterruptSoundFile = value
+				M:Apply()
+				PreviewInterruptSound(value)
+			end,
+			InterruptSoundLabel
+		)
+
+		last = interruptChk
 	end
 end
 
@@ -1015,7 +1241,7 @@ local function BuildSpellGroup(parent, anchor, spells, dividerText)
 		})
 		divider:SetPoint("LEFT", parent, "LEFT")
 		divider:SetPoint("RIGHT", parent, "RIGHT")
-		divider:SetPoint("TOP", anchor, "BOTTOM", 0, -verticalSpacing * 2)
+		divider:SetPoint("TOP", anchor, "BOTTOM", 0, -verticalSpacing)
 		last = divider
 	end
 
@@ -1136,6 +1362,415 @@ local function BuildClassSection(parent, anchor, classEntry, opts)
 	return BuildSpellGroup(parent, last, all, nil)
 end
 
+---Run the same migration chain used at Init, so imported/old snapshots upgrade.
+local function MigrateSettingsSnapshot(savedDb)
+	if type(savedDb) ~= "table" then return end
+	MigrateV1(savedDb)
+	MigrateThroughV11(savedDb)
+	MigrateV13(savedDb)
+	MigrateV14(savedDb)
+	MigrateV16(savedDb)
+	MigrateV17(savedDb)
+	MigrateV18(savedDb)
+	MigrateV19(savedDb)
+	MigrateV20(savedDb)
+	MigrateV21(savedDb)
+	MigrateV22(savedDb)
+	MigrateV23(savedDb)
+	MigrateV24(savedDb)
+	MigrateV25(savedDb)
+	MigrateV26(savedDb)
+	MigrateV27(savedDb)
+end
+
+local function RefreshFrameTree(frame)
+	if not frame then
+		return
+	end
+	if frame.MiniRefresh then
+		pcall(frame.MiniRefresh, frame)
+	end
+	local children = { frame:GetChildren() }
+	for i = 1, #children do
+		RefreshFrameTree(children[i])
+	end
+end
+
+local function AfterSettingsMutated(notifyMsg)
+	-- Always bind to the live SavedVariables table.
+	db = mini:GetSavedVars()
+	_G.PVPSoundDB = db
+	EnsureSpellDefaults(db)
+	EnsureSelfCcDefaults(db)
+	EnsureZoneDefaults(db)
+	voicePack:Init()
+	if addon.Modules.AuraSoundModule and addon.Modules.AuraSoundModule.InitDb then
+		addon.Modules.AuraSoundModule:InitDb()
+	end
+	if addon.Modules.SoundModule and addon.Modules.SoundModule.Init then
+		-- Re-bind interrupt sound module db if it caches a reference.
+		pcall(function()
+			addon.Modules.SoundModule:Init()
+		end)
+	end
+	addon:Refresh()
+	if M.TabController and M.TabController.Tabs then
+		for _, tab in ipairs(M.TabController.Tabs) do
+			RefreshFrameTree(tab.Content)
+		end
+	end
+	if notifyMsg then
+		mini:Notify(notifyMsg)
+	end
+end
+
+local function ApplySettingsSnapshot(snap, notifyMsg)
+	if type(snap) ~= "table" then
+		return false
+	end
+	db = mini:GetSavedVars()
+	_G.PVPSoundDB = db
+	-- Keep sparse disable maps from the raw snapshot (before defaults fill).
+	local keepDisabledEnemy = CopyDisableMap(snap.DisabledEnemySpells)
+	local keepDisabledSelfCc = CopyDisableMap(snap.DisabledSelfCcSpells)
+	local copy = profiles:DeepCopy(snap)
+	MigrateSettingsSnapshot(copy)
+	-- Fill missing keys from defaults without wiping Profiles.
+	mini:CopyTable(dbDefaults, copy)
+	-- Defaults use empty {} disable maps; restore snapshot disables after fill.
+	copy.DisabledEnemySpells = keepDisabledEnemy
+	copy.DisabledSelfCcSpells = keepDisabledSelfCc
+	profiles:ApplySettings(db, copy)
+	db.DisabledEnemySpells = CopyDisableMap(keepDisabledEnemy)
+	db.DisabledSelfCcSpells = CopyDisableMap(keepDisabledSelfCc)
+	db.Spells = {}
+	db.SelfCcSpells = {}
+	for spellId in pairs(db.DisabledEnemySpells) do
+		db.Spells[spellId] = false
+	end
+	for spellId in pairs(db.DisabledSelfCcSpells) do
+		db.SelfCcSpells[spellId] = false
+	end
+	db.Version = dbDefaults.Version
+	AfterSettingsMutated(notifyMsg)
+	return true
+end
+
+local function BuildProfilesTab(content)
+	local intro = mini:TextBlock({
+		Parent = content,
+		Lines = {
+			L["profiles_intro_1"],
+			L["profiles_intro_2"],
+		},
+	})
+	intro:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+
+	local columnWidth = mini:ColumnWidth(2, 0, 0)
+	local nameScratch = ""
+	local exportScratch = ""
+	local selectedName = db.ActiveProfileName or ""
+
+	local function ProfileItems()
+		return profiles:ListNames(db)
+	end
+
+	local schemeDivider = mini:Divider({
+		Parent = content,
+		Text = L["profiles_section_schemes"],
+	})
+	schemeDivider:SetPoint("LEFT", content, "LEFT")
+	schemeDivider:SetPoint("RIGHT", content, "RIGHT")
+	schemeDivider:SetPoint("TOP", intro, "BOTTOM", 0, -verticalSpacing)
+
+	local activeLabel = mini:TextLine({
+		Parent = content,
+		Text = L["profiles_active"],
+	})
+	activeLabel:SetPoint("TOPLEFT", schemeDivider, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	local profileItems = ProfileItems()
+	if selectedName == "" and profileItems[1] then
+		selectedName = profileItems[1]
+	end
+
+	local profileDropdown = mini:Dropdown({
+		Parent = content,
+		Items = profileItems,
+		Width = 200,
+		GetValue = function()
+			return selectedName
+		end,
+		SetValue = function(value)
+			selectedName = value or ""
+			nameScratch = selectedName
+		end,
+		GetText = function(value)
+			if value and value ~= "" then
+				return value
+			end
+			return L["profiles_none"]
+		end,
+	})
+	profileDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+	profileDropdown:SetPoint("TOP", activeLabel, "TOP", 0, 8)
+	profileDropdown:SetWidth(200)
+
+	local nameLabel = mini:TextLine({
+		Parent = content,
+		Text = L["profiles_name"],
+	})
+	nameLabel:SetPoint("TOPLEFT", activeLabel, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	local nameBox = mini:EditBox({
+		Parent = content,
+		Width = 200,
+		GetValue = function()
+			return nameScratch
+		end,
+		SetValue = function(value)
+			nameScratch = value or ""
+		end,
+	})
+	nameBox:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
+	nameBox:SetPoint("TOP", nameLabel, "TOP", 0, 4)
+	nameBox:SetWidth(200)
+
+	local function RefreshProfileDropdown()
+		wipe(profileItems)
+		for _, n in ipairs(ProfileItems()) do
+			profileItems[#profileItems + 1] = n
+		end
+		if profileDropdown.MiniRefresh then
+			profileDropdown:MiniRefresh()
+		end
+		if nameBox.MiniRefresh then
+			nameBox:MiniRefresh()
+		end
+	end
+
+	local saveBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	saveBtn:SetSize(120, 24)
+	saveBtn:SetPoint("TOPLEFT", nameLabel, "BOTTOMLEFT", 0, -verticalSpacing)
+	saveBtn:SetText(L["profiles_save"])
+	saveBtn:SetScript("OnClick", function()
+		local name = (nameScratch ~= "" and nameScratch) or selectedName
+		name = (name or ""):match("^%s*(.-)%s*$") or ""
+		if name == "" then
+			mini:Notify(L["profiles_need_name"])
+			return
+		end
+		if profiles:Save(db, name) then
+			selectedName = name
+			nameScratch = name
+			RefreshProfileDropdown()
+			mini:Notify(string.format(L["profiles_saved"], name))
+		else
+			mini:Notify(L["profiles_need_name"])
+		end
+	end)
+
+	local loadBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	loadBtn:SetSize(120, 24)
+	loadBtn:SetPoint("LEFT", saveBtn, "RIGHT", horizontalSpacing, 0)
+	loadBtn:SetText(L["profiles_load"])
+	loadBtn:SetScript("OnClick", function()
+		local name = selectedName
+		if not name or name == "" then
+			mini:Notify(L["profiles_need_select"])
+			return
+		end
+		local snap = profiles:Get(db, name)
+		if not snap then
+			mini:Notify(L["profiles_missing"])
+			return
+		end
+		ShowConfirm(string.format(L["profiles_load_confirm"], name), function()
+				db.ActiveProfileName = name
+				ApplySettingsSnapshot(snap, string.format(L["profiles_loaded"], name))
+				nameScratch = name
+				RefreshProfileDropdown()
+			end)
+	end)
+
+	local deleteBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	deleteBtn:SetSize(120, 24)
+	deleteBtn:SetPoint("LEFT", loadBtn, "RIGHT", horizontalSpacing, 0)
+	deleteBtn:SetText(L["profiles_delete"])
+	deleteBtn:SetScript("OnClick", function()
+		local name = selectedName
+		if not name or name == "" then
+			mini:Notify(L["profiles_need_select"])
+			return
+		end
+		ShowConfirm(string.format(L["profiles_delete_confirm"], name), function()
+				if profiles:Delete(db, name) then
+					selectedName = ""
+					nameScratch = ""
+					RefreshProfileDropdown()
+					mini:Notify(string.format(L["profiles_deleted"], name))
+				end
+			end)
+	end)
+
+	local resetBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	resetBtn:SetSize(160, 24)
+	resetBtn:SetPoint("LEFT", deleteBtn, "RIGHT", horizontalSpacing, 0)
+	resetBtn:SetText(L["profiles_reset_current"])
+	resetBtn:SetScript("OnClick", function()
+		if InCombatLockdown() then
+			mini:NotifyCombatLockdown()
+			return
+		end
+		ShowConfirm(L["profiles_reset_confirm"], function()
+				local defaultsSnap = profiles:CaptureSettings(dbDefaults)
+				ApplySettingsSnapshot(defaultsSnap, L["Settings reset to default."])
+			end)
+	end)
+
+	local ioDivider = mini:Divider({
+		Parent = content,
+		Text = L["profiles_section_io"],
+	})
+	ioDivider:SetPoint("LEFT", content, "LEFT")
+	ioDivider:SetPoint("RIGHT", content, "RIGHT")
+	ioDivider:SetPoint("TOP", saveBtn, "BOTTOM", 0, -verticalSpacing * 2)
+
+	local ioHint = mini:TextBlock({
+		Parent = content,
+		Font = "GameFontWhite",
+		Lines = {
+			L["profiles_io_hint_1"],
+			L["profiles_io_hint_2"],
+		},
+	})
+	ioHint:SetPoint("TOPLEFT", ioDivider, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	-- Simple clickable multiline paste box (avoid BackdropTemplate / GetStringHeight — can error in Settings UI).
+	local exportFrame = CreateFrame("Frame", nil, content)
+	exportFrame:SetPoint("TOPLEFT", ioHint, "BOTTOMLEFT", 0, -verticalSpacing)
+	exportFrame:SetSize(520, 130)
+	exportFrame:EnableMouse(true)
+	local exportBg = exportFrame:CreateTexture(nil, "BACKGROUND")
+	exportBg:SetAllPoints()
+	exportBg:SetColorTexture(0, 0, 0, 0.55)
+	local exportBorder = exportFrame:CreateTexture(nil, "BORDER")
+	exportBorder:SetPoint("TOPLEFT", -1, 1)
+	exportBorder:SetPoint("BOTTOMRIGHT", 1, -1)
+	exportBorder:SetColorTexture(0.55, 0.55, 0.55, 0.8)
+	exportBg:SetDrawLayer("BACKGROUND", 1)
+
+	local exportScroll = CreateFrame("ScrollFrame", nil, exportFrame, "UIPanelScrollFrameTemplate")
+	exportScroll:SetPoint("TOPLEFT", exportFrame, "TOPLEFT", 6, -6)
+	exportScroll:SetPoint("BOTTOMRIGHT", exportFrame, "BOTTOMRIGHT", -26, 6)
+	exportScroll:EnableMouse(true)
+
+	local exportBox = CreateFrame("EditBox", nil, exportScroll)
+	exportBox:SetMultiLine(true)
+	exportBox:SetFontObject(GameFontHighlightSmall)
+	exportBox:SetWidth(470)
+	exportBox:SetHeight(400)
+	exportBox:SetAutoFocus(false)
+	exportBox:EnableMouse(true)
+	exportBox:SetTextInsets(4, 4, 4, 4)
+	if exportBox.SetMaxLetters then
+		exportBox:SetMaxLetters(200000)
+	end
+	exportBox:SetText(exportScratch or "")
+	exportBox:SetScript("OnTextChanged", function(self, userInput)
+		if userInput then
+			exportScratch = self:GetText() or ""
+		else
+			exportScratch = self:GetText() or ""
+		end
+	end)
+	exportBox:SetScript("OnEscapePressed", function(self)
+		self:ClearFocus()
+	end)
+	exportBox:SetScript("OnMouseDown", function(self)
+		self:SetFocus()
+	end)
+	exportScroll:SetScript("OnMouseDown", function()
+		exportBox:SetFocus()
+	end)
+	exportFrame:SetScript("OnMouseDown", function()
+		exportBox:SetFocus()
+	end)
+	exportScroll:SetScrollChild(exportBox)
+
+	local exportBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	exportBtn:SetSize(140, 24)
+	exportBtn:SetPoint("TOPLEFT", exportFrame, "BOTTOMLEFT", 0, -verticalSpacing)
+	exportBtn:SetText(L["profiles_export"])
+	exportBtn:SetScript("OnClick", function()
+		local snap = profiles:CaptureSettings(db)
+		local name = (selectedName ~= "" and selectedName) or (nameScratch ~= "" and nameScratch) or "profile"
+		local text = profiles:Export(snap, name)
+		exportScratch = text
+		exportBox:SetText(text)
+		exportBox:SetFocus()
+		exportBox:HighlightText()
+		mini:Notify(L["profiles_exported"])
+	end)
+
+	local importBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	importBtn:SetSize(140, 24)
+	importBtn:SetPoint("LEFT", exportBtn, "RIGHT", horizontalSpacing, 0)
+	importBtn:SetText(L["profiles_import_apply"])
+	importBtn:SetScript("OnClick", function()
+		local text = exportBox:GetText() or exportScratch
+		local payload, err = profiles:Import(text)
+		if not payload then
+			mini:Notify(string.format(L["profiles_import_failed"], tostring(err)))
+			return
+		end
+		ShowConfirm(L["profiles_import_confirm"], function()
+				local pname = payload.name
+				if type(pname) == "string" and pname ~= "" then
+					db.ActiveProfileName = pname
+					selectedName = pname
+					nameScratch = pname
+				end
+				ApplySettingsSnapshot(payload.settings, L["profiles_imported"])
+				RefreshProfileDropdown()
+			end)
+	end)
+
+	local importSaveBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	importSaveBtn:SetSize(160, 24)
+	importSaveBtn:SetPoint("LEFT", importBtn, "RIGHT", horizontalSpacing, 0)
+	importSaveBtn:SetText(L["profiles_import_save"])
+	importSaveBtn:SetScript("OnClick", function()
+		local text = exportBox:GetText() or exportScratch
+		local payload, err = profiles:Import(text)
+		if not payload then
+			mini:Notify(string.format(L["profiles_import_failed"], tostring(err)))
+			return
+		end
+		local pname = nameScratch
+		if pname == "" then
+			pname = (type(payload.name) == "string" and payload.name ~= "" and payload.name) or nil
+		end
+		if not pname or pname == "" then
+			mini:Notify(L["profiles_need_name"])
+			return
+		end
+		-- Apply into a temp fashion: save snapshot under name without necessarily applying? User asked import and save as scheme.
+		-- Save imported settings as a named profile, then optionally apply.
+		ShowConfirm(string.format(L["profiles_import_save_confirm"], pname), function()
+				db.Profiles = db.Profiles or {}
+				local copy = profiles:DeepCopy(payload.settings)
+				MigrateSettingsSnapshot(copy)
+				db.Profiles[pname] = copy
+				db.ActiveProfileName = pname
+				selectedName = pname
+				nameScratch = pname
+				ApplySettingsSnapshot(copy, string.format(L["profiles_imported_saved"], pname))
+				RefreshProfileDropdown()
+			end)
+	end)
+end
+
 local function BuildChangelogTab(content)
 	local block = mini:TextBlock({
 		Parent = content,
@@ -1172,6 +1807,10 @@ function M:Init()
 	MigrateV21(rawDb)
 	MigrateV22(rawDb)
 	MigrateV23(rawDb)
+	MigrateV24(rawDb)
+	MigrateV25(rawDb)
+	MigrateV26(rawDb)
+	MigrateV27(rawDb)
 
 	-- Spells defaults stay empty; Disabled* sparse maps are the source of truth.
 	dbDefaults.Spells = {}
@@ -1189,12 +1828,24 @@ function M:Init()
 			savedExtraPacks[k] = v
 		end
 	end
+	local savedProfiles = {}
+	if type(db.Profiles) == "table" then
+		for k, v in pairs(db.Profiles) do
+			savedProfiles[k] = v
+		end
+	end
+	local savedActiveProfile = db.ActiveProfileName
 	local savedDisabledEnemy = CopyDisableMap(db.DisabledEnemySpells)
 	local savedDisabledSelfCc = CopyDisableMap(db.DisabledSelfCcSpells)
 	local savedVoicePack = db.VoicePack
 	local savedHealerCcSound = db.HealerCcSoundFile
+	local savedInterruptSound = db.InterruptSoundFile
 	mini:CleanTable(db, dbDefaults, true, true)
 	db.ExtraVoicePacks = savedExtraPacks
+	db.Profiles = savedProfiles
+	if type(savedActiveProfile) == "string" then
+		db.ActiveProfileName = savedActiveProfile
+	end
 	db.DisabledEnemySpells = savedDisabledEnemy
 	db.DisabledSelfCcSpells = savedDisabledSelfCc
 	db.Spells = {}
@@ -1212,6 +1863,9 @@ function M:Init()
 	if type(savedHealerCcSound) == "string" and savedHealerCcSound ~= "" then
 		db.HealerCcSoundFile = savedHealerCcSound
 	end
+	if type(savedInterruptSound) == "string" and savedInterruptSound ~= "" then
+		db.InterruptSoundFile = savedInterruptSound
+	end
 	EnsureSpellDefaults(db)
 	EnsureSelfCcDefaults(db)
 	EnsureZoneDefaults(db)
@@ -1222,6 +1876,13 @@ function M:Init()
 
 	local category = mini:AddCategory(scroll)
 	if not category then return end
+
+	-- Register early: later UI build errors must not leave /ps dead.
+	SLASH_PVPSOUND1 = "/pvpsound"
+	SLASH_PVPSOUND2 = "/ps"
+	SlashCmdList.PVPSOUND = function()
+		mini:OpenSettings(category, scroll)
+	end
 
 	local panel = CreateFrame("Frame", nil, scroll)
 	local width, height = mini:SettingsSize()
@@ -1413,7 +2074,7 @@ function M:Init()
 		classDropdown:SetPoint("TOP", classLabel, "TOP", 0, 8)
 		classDropdown:SetWidth(200)
 
-		spellHost:SetPoint("TOPLEFT", classLabel, "BOTTOMLEFT", 0, -verticalSpacing * 3)
+		spellHost:SetPoint("TOPLEFT", classLabel, "BOTTOMLEFT", 0, -verticalSpacing)
 		RebuildClassSpells()
 	end
 
@@ -1439,6 +2100,24 @@ function M:Init()
 			Build = function(content) BuildClassSpellsTab(content) end,
 		},
 		{
+			Key = "Profiles",
+			Title = L["Profiles"],
+			Build = function(content)
+				local ok, err = pcall(BuildProfilesTab, content)
+				if not ok then
+					print("|cffff3333[PVP Sound]|r Profiles tab error: " .. tostring(err))
+					local msg = mini:TextBlock({
+						Parent = content,
+						Lines = {
+							"|cFFFF5050配置页加载失败|r",
+							tostring(err),
+						},
+					})
+					msg:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+				end
+			end,
+		},
+		{
 			Key = "Changelog",
 			Title = L["Changelog"],
 			Build = function(content) BuildChangelogTab(content) end,
@@ -1456,20 +2135,31 @@ function M:Init()
 		text = "%s",
 		button1 = YES,
 		button2 = NO,
-		OnAccept = function(_, data)
-			if data and data.OnYes then data.OnYes() end
+		-- Prefer module locals; also accept self.data / 2nd arg for compatibility.
+		OnAccept = function(self, data)
+			local fn = pendingConfirmYes
+			pendingConfirmYes = nil
+			pendingConfirmNo = nil
+			data = data or (self and self.data)
+			if fn then
+				fn()
+			elseif data and data.OnYes then
+				data.OnYes()
+			end
 		end,
-		OnCancel = function(_, data)
-			if data and data.OnNo then data.OnNo() end
+		OnCancel = function(self, data)
+			local fn = pendingConfirmNo
+			pendingConfirmYes = nil
+			pendingConfirmNo = nil
+			data = data or (self and self.data)
+			if fn then
+				fn()
+			elseif data and data.OnNo then
+				data.OnNo()
+			end
 		end,
 		timeout = 0,
 		whileDead = true,
 		hideOnEscape = true,
 	}
-
-	SLASH_PVPSOUND1 = "/pvpsound"
-	SLASH_PVPSOUND2 = "/ps"
-	SlashCmdList.PVPSOUND = function(msg)
-		mini:OpenSettings(category, scroll)
-	end
 end

@@ -671,7 +671,6 @@ addon.Data.CcSpellIds = {
 	[211004] = true,
 	[211010] = true,
 	[211015] = true,
-	[211881] = true,
 	[213369] = true,
 	[213691] = true,
 	[214299] = true,

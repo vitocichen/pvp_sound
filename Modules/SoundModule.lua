@@ -1,5 +1,5 @@
 ---@type string, Addon
-local _, addon = ...
+local addonName, addon = ...
 local moduleUtil = addon.Utils.ModuleUtil
 local units = addon.Utils.Units
 local voicePack = addon.Core.VoicePack
@@ -24,6 +24,8 @@ local INSTANT_CAST_ALERTS = {
 	[383013] = true, -- Poison Cleansing Totem
 	[444995] = true, -- Surging Totem
 }
+
+local MEDIA_ROOT = "Interface\\AddOns\\" .. addonName .. "\\Media\\"
 
 ---@type Db
 local db
@@ -94,15 +96,23 @@ local function OnCastSuccess(unit, spellID)
 	AnnounceInstantCast(spellID)
 end
 
+local function ResolveInterruptSoundPath()
+	local file = (db and db.InterruptSoundFile) or "interrupted.ogg"
+	if file == "interrupted.ogg" then
+		return voicePack:Path("interrupted.ogg")
+	end
+	return MEDIA_ROOT .. file
+end
+
 local function OnCastInterrupted(unit)
-	if not moduleUtil:IsCastAlertsEnabled() or inPrepRoom then return end
+	if not moduleUtil:IsInterruptAlertsEnabled() or inPrepRoom then return end
 	if not IsEnemyCaster(unit) then return end
 
 	local now = GetTime()
 	if now - lastInterruptAnnounceTime < 1 then return end
 	lastInterruptAnnounceTime = now
 
-	local path = voicePack:Path("interrupted.ogg")
+	local path = ResolveInterruptSoundPath()
 	if path then
 		pcall(PlaySoundFile, path, Channel())
 	end

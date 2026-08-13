@@ -58,8 +58,11 @@ function addon.DebugDiag()
 	print(string.format("  healerCC: enabled=%s healers=%d sound=%s",
 		tostring(not zone or zone.HealerCcEnabled ~= false),
 		#(units:FindHealers()),
-		tostring(db.HealerCcSoundFile or "夏一可_控制成功.ogg")))
-	print(string.format("  cast/interrupt: enabled=%s",
+		tostring(db.HealerCcSoundFile or "HealerCcAlert.ogg")))
+	print(string.format("  interrupt: enabled=%s sound=%s",
+		tostring(moduleUtil:IsInterruptAlertsEnabled()),
+		tostring(db.InterruptSoundFile or "interrupted.ogg")))
+	print(string.format("  cast: enabled=%s",
 		tostring(moduleUtil:IsCastAlertsEnabled())))
 	print(string.format("  voicePack=%s path=%s",
 		tostring(voicePack:GetSelectedPack()),
