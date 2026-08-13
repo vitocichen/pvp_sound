@@ -69,6 +69,7 @@ end
 ---@param packName string
 function M:SetSelectedPack(packName)
 	if not db then return end
+	if type(packName) ~= "string" or packName == "" then return end
 	db.VoicePack = packName
 	self:Invalidate()
 end

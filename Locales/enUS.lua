@@ -92,6 +92,7 @@ L:SetDefaultStrings({
 
 	["Changelog"] = "Changelog",
 	["PVP Sound - What's New?"] = "PVP Sound - What's New?",
+	["changelog_v3.0.1"] = "|cFFFFD100v3.0.1|r — Added English (Female) voice packs (incl. 1.25x / 1.5x); added and corrected several spell IDs (e.g. Anti-Magic Shell/Zone, Wraith Walk, Divine Steed, Celestial Alignment).",
 	["changelog_v3.0.0"] = "|cFFFFD100v3.0.0|r — Major update for 12.1: Xia Yike custom voice packs are back, with per-class spell filters so you can toggle which buffs/debuffs to watch. Custom voice packs are supported — just replace files using the same layout.",
 	["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — New \"All Buffs\" mode for the World zone: announces skills like Shadowstep / Sovereign / Crimson Vial, but also many useless buffs — best for open-world 1v1 duels.",
 
@@ -106,7 +107,7 @@ L:SetDefaultStrings({
 
 
 	-- Legacy (pre-12.1) UI strings
-	["home_intro_tts_warning"] = "|cFFFF2020NOTE: Please disable system/other addon TTS voice, otherwise it will cause duplicate and delay!!!|r",
+	["home_intro_tts_warning"] = "|cFFFF2020NOTE: Please disable system/other addon voice alerts, otherwise it will cause duplicate and delay!!!|r",
 	["home_intro_2"] = "It supports six announcement categories:",
 	["home_intro_3"] = "|cFF00FF00Important Spells|r - Offensive abilities such as Avenging Wrath, Blessing of Freedom, Alter Time, etc.",
 	["home_intro_4"] = "|cFF00BFFFDefensive Spells|r - Defensive cooldowns such as Blessing of Protection, Cloak of Shadows, Divine Shield, Ice Block, etc.",

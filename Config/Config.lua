@@ -32,7 +32,7 @@ local function BuildDefaultSelfCcSpells()
 end
 
 local dbDefaults = {
-	Version = 21,
+	Version = 23,
 	WhatsNewVersion = false,
 	VoicePack = "夏一可1.25x",
 	ExtraVoicePacks = {},
@@ -50,6 +50,11 @@ local dbDefaults = {
 		BattleGrounds = { Enabled = true, TargetFocusOnly = true, CcEnabled = true, CcScope = "self", HealerCcEnabled = true },
 		PvE = { Enabled = false, TargetFocusOnly = true, CcEnabled = false, CcScope = "self", HealerCcEnabled = false },
 	},
+	-- Sparse disable maps: key=spellId, value=true means unchecked/disabled.
+	-- Missing key = enabled (default on). Avoids huge Spells={all true} SavedVariables issues.
+	DisabledEnemySpells = {},
+	DisabledSelfCcSpells = {},
+	-- Legacy full maps kept for migration / old readers; no longer the source of truth.
 	Spells = {},
 	SelfCcSpells = {},
 }
@@ -217,22 +222,92 @@ local function MigrateV21(savedDb)
 	savedDb.Version = 21
 end
 
-local function EnsureSpellDefaults(savedDb)
-	savedDb.Spells = savedDb.Spells or {}
-	for spellId in pairs(addon.Data.EnemyBuffSounds) do
-		if savedDb.Spells[spellId] == nil then
-			savedDb.Spells[spellId] = true
+-- Coerce spell-id tables so SavedVariables string keys ("48707") match numeric lookups (48707).
+local function NormalizeSpellIdKeys(spellTable)
+	if type(spellTable) ~= "table" then return end
+	local pending = {}
+	for key, value in pairs(spellTable) do
+		if type(key) == "string" then
+			local numericId = tonumber(key)
+			if numericId then
+				pending[#pending + 1] = { old = key, id = numericId, value = value }
+			end
+		end
+	end
+	for i = 1, #pending do
+		local entry = pending[i]
+		spellTable[entry.old] = nil
+		-- Keep an existing numeric entry; otherwise adopt the string-key value.
+		if spellTable[entry.id] == nil then
+			spellTable[entry.id] = entry.value and true or false
 		end
 	end
 end
 
-local function EnsureSelfCcDefaults(savedDb)
-	savedDb.SelfCcSpells = savedDb.SelfCcSpells or {}
-	for spellId in pairs(addon.Data.SelfCcSounds) do
-		if savedDb.SelfCcSpells[spellId] == nil then
-			savedDb.SelfCcSpells[spellId] = true
+-- v22: normalize Spells/SelfCcSpells keys + keep plain booleans for SavedVariables.
+local function MigrateV22(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 22) then return end
+	NormalizeSpellIdKeys(savedDb.Spells)
+	NormalizeSpellIdKeys(savedDb.SelfCcSpells)
+	savedDb.Version = 22
+end
+
+-- Copy legacy Spells/SelfCcSpells false entries into sparse disable maps.
+local function MigrateLegacySpellMapsToDisabled(savedDb)
+	savedDb.DisabledEnemySpells = savedDb.DisabledEnemySpells or {}
+	savedDb.DisabledSelfCcSpells = savedDb.DisabledSelfCcSpells or {}
+	if type(savedDb.Spells) == "table" then
+		for key, enabled in pairs(savedDb.Spells) do
+			local spellId = tonumber(key) or key
+			if enabled == false then
+				savedDb.DisabledEnemySpells[spellId] = true
+			end
 		end
 	end
+	if type(savedDb.SelfCcSpells) == "table" then
+		for key, enabled in pairs(savedDb.SelfCcSpells) do
+			local spellId = tonumber(key) or key
+			if enabled == false then
+				savedDb.DisabledSelfCcSpells[spellId] = true
+			end
+		end
+	end
+end
+
+-- v23: sparse DisabledEnemySpells / DisabledSelfCcSpells become the source of truth.
+local function MigrateV23(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 23) then return end
+	MigrateLegacySpellMapsToDisabled(savedDb)
+	savedDb.Version = 23
+end
+
+local function EnsureSpellDefaults(savedDb)
+	-- Keep legacy maps present but empty-ish; runtime uses Disabled* maps.
+	savedDb.Spells = savedDb.Spells or {}
+	savedDb.DisabledEnemySpells = savedDb.DisabledEnemySpells or {}
+	NormalizeSpellIdKeys(savedDb.Spells)
+	NormalizeSpellIdKeys(savedDb.DisabledEnemySpells)
+	MigrateLegacySpellMapsToDisabled(savedDb)
+end
+
+local function EnsureSelfCcDefaults(savedDb)
+	savedDb.SelfCcSpells = savedDb.SelfCcSpells or {}
+	savedDb.DisabledSelfCcSpells = savedDb.DisabledSelfCcSpells or {}
+	NormalizeSpellIdKeys(savedDb.SelfCcSpells)
+	NormalizeSpellIdKeys(savedDb.DisabledSelfCcSpells)
+	MigrateLegacySpellMapsToDisabled(savedDb)
+end
+
+local function CopyDisableMap(src)
+	local out = {}
+	if type(src) ~= "table" then return out end
+	for key, value in pairs(src) do
+		if value then
+			local spellId = tonumber(key) or key
+			out[spellId] = true
+		end
+	end
+	return out
 end
 
 local function EnsureZoneDefaults(savedDb)
@@ -248,18 +323,26 @@ local function EnsureZoneDefaults(savedDb)
 		local zone = savedDb.Zones[key]
 		if zone.Enabled == nil then
 			zone.Enabled = def.Enabled
+		else
+			zone.Enabled = zone.Enabled and true or false
 		end
 		if zone.TargetFocusOnly == nil then
 			zone.TargetFocusOnly = def.TargetFocusOnly
+		else
+			zone.TargetFocusOnly = zone.TargetFocusOnly and true or false
 		end
 		if zone.CcEnabled == nil then
 			zone.CcEnabled = def.CcEnabled
+		else
+			zone.CcEnabled = zone.CcEnabled and true or false
 		end
 		if zone.CcScope ~= "self" and zone.CcScope ~= "party" then
 			zone.CcScope = def.CcScope
 		end
 		if zone.HealerCcEnabled == nil then
 			zone.HealerCcEnabled = def.HealerCcEnabled
+		else
+			zone.HealerCcEnabled = zone.HealerCcEnabled and true or false
 		end
 	end
 end
@@ -324,6 +407,8 @@ local function BuildHomeTab(content)
 			L["home_intro_buff"],
 			L["home_intro_debuff"],
 			L["home_intro_healer"],
+			" ",
+			L["home_intro_tts_warning"],
 			" ",
 			L["home_intro_7"],
 		},
@@ -462,9 +547,19 @@ local function BuildHomeTab(content)
 		end
 		StaticPopup_Show("PVPSOUND_CONFIRM", L["Are you sure you wish to reset to factory settings?"], nil, {
 			OnYes = function()
-				dbDefaults.Spells = BuildDefaultSpells()
+				dbDefaults.Spells = {}
+				dbDefaults.SelfCcSpells = {}
+				dbDefaults.DisabledEnemySpells = {}
+				dbDefaults.DisabledSelfCcSpells = {}
 				mini:ResetSavedVars(dbDefaults)
 				db = mini:GetSavedVars()
+				EnsureSpellDefaults(db)
+				EnsureSelfCcDefaults(db)
+				EnsureZoneDefaults(db)
+				voicePack:Init()
+				if addon.Modules.AuraSoundModule and addon.Modules.AuraSoundModule.InitDb then
+					addon.Modules.AuraSoundModule:InitDb()
+				end
 				addon:Refresh()
 				mini:Notify(L["Settings reset to default."])
 			end,
@@ -725,23 +820,106 @@ local function SpellUsesEnemy(spell)
 	return spell.Mode ~= "selfcc"
 end
 
+local function SpellIdList(spell)
+	local ids = {}
+	local seen = {}
+	local function add(id)
+		id = tonumber(id) or id
+		if id == nil or seen[id] then return end
+		seen[id] = true
+		ids[#ids + 1] = id
+	end
+	if spell then
+		if spell.Ids then
+			for id in pairs(spell.Ids) do
+				add(id)
+			end
+		end
+		add(spell.Id)
+	end
+	return ids
+end
+
+local function IsEnemySpellEnabled(spellId)
+	spellId = tonumber(spellId) or spellId
+	if not db then return true end
+	if db.DisabledEnemySpells and db.DisabledEnemySpells[spellId] then
+		return false
+	end
+	-- Legacy fallback while old Spells maps still exist.
+	if db.Spells and db.Spells[spellId] == false then
+		return false
+	end
+	return true
+end
+
+local function IsSelfCcSpellEnabled(spellId)
+	spellId = tonumber(spellId) or spellId
+	if not db then return true end
+	if db.DisabledSelfCcSpells and db.DisabledSelfCcSpells[spellId] then
+		return false
+	end
+	if db.SelfCcSpells and db.SelfCcSpells[spellId] == false then
+		return false
+	end
+	return true
+end
+
 local function IsMergedSpellEnabled(spell)
 	local ok = true
+	local ids = SpellIdList(spell)
+	local primary = ids[1] or (spell and spell.Id)
 	if SpellUsesSelfCc(spell) then
-		ok = ok and AuraSounds():IsSelfCcGroupEnabled(spell)
+		ok = ok and IsSelfCcSpellEnabled(primary)
 	end
 	if SpellUsesEnemy(spell) then
-		ok = ok and AuraSounds():IsSpellGroupEnabled(spell)
+		ok = ok and IsEnemySpellEnabled(primary)
 	end
-	return ok
+	return ok and true or false
 end
 
 local function SetMergedSpellEnabled(spell, enabled)
-	if SpellUsesSelfCc(spell) then
-		AuraSounds():SetSelfCcGroupEnabled(spell, enabled)
-	end
+	-- Always write through Config's SavedVariables reference (plain booleans only).
+	db = db or mini:GetSavedVars()
+	_G.PVPSoundDB = _G.PVPSoundDB or db
+	db = _G.PVPSoundDB
+
+	local value = enabled and true or false
+	local ids = SpellIdList(spell)
+
 	if SpellUsesEnemy(spell) then
-		AuraSounds():SetSpellGroupEnabled(spell, enabled)
+		db.DisabledEnemySpells = db.DisabledEnemySpells or {}
+		db.Spells = db.Spells or {}
+		for i = 1, #ids do
+			local spellId = ids[i]
+			if value then
+				db.DisabledEnemySpells[spellId] = nil
+			else
+				db.DisabledEnemySpells[spellId] = true
+			end
+			-- Keep legacy map in sync for any old readers.
+			db.Spells[spellId] = value
+		end
+	end
+
+	if SpellUsesSelfCc(spell) then
+		db.DisabledSelfCcSpells = db.DisabledSelfCcSpells or {}
+		db.SelfCcSpells = db.SelfCcSpells or {}
+		for i = 1, #ids do
+			local spellId = ids[i]
+			if value then
+				db.DisabledSelfCcSpells[spellId] = nil
+			else
+				db.DisabledSelfCcSpells[spellId] = true
+			end
+			db.SelfCcSpells[spellId] = value
+		end
+	end
+
+	local aura = AuraSounds()
+	if aura then
+		if aura.InitDb then aura:InitDb() end
+		if aura.Refresh then aura:Refresh("spell-toggle") end
 	end
 end
 
@@ -962,6 +1140,8 @@ local function BuildChangelogTab(content)
 	local block = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v3.0.1"],
+			" ",
 			L["changelog_v3.0.0"],
 			" ",
 			L["changelog_v2.0.3"],
@@ -988,24 +1168,48 @@ function M:Init()
 	MigrateV19(rawDb)
 	MigrateV20(rawDb)
 	MigrateV21(rawDb)
+	MigrateV22(rawDb)
+	MigrateV23(rawDb)
 
-	dbDefaults.Spells = BuildDefaultSpells()
-	dbDefaults.SelfCcSpells = BuildDefaultSelfCcSpells()
+	-- Spells defaults stay empty; Disabled* sparse maps are the source of truth.
+	dbDefaults.Spells = {}
+	dbDefaults.SelfCcSpells = {}
+	dbDefaults.DisabledEnemySpells = {}
+	dbDefaults.DisabledSelfCcSpells = {}
 	db = mini:GetSavedVars(dbDefaults)
 	EnsureSpellDefaults(db)
 	EnsureSelfCcDefaults(db)
 	EnsureZoneDefaults(db)
-	-- ExtraVoicePacks is a free-form list; empty-template CleanTable would wipe entries in-place.
-	-- Must copy into a NEW table — saving the same reference then restoring does nothing.
+	-- Free-form / sparse tables must be copied out before CleanTable (empty {} template wipes them).
 	local savedExtraPacks = {}
 	if type(db.ExtraVoicePacks) == "table" then
 		for k, v in pairs(db.ExtraVoicePacks) do
 			savedExtraPacks[k] = v
 		end
 	end
-	-- Do NOT CleanTable Spells against defaults in a way that drops false — defaults include all keys.
+	local savedDisabledEnemy = CopyDisableMap(db.DisabledEnemySpells)
+	local savedDisabledSelfCc = CopyDisableMap(db.DisabledSelfCcSpells)
+	local savedVoicePack = db.VoicePack
+	local savedHealerCcSound = db.HealerCcSoundFile
 	mini:CleanTable(db, dbDefaults, true, true)
 	db.ExtraVoicePacks = savedExtraPacks
+	db.DisabledEnemySpells = savedDisabledEnemy
+	db.DisabledSelfCcSpells = savedDisabledSelfCc
+	db.Spells = {}
+	db.SelfCcSpells = {}
+	-- Rehydrate legacy maps from disable maps so any leftover readers stay consistent.
+	for spellId in pairs(savedDisabledEnemy) do
+		db.Spells[spellId] = false
+	end
+	for spellId in pairs(savedDisabledSelfCc) do
+		db.SelfCcSpells[spellId] = false
+	end
+	if type(savedVoicePack) == "string" and savedVoicePack ~= "" then
+		db.VoicePack = savedVoicePack
+	end
+	if type(savedHealerCcSound) == "string" and savedHealerCcSound ~= "" then
+		db.HealerCcSoundFile = savedHealerCcSound
+	end
 	EnsureSpellDefaults(db)
 	EnsureSelfCcDefaults(db)
 	EnsureZoneDefaults(db)

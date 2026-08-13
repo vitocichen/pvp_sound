@@ -563,10 +563,12 @@ function M:Checkbox(options)
 	local checkbox = CreateFrame("CheckButton", nil, options.Parent, "UICheckButtonTemplate")
 	checkbox.Text:SetText(" " .. options.LabelText)
 	checkbox.Text:SetFontObject("GameFontNormal")
-	checkbox:SetChecked(options.GetValue())
-	checkbox:HookScript("OnClick", function()
-		options.SetValue(checkbox:GetChecked())
-		checkbox:SetChecked(options.GetValue())
+	checkbox:SetChecked(options.GetValue() and true or false)
+	-- Fully own OnClick: do not store GetChecked() (can be secret on 12.1 and dropped on logout).
+	checkbox:SetScript("OnClick", function(self)
+		local newValue = not options.GetValue()
+		options.SetValue(newValue and true or false)
+		self:SetChecked(options.GetValue() and true or false)
 	end)
 
 	if options.Tooltip then
@@ -589,7 +591,7 @@ function M:Checkbox(options)
 	end
 
 	function checkbox.MiniRefresh()
-		checkbox:SetChecked(options.GetValue())
+		checkbox:SetChecked(options.GetValue() and true or false)
 	end
 
 	AddControlForRefresh(options.Parent, checkbox)

@@ -25,6 +25,15 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 51271, File = "PillarofFrost.ogg" },
 				{ Id = 48707, File = "AntiMagicShell.ogg" },
 				{ Id = 410358, File = "AntiMagicShell.ogg" }, -- Spellwarding talent aura
+				{ Id = 444741, File = "AntiMagicShell.ogg" }, -- Anti-Magic Shell variant aura
+				{ Id = 145629, File = "antiMagicZone.ogg" }, -- Anti-Magic Zone (aura on units in the zone)
+				{ Id = 212552, File = "wraithWalk.ogg" }, -- Wraith Walk
+				{ Id = 212654, File = "wraithWalk.ogg" },
+				{ Id = 223804, File = "wraithWalk.ogg" },
+				{ Id = 48265, File = "DeathsAdvance.ogg" }, -- Death's Advance
+				{ Id = 441749, File = "DeathsAdvance.ogg" },
+				{ Id = 441751, File = "DeathsAdvance.ogg" },
+				{ Id = 441752, File = "DeathsAdvance.ogg" },
 				{ Id = 152279, File = "BreathOfSindragosa.ogg" },
 				{ Id = 219809, File = "tombstone.ogg" },
 				{ Id = 194679, File = "runetap.ogg" },
@@ -71,6 +80,8 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 155835, File = "BristlingFur.ogg" },
 				{ Id = 29166, File = "innervate.ogg" },
 				{ Id = 383410, File = "celestialAlignment.ogg" },
+				{ Id = 194223, File = "celestialAlignment.ogg" },
+				{ Id = 112071, File = "celestialAlignment.ogg" },
 				{ Id = 305497, File = "thorns.ogg" },
 				{ Id = 106951, File = "Berserk.ogg" },
 				{ Id = 108291, File = "HeartOfTheWild.ogg" },
@@ -137,6 +148,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 190319, File = "combustion.ogg" },
 				{ Id = 110909, File = "alterTime.ogg" },
 				{ Id = 342246, File = "alterTime.ogg" },
+				{ Id = 108978, File = "alterTime.ogg" },
 				{ Id = 324220, File = "deathborne.ogg" },
 				{ Id = 389794, File = "snowdrift.ogg" }, -- caster buff (blizzard around mage)
 			},
@@ -182,6 +194,29 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 215652, File = "ShieldOfVirtue.ogg" },
 				{ Id = 327193, File = "momentOfGlory.ogg" },
 				{ Id = 378974, File = "bastionOfLight.ogg" },
+				{ Id = 221883, File = "pony.ogg" }, -- Divine Steed (racial mount auras)
+				{ Id = 221885, File = "pony.ogg" },
+				{ Id = 221886, File = "pony.ogg" },
+				{ Id = 221887, File = "pony.ogg" },
+				{ Id = 254471, File = "pony.ogg" },
+				{ Id = 254472, File = "pony.ogg" },
+				{ Id = 254473, File = "pony.ogg" },
+				{ Id = 254474, File = "pony.ogg" },
+				{ Id = 276111, File = "pony.ogg" },
+				{ Id = 276112, File = "pony.ogg" },
+				{ Id = 220509, File = "pony.ogg" },
+				{ Id = 294133, File = "pony.ogg" },
+				{ Id = 317911, File = "pony.ogg" },
+				{ Id = 348489, File = "pony.ogg" },
+				{ Id = 353094, File = "pony.ogg" },
+				{ Id = 363608, File = "pony.ogg" },
+				{ Id = 453804, File = "pony.ogg" },
+				{ Id = 1253723, File = "pony.ogg" },
+				{ Id = 1253874, File = "pony.ogg" },
+				{ Id = 1253881, File = "pony.ogg" },
+				{ Id = 1272854, File = "pony.ogg" },
+				{ Id = 1289616, File = "pony.ogg" },
+				{ Id = 1289617, File = "pony.ogg" },
 			},
 		},
 		{
@@ -240,6 +275,8 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 114051, File = "ascendance.ogg" },
 				{ Id = 114052, File = "ascendance.ogg" },
 				{ Id = 384352, File = "doomWinds.ogg" },
+				{ Id = 378081, File = "NaturesSwiftness.ogg" }, -- Nature's Swiftness
+				{ Id = 443454, File = "NaturesSwiftness.ogg" }, -- Ancestral Swiftness
 				-- GLA lists cast 204336; the aura on the shaman/team is 8178 (MiniAuras Important).
 				{ Id = 8178, File = "Grounding.ogg" },
 			},

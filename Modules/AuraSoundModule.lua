@@ -84,9 +84,22 @@ end
 
 local function RebuildEnabledEnemySounds()
 	wipe(enabledEnemySounds)
-	local spells = db and db.Spells
+	local disabled = db and db.DisabledEnemySpells
+	local legacy = db and db.Spells
 	for spellId, file in pairs(enemyBuffSounds) do
-		if not spells or spells[spellId] ~= false then
+		local enabled = true
+		if disabled and (disabled[spellId] or disabled[tostring(spellId)]) then
+			enabled = false
+		elseif legacy then
+			local flag = legacy[spellId]
+			if flag == nil then
+				flag = legacy[tostring(spellId)]
+			end
+			if flag == false then
+				enabled = false
+			end
+		end
+		if enabled then
 			enabledEnemySounds[spellId] = file
 		end
 	end
@@ -94,9 +107,22 @@ end
 
 local function RebuildEnabledSelfCcSounds()
 	wipe(enabledSelfCcSounds)
-	local spells = db and db.SelfCcSpells
+	local disabled = db and db.DisabledSelfCcSpells
+	local legacy = db and db.SelfCcSpells
 	for spellId, file in pairs(selfCcSounds) do
-		if not spells or spells[spellId] ~= false then
+		local enabled = true
+		if disabled and (disabled[spellId] or disabled[tostring(spellId)]) then
+			enabled = false
+		elseif legacy then
+			local flag = legacy[spellId]
+			if flag == nil then
+				flag = legacy[tostring(spellId)]
+			end
+			if flag == false then
+				enabled = false
+			end
+		end
+		if enabled then
 			enabledSelfCcSounds[spellId] = file
 		end
 	end
@@ -453,16 +479,31 @@ end
 ---@param spellID number
 ---@return boolean
 function M:IsSpellEnabled(spellID)
-	if not db or not db.Spells then return true end
-	return db.Spells[spellID] ~= false
+	spellID = tonumber(spellID) or spellID
+	if not db then return true end
+	if db.DisabledEnemySpells and db.DisabledEnemySpells[spellID] then
+		return false
+	end
+	if db.Spells and db.Spells[spellID] == false then
+		return false
+	end
+	return true
 end
 
 ---@param spellID number
 ---@param enabled boolean
 function M:SetSpellEnabled(spellID, enabled)
 	if not db then return end
+	spellID = tonumber(spellID) or spellID
+	db.DisabledEnemySpells = db.DisabledEnemySpells or {}
 	db.Spells = db.Spells or {}
-	db.Spells[spellID] = enabled and true or false
+	local value = enabled and true or false
+	if value then
+		db.DisabledEnemySpells[spellID] = nil
+	else
+		db.DisabledEnemySpells[spellID] = true
+	end
+	db.Spells[spellID] = value
 	spellGeneration = spellGeneration + 1
 	self:Refresh("spell-toggle")
 end
@@ -472,16 +513,30 @@ end
 ---@param enabled boolean
 function M:SetSpellGroupEnabled(spellEntry, enabled)
 	if not db or not spellEntry then return end
+	db.DisabledEnemySpells = db.DisabledEnemySpells or {}
 	db.Spells = db.Spells or {}
 	local value = enabled and true or false
-	-- Only toggle this UI row's Ids (DedupeSpells merges variants).
-	-- Do NOT expand by File — unrelated abilities can share a clip (e.g. Fear4).
+	local wrote = false
 	if spellEntry.Ids then
 		for spellId in pairs(spellEntry.Ids) do
+			spellId = tonumber(spellId) or spellId
+			if value then
+				db.DisabledEnemySpells[spellId] = nil
+			else
+				db.DisabledEnemySpells[spellId] = true
+			end
 			db.Spells[spellId] = value
+			wrote = true
 		end
-	elseif spellEntry.Id then
-		db.Spells[spellEntry.Id] = value
+	end
+	if not wrote and spellEntry.Id then
+		local spellId = tonumber(spellEntry.Id) or spellEntry.Id
+		if value then
+			db.DisabledEnemySpells[spellId] = nil
+		else
+			db.DisabledEnemySpells[spellId] = true
+		end
+		db.Spells[spellId] = value
 	end
 	spellGeneration = spellGeneration + 1
 	self:Refresh("spell-group-toggle")
@@ -491,14 +546,21 @@ end
 ---@return boolean
 function M:IsSpellGroupEnabled(spellEntry)
 	if not spellEntry then return false end
-	return self:IsSpellEnabled(spellEntry.Id)
+	return self:IsSpellEnabled(tonumber(spellEntry.Id) or spellEntry.Id)
 end
 
 ---@param spellID number
 ---@return boolean
 function M:IsSelfCcEnabled(spellID)
-	if not db or not db.SelfCcSpells then return true end
-	return db.SelfCcSpells[spellID] ~= false
+	spellID = tonumber(spellID) or spellID
+	if not db then return true end
+	if db.DisabledSelfCcSpells and db.DisabledSelfCcSpells[spellID] then
+		return false
+	end
+	if db.SelfCcSpells and db.SelfCcSpells[spellID] == false then
+		return false
+	end
+	return true
 end
 
 ---Enable/disable one catalog ability (all aura ID variants).
@@ -506,15 +568,30 @@ end
 ---@param enabled boolean
 function M:SetSelfCcGroupEnabled(spellEntry, enabled)
 	if not db or not spellEntry then return end
+	db.DisabledSelfCcSpells = db.DisabledSelfCcSpells or {}
 	db.SelfCcSpells = db.SelfCcSpells or {}
 	local value = enabled and true or false
-	-- Only this row's Ids — shared clips (Fear4) must not cross-disable other abilities.
+	local wrote = false
 	if spellEntry.Ids then
 		for spellId in pairs(spellEntry.Ids) do
+			spellId = tonumber(spellId) or spellId
+			if value then
+				db.DisabledSelfCcSpells[spellId] = nil
+			else
+				db.DisabledSelfCcSpells[spellId] = true
+			end
 			db.SelfCcSpells[spellId] = value
+			wrote = true
 		end
-	elseif spellEntry.Id then
-		db.SelfCcSpells[spellEntry.Id] = value
+	end
+	if not wrote and spellEntry.Id then
+		local spellId = tonumber(spellEntry.Id) or spellEntry.Id
+		if value then
+			db.DisabledSelfCcSpells[spellId] = nil
+		else
+			db.DisabledSelfCcSpells[spellId] = true
+		end
+		db.SelfCcSpells[spellId] = value
 	end
 	selfCcGeneration = selfCcGeneration + 1
 	self:Refresh("selfcc-toggle")
@@ -527,9 +604,13 @@ function M:IsSelfCcGroupEnabled(spellEntry)
 	return self:IsSelfCcEnabled(spellEntry.Id)
 end
 
+---Re-bind to SavedVariables after reset / re-init.
+function M:InitDb()
+	db = addon.Core.Framework:GetSavedVars()
+end
+
 function M:Init()
-	local mini = addon.Core.Framework
-	db = mini:GetSavedVars()
+	self:InitDb()
 
 	eventsFrame = CreateFrame("Frame")
 	eventsFrame:RegisterEvent("PLAYER_REGEN_ENABLED")

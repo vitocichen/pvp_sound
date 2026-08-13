@@ -96,6 +96,7 @@ L:SetStrings({
 
 	["Changelog"] = "更新记录",
 	["PVP Sound - What's New?"] = "PVP Sound — 更新内容",
+	["changelog_v3.0.1"] = "|cFFFFD100v3.0.1|r — 新增「英语女声」语音包（含 1.25x / 1.5x）；新增与修正部分法术 ID（如反魔法护罩/领域、幻影步、神圣马驹、超凡之盟等）。",
 	["changelog_v3.0.0"] = "|cFFFFD100v3.0.0|r — 重大更新，12.1版本夏一可自定义语音包已经回归，并支持职业技能筛选，可以监控勾选的buff或者debuff，也支持自定义语音包，仅需按照同样文件格式替换即可。",
 	["changelog_v2.0.3"] = "|cFFFFD100v2.0.3|r — 野外新增「全部增益」模式，如暗影步/君王/腥红之瓶均能播放，但是也会伴随诸多无用 buff，适用于插旗单人 PK。",
 
@@ -110,7 +111,7 @@ L:SetStrings({
 
 
 	-- Legacy (pre-12.1) UI strings
-	["home_intro_tts_warning"] = "|cFFFF2020注：请关闭系统/其他插件的TTS语音播报，否则会造成重复和延时！！！|r",
+	["home_intro_tts_warning"] = "|cFFFF2020注：请关闭系统/其他插件的语音播报，否则会造成重复和延时！！！|r",
 	["home_intro_2"] = "支持六种播报类型：",
 	["home_intro_3"] = "|cFF00FF00重要法术|r — 进攻性技能，如复仇之怒、自由之手、操控时间等。",
 	["home_intro_4"] = "|cFF00BFFF防御法术|r — 防御性技能，如保护之手、暗影斗篷、无敌、冰箱等。",

@@ -651,6 +651,8 @@ local function BuildChangelogTab(content)
 	local changelogBlock = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v3.0.1"],
+			" ",
 			L["changelog_v3.0.0"],
 			" ",
 			L["changelog_v2.0.3"],
@@ -1255,7 +1257,7 @@ local function ApplyLegacyLocaleOverrides()
 			["Author: DK-姜世离（燃烧之刃）"] = "作者：DK-姜世离（燃烧之刃）",
 			["General"] = "常规",
 			["home_intro_1"] = "PVP Sound 实时监控敌方增益/减益/施法/被控制效果，通过TTS语音播报PvP中的重要技能。",
-			["home_intro_tts_warning"] = "|cFFFF2020注：请关闭系统/其他插件的TTS语音播报，否则会造成重复和延时！！！|r",
+			["home_intro_tts_warning"] = "|cFFFF2020注：请关闭系统/其他插件的语音播报，否则会造成重复和延时！！！|r",
 			["home_intro_2"] = "支持六种播报类型：",
 			["home_intro_3"] = "|cFF00FF00重要法术|r — 进攻性技能，如复仇之怒、自由之手、操控时间等。",
 			["home_intro_4"] = "|cFF00BFFF防御法术|r — 防御性技能，如保护之手、暗影斗篷、无敌、冰箱等。",
@@ -1371,7 +1373,7 @@ local function ApplyLegacyLocaleOverrides()
 			["Author: DK-姜世离（燃烧之刃）"] = "Author: DK-姜世离（燃烧之刃）",
 			["General"] = "General",
 			["home_intro_1"] = "PVP Sound monitors enemy buffs/debuffs, casts, and CC effects, using Text-to-Speech (TTS) to announce important PvP spells in real time.",
-			["home_intro_tts_warning"] = "|cFFFF2020NOTE: Please disable system/other addon TTS voice, otherwise it will cause duplicate and delay!!!|r",
+			["home_intro_tts_warning"] = "|cFFFF2020NOTE: Please disable system/other addon voice alerts, otherwise it will cause duplicate and delay!!!|r",
 			["home_intro_2"] = "It supports six announcement categories:",
 			["home_intro_3"] = "|cFF00FF00Important Spells|r - Offensive abilities such as Avenging Wrath, Blessing of Freedom, Alter Time, etc.",
 			["home_intro_4"] = "|cFF00BFFFDefensive Spells|r - Defensive cooldowns such as Blessing of Protection, Cloak of Shadows, Divine Shield, Ice Block, etc.",
