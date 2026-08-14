@@ -64,7 +64,7 @@ local dbDefaults = {
 	},
 	-- Enabled = enemy buff; CcEnabled = self/party debuff; HealerCcEnabled = healer-in-CC;
 	-- InterruptAlert = cast-interrupted voice; CastBar = system target-cast announce gate.
-	-- TargetFocusOnly = buff monitor (false = all enemies); CcScope = self|party for debuffs.
+	-- TargetFocusOnly = buff monitor (false = all enemies); CcScope = self|party|partyonly for debuffs.
 	Zones = {
 		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
 		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
@@ -471,7 +471,7 @@ local function EnsureZoneDefaults(savedDb)
 		else
 			zone.CcEnabled = zone.CcEnabled and true or false
 		end
-		if zone.CcScope ~= "self" and zone.CcScope ~= "party" then
+		if zone.CcScope ~= "self" and zone.CcScope ~= "party" and zone.CcScope ~= "partyonly" then
 			zone.CcScope = def.CcScope
 		end
 		if zone.HealerCcEnabled == nil then
@@ -811,7 +811,7 @@ local function BuildZonesTab(content)
 	local rightLabelWidth = 110
 	local rightControlX = columnWidth + rightLabelWidth + 8
 	local buffRangeItems = { "TargetFocus", "All" }
-	local ccScopeItems = { "self", "party" }
+	local ccScopeItems = { "self", "partyonly", "party" }
 	local last = intro
 	local zoneOrder = {
 		{ Key = "World", Label = L["World"] },
@@ -918,14 +918,25 @@ local function BuildZonesTab(content)
 			ccScopeItems,
 			function()
 				local zone = db.Zones[zoneKey]
-				return (zone and zone.CcScope == "party") and "party" or "self"
+				local scope = zone and zone.CcScope
+				if scope == "party" or scope == "partyonly" then
+					return scope
+				end
+				return "self"
 			end,
 			function(value)
 				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
-				db.Zones[zoneKey].CcScope = (value == "party") and "party" or "self"
+				if value == "party" or value == "partyonly" then
+					db.Zones[zoneKey].CcScope = value
+				else
+					db.Zones[zoneKey].CcScope = "self"
+				end
 			M:Apply()
 		end,
 			function(value)
+				if value == "partyonly" then
+					return L["Self CC Scope PartyOnly"]
+				end
 				if value == "party" then
 					return L["Self CC Scope Party"]
 				end

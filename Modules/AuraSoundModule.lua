@@ -75,10 +75,12 @@ local function ResolveHealerCcSoundPath()
 	return MEDIA_ROOT .. file
 end
 
----"self" = player only; "party" = player + party/raid teammates (per zone).
+---"self" = player only; "party" = player + teammates; "partyonly" = teammates, not player (per zone).
 local function SelfCcScope()
 	local zone = moduleUtil:GetZoneConfig()
-	if zone and zone.CcScope == "party" then return "party" end
+	if zone and (zone.CcScope == "party" or zone.CcScope == "partyonly") then
+		return zone.CcScope
+	end
 	return "self"
 end
 
@@ -136,11 +138,15 @@ end
 ---@return string[]
 local function GetSelfCcWatchTokens()
 	-- Match old PVP_Sound Friendly CC + MiniAuras party unit picking:
-	-- always player; teammates via Units:FriendlyUnits(); skip pets/minions.
-	-- When healer-CC alert is on, skip healers here so they only get Sonar (no spell+Sonar stack).
-	local tokens = { "player" }
-	if SelfCcScope() ~= "party" then
-		return tokens
+	-- self: player; party: player + teammates; partyonly: teammates only (v2 "Party Only").
+	-- Skip pets/minions. When healer-CC alert is on, skip healers so they only get Sonar.
+	local scope = SelfCcScope()
+	local tokens = {}
+	if scope ~= "partyonly" then
+		tokens[#tokens + 1] = "player"
+		if scope ~= "party" then
+			return tokens
+		end
 	end
 
 	local skipHealers = HealerCcZoneEnabled()
