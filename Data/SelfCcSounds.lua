@@ -857,4 +857,7 @@ addon.Data.SelfCcSounds = {
 	[214905] = "kingsbane.ogg",
 	[360194] = "Deathmark.ogg",
 	[385627] = "kingsbane.ogg",
+	-- Demon Hunter debuffs (on you / teammates)
+	[207685] = "fearSigil.ogg", -- Sigil of Misery
+	[207771] = "Sinfulbrand.ogg", -- Fiery Brand
 }

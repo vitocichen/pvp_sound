@@ -29,6 +29,8 @@ addon.Data.SelfCcCatalog = {
 			Spells = {
 				{ Id = 217832, File = "imprison.ogg", Name = "Imprison", Ids = { [217832] = true, [221527] = true, [332544] = true, [386761] = true, [1217930] = true, [1233620] = true } },
 				{ Id = 179057, File = "chaosNova.ogg", Name = "Chaos Nova", Ids = { [179057] = true, [190246] = true, [199828] = true, [222826] = true, [292224] = true } },
+				{ Id = 207685, File = "fearSigil.ogg", Name = "Sigil of Misery", Ids = { [207685] = true } },
+				{ Id = 207771, File = "Sinfulbrand.ogg", Name = "Fiery Brand", Ids = { [207771] = true } },
 			},
 		},
 		{

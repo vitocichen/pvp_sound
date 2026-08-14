@@ -21,6 +21,7 @@ addon.Data.EnemyBuffCatalog = {
 			Key = "DeathKnight",
 			Name = "Death Knight",
 			Spells = {
+				{ Id = 42650, File = "RaiseAbomination.ogg" }, -- Army of the Dead (enemy buff)
 				{ Id = 48792, File = "IceboundFortitude.ogg" },
 				{ Id = 55233, File = "VampiricBlood.ogg" },
 				{ Id = 51271, File = "PillarofFrost.ogg" },
@@ -54,6 +55,8 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 212800, File = "blur.ogg" },
 				{ Id = 162264, File = "metamorphosis.ogg" },
 				{ Id = 187827, File = "metamorphosis.ogg" },
+				{ Id = 1217607, File = "metamorphosis.ogg" }, -- Metamorphosis variant
+				{ Id = 209426, File = "darkness.ogg" }, -- Darkness (aura on the DH / team)
 				{ Id = 188501, File = "spectralSight.ogg" },
 				{ Id = 206803, File = "rainFromAbove.ogg" },
 				{ Id = 354610, File = "glimpse.ogg" },
