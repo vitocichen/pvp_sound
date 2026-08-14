@@ -3,6 +3,7 @@ local _, addon = ...
 -- Generated flat map; see EnemyBuffCatalog.lua for class grouping.
 addon.Data.EnemyBuffSounds = {
 	[498] = "divineProtection.ogg",
+	[403876] = "divineProtection.ogg", -- Divine Protection (TWW variant)
 	[642] = "DivineShield.ogg",
 	[871] = "ShieldWall.ogg",
 	[1022] = "HandofProtection.ogg",
@@ -28,6 +29,7 @@ addon.Data.EnemyBuffSounds = {
 	[31230] = "cheatDeath.ogg",
 	[31850] = "ardentDefender.ogg",
 	[31884] = "AvengingWrath.ogg",
+	[454351] = "AvengingWrath.ogg", -- Avenging Wrath (TWW variant)
 	[33206] = "PainSuppression.ogg",
 	[33891] = "incarnationTree.ogg",
 	[34709] = "shadowSight.ogg",

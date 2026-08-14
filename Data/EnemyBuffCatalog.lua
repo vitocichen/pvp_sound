@@ -169,6 +169,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 1044, File = "HandofFreedom.ogg" },
 				{ Id = 642, File = "DivineShield.ogg" },
 				{ Id = 31884, File = "AvengingWrath.ogg" },
+				{ Id = 454351, File = "AvengingWrath.ogg" }, -- Avenging Wrath (TWW variant)
 				{ Id = 231895, File = "crusade.ogg" },
 				{ Id = 31850, File = "ardentDefender.ogg" },
 				{ Id = 205191, File = "eyeForAnEye.ogg" },
@@ -178,6 +179,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 216331, File = "AvengingCrusader.ogg" },
 				{ Id = 210294, File = "divineFavor.ogg" },
 				{ Id = 498, File = "divineProtection.ogg" },
+				{ Id = 403876, File = "divineProtection.ogg" }, -- Divine Protection (TWW variant)
 				{ Id = 204018, File = "Spellwarding.ogg" },
 				{ Id = 215652, File = "ShieldOfVirtue.ogg" },
 				{ Id = 327193, File = "momentOfGlory.ogg" },
