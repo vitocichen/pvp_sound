@@ -2269,6 +2269,8 @@ local function BuildChangelogTab(content)
 	local block = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v3.0.3"],
+			" ",
 			L["changelog_v3.0.2"],
 			" ",
 			L["changelog_v3.0.1"],
