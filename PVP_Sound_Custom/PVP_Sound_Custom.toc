@@ -6,4 +6,4 @@
 ## Author: DK-姜世离（燃烧之刃）
 ## LoadOnDemand: 0
 
-# Put your pack folders next to this file, e.g. PVP_Sound_Custom\我的包\IceBlock.ogg
+# Copy this folder to Interface\AddOns\ (next to PVP_Sound). Put pack folders here, then Add the folder name in /ps.
