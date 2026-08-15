@@ -22,7 +22,7 @@ addon.Data.EnemyBuffCatalog = {
 			Name = "Death Knight",
 			Spells = {
 				{ Id = 42650, File = "RaiseAbomination.ogg" }, -- Army of the Dead (enemy buff)
-				{ Id = 1233448, File = "darkMutation.ogg" }, -- Dark Mutation (enemy buff)
+				{ Id = 1233448, File = "DarkTransformation.ogg" }, -- Dark Mutation (enemy buff)
 				{ Id = 48792, File = "IceboundFortitude.ogg" },
 				{ Id = 55233, File = "VampiricBlood.ogg" },
 				{ Id = 51271, File = "PillarofFrost.ogg" },
