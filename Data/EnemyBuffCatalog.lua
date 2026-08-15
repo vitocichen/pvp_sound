@@ -8,8 +8,8 @@ addon.Data.EnemyBuffCatalog = {
 			Key = "General",
 			Name = "General",
 			Spells = {
-				{ Id = 195901, File = "trinket1.ogg" },
-				{ Id = 214027, File = "trinket1.ogg" },
+				{ Id = 336139, File = "trinket1.ogg", Label = "适应" }, -- Adapted (visible buff)
+				{ Id = 214027, File = "trinket1.ogg", Label = "适应" }, -- Adaptation talent
 				{ Id = 34709, File = "shadowSight.ogg" },
 				{ Id = 345231, File = "battlemaster.ogg" },
 				{ Id = 377360, File = "precognition.ogg" },
