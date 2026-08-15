@@ -1,5 +1,12 @@
 # PVP Sound
 
+## [v3.0.5](https://github.com/vitocichen/pvp_sound/tree/v3.0.5) (2026-08-15)
+[Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.5)
+
+- 打断提示改为仅在你成功打断时播放，不再把敌人自己取消读条当成打断
+- 修正「适应」法术ID为 336139
+- 新增部分技能：天灾契约、项链护盾、鲜红符文、消失
+
 ## [v3.0.4](https://github.com/vitocichen/pvp_sound/tree/v3.0.4) (2026-08-15)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.4)
 
