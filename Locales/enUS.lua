@@ -177,6 +177,7 @@ L:SetDefaultStrings({
 
 	["Changelog"] = "Changelog",
 	["PVP Sound - What's New?"] = "PVP Sound - What's New?",
+	["changelog_v3.0.4"] = "|cFFFFD100v3.0.4|r — Boosted Xiaoxiao voice pack volume; DIY voice packs now live beside the addon so they are not lost on update.",
 	["changelog_v3.0.3"] = "|cFFFFD100v3.0.3|r — Added 'Party Only' debuff alert scope (teammates, not self); new enemy buffs: DK Army of the Dead, DH Metamorphosis/Darkness; new self/teammate debuffs: DH Sigil of Misery/Fiery Brand; added The War Within (11.x) spell variants (Avenging Wrath, Divine Protection, etc.).",
 	["changelog_v3.0.2"] = "|cFFFFD100v3.0.2|r — Added Xiaoxiao original TTS voice packs, added profile import/export, fixed/added/removed some spell IDs, and added target cast announce (system Accessibility).",
 	["changelog_v3.0.1"] = "|cFFFFD100v3.0.1|r — Added English (Female) voice packs (incl. 1.25x / 1.5x); added and corrected several spell IDs (e.g. Anti-Magic Shell/Zone, Wraith Walk, Divine Steed, Celestial Alignment).",

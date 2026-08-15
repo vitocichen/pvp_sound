@@ -181,6 +181,7 @@ L:SetStrings({
 
 	["Changelog"] = "更新记录",
 	["PVP Sound - What's New?"] = "PVP Sound — 更新内容",
+	["changelog_v3.0.4"] = "|cFFFFD100v3.0.4|r — 统一调大了晓晓语音包的音量；调整DIY语音包目录，更新后不会丢失。",
 	["changelog_v3.0.3"] = "|cFFFFD100v3.0.3|r — 修复了部分语音错误，修复添加了部分法术ID，如DK的爆发技能，DH的控制技能等。",
 	["changelog_v3.0.2"] = "|cFFFFD100v3.0.2|r — 新增xiaoxiao原TTS语音包，新增配置导入/导出功能，修正和添加/删除了部分法术ID；支持了目标读条（采用系统自带）。",
 	["changelog_v3.0.1"] = "|cFFFFD100v3.0.1|r — 新增「英语女声」语音包（含 1.25x / 1.5x）；新增与修正部分法术 ID（如反魔法护罩/领域、幻影步、神圣马驹、超凡之盟等）。",

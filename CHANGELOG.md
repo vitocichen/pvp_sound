@@ -1,5 +1,12 @@
 # PVP Sound
 
+## [v3.0.4](https://github.com/vitocichen/pvp_sound/tree/v3.0.4) (2026-08-15)
+[Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.4)
+
+- 统一调大了晓晓语音包的音量
+- 调整DIY语音包目录，更新后不会丢失
+
+
 ## [v3.0.3](https://github.com/vitocichen/pvp_sound/tree/v3.0.3) (2026-08-15)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.3)
 
