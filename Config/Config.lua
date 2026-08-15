@@ -740,9 +740,13 @@ local function BuildHomeTab(content)
 		Parent = content,
 		Font = hintFont,
 		Lines = {
+			L["Voice DIY Method"],
 			L["Voice DIY Hint 1"],
 			L["Voice DIY Hint 2"],
 			L["Voice DIY Hint 3"],
+			L["Voice DIY Hint 4"],
+			L["Voice DIY Hint 5"],
+			L["Voice DIY Hint Note"],
 		},
 	})
 	diyHint:SetPoint("TOPLEFT", diyDivider, "BOTTOMLEFT", 0, -verticalSpacing)
