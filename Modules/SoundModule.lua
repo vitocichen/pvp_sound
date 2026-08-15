@@ -6,8 +6,35 @@ local voicePack = addon.Core.VoicePack
 
 -- Cast/interrupt: zone CastBar gates Blizzard Accessibility target-cast (CAA).
 -- Addon no longer double-announces cast-start (system handles that); keeps instant totems + interrupts.
+-- Interrupt voice matches BBF Kick Popup: only after our kick spell succeeded.
 local castSounds = addon.Data.CastSounds
 local castSuccessSounds = addon.Data.CastSuccessSounds
+
+-- Same interrupt spell set as BetterBlizzFrames Kick Popup.
+local INTERRUPT_SPELLS = {
+	[1766] = true, -- Kick
+	[2139] = true, -- Counterspell
+	[6552] = true, -- Pummel
+	[19647] = true, -- Spell Lock
+	[47528] = true, -- Mind Freeze
+	[57994] = true, -- Wind Shear
+	[96231] = true, -- Rebuke
+	[106839] = true, -- Skull Bash
+	[115781] = true, -- Optical Blast
+	[116705] = true, -- Spear Hand Strike
+	[132409] = true, -- Spell Lock
+	[119910] = true, -- Spell Lock (pet)
+	[89766] = true, -- Axe Toss
+	[171138] = true, -- Shadow Lock
+	[147362] = true, -- Counter Shot
+	[183752] = true, -- Disrupt
+	[187707] = true, -- Muzzle
+	[212619] = true, -- Call Felhunter
+	[351338] = true, -- Quell
+	[97547] = true, -- Solar Beam
+	[78675] = true, -- Solar Beam
+	[15487] = true, -- Silence
+}
 
 local INSTANT_CAST_ALERTS = {
 	[204336] = true, -- Grounding Totem
@@ -34,6 +61,7 @@ local inPrepRoom = false
 local castFrame
 local lastCastAnnounceTime = 0
 local lastInterruptAnnounceTime = 0
+local kickPlayerKicked = false
 local lastInstantAnnounceTime = 0
 local lastAnnouncedKey = nil
 local cachedCastInterval = 0
@@ -189,18 +217,64 @@ local function ResolveInterruptSoundPath()
 	return MEDIA_ROOT .. file
 end
 
-local function OnCastInterrupted(unit)
-	if not moduleUtil:IsInterruptAlertsEnabled() or inPrepRoom then return end
-	if not IsHostileCaster(unit) then return end
+local function MarkPlayerKicked()
+	kickPlayerKicked = true
+	if castFrame then
+		castFrame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+	end
+	C_Timer.After(0.1, function()
+		kickPlayerKicked = false
+		if castFrame then
+			castFrame:UnregisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+		end
+	end)
+end
 
+-- Midnight: 4th UNIT_SPELLCAST_INTERRUPTED arg is secret or interrupted-by id
+-- when a kick actually landed; nil when the caster cancelled. Matches BBF.
+local function IsRealInterruptArg(interruptedByOrCastBarID)
+	if issecretvalue then
+		return issecretvalue(interruptedByOrCastBarID) or (interruptedByOrCastBarID ~= nil)
+	end
+	return interruptedByOrCastBarID ~= nil
+end
+
+local function PlayInterruptAlert()
 	local now = GetTime()
-	if now - lastInterruptAnnounceTime < 1 then return end
+	if now - lastInterruptAnnounceTime < 0.05 then return end
 	lastInterruptAnnounceTime = now
-
 	local path = ResolveInterruptSoundPath()
 	if path then
 		pcall(PlaySoundFile, path, Channel())
 	end
+end
+
+local function OnCastInterrupted(event, unit, extraArg)
+	if not moduleUtil:IsInterruptAlertsEnabled() or inPrepRoom then return end
+
+	local isRealInterrupt = IsRealInterruptArg(extraArg)
+	if not isRealInterrupt then
+		-- Channelled casts often omit the interrupt arg; BBF uses CHANNEL_STOP
+		-- in the 0.1s window after our kick.
+		if event == "UNIT_SPELLCAST_CHANNEL_STOP"
+			and kickPlayerKicked
+			and unit
+			and not UnitIsFriend(unit, "player")
+		then
+			PlayInterruptAlert()
+		end
+		if event == "UNIT_SPELLCAST_CHANNEL_STOP" then
+			kickPlayerKicked = false
+			if castFrame then
+				castFrame:UnregisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
+			end
+		end
+		return
+	end
+
+	if not kickPlayerKicked then return end
+	if not IsHostileCaster(unit) then return end
+	PlayInterruptAlert()
 end
 
 local function OnMatchStateChanged()
@@ -462,15 +536,18 @@ function M:Init()
 		castFrame:RegisterEvent("UNIT_SPELLCAST_INTERRUPTED")
 		castFrame:RegisterEvent("PVP_MATCH_STATE_CHANGED")
 		castFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
-		castFrame:SetScript("OnEvent", function(_, event, unit, _, spellID)
+		castFrame:SetScript("OnEvent", function(_, event, unit, _, spellID, extraArg)
 			if event == "PLAYER_ENTERING_WORLD" then
 				M:SyncSysCastZoneGate()
 			elseif event == "PVP_MATCH_STATE_CHANGED" then
 				OnMatchStateChanged()
 				M:SyncSysCastZoneGate()
-			elseif event == "UNIT_SPELLCAST_INTERRUPTED" then
-				OnCastInterrupted(unit)
+			elseif event == "UNIT_SPELLCAST_INTERRUPTED" or event == "UNIT_SPELLCAST_CHANNEL_STOP" then
+				OnCastInterrupted(event, unit, extraArg)
 			elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+				if (unit == "player" or unit == "pet") and spellID and INTERRUPT_SPELLS[spellID] then
+					MarkPlayerKicked()
+				end
 				OnCastSuccess(unit, spellID)
 			else
 				TryAnnounceUnit(unit, spellID)
