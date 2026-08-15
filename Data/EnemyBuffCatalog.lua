@@ -15,6 +15,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 377360, File = "precognition.ogg" },
 				{ Id = 377362, File = "precognition.ogg" }, -- Precognition variant
 				{ Id = 212640, File = "mendingBandage.ogg" },
+				{ Id = 1251903, File = "necklaceShield.ogg", Label = "项链护盾" }, -- Void Stone Barrier
 			},
 		},
 		{
@@ -23,6 +24,9 @@ addon.Data.EnemyBuffCatalog = {
 			Spells = {
 				{ Id = 42650, File = "RaiseAbomination.ogg" }, -- Army of the Dead (enemy buff)
 				{ Id = 1233448, File = "DarkTransformation.ogg" }, -- Dark Mutation (enemy buff)
+				{ Id = 48743, File = "DeathPact.ogg", Harmful = true }, -- Death Pact / 天灾契约 (self-debuff on the DK)
+				{ Id = 326801, File = "crimsonRune.ogg", Label = "鲜红符文" }, -- Rune of Sanguination (passive)
+				{ Id = 326808, File = "crimsonRune.ogg", Label = "鲜红符文" }, -- 8s heal proc (visible buff)
 				{ Id = 48792, File = "IceboundFortitude.ogg" },
 				{ Id = 55233, File = "VampiricBlood.ogg" },
 				{ Id = 51271, File = "PillarofFrost.ogg" },
@@ -249,6 +253,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 45182, File = "cheatDeath.ogg" },
 				{ Id = 207736, File = "shadowyDuel.ogg" },
 				{ Id = 1966, File = "Feint.ogg" },
+				{ Id = 11327, File = "Vanish.ogg" }, -- Vanish buff
 				{ Id = 343142, File = "dreadblades.ogg" },
 				{ Id = 13877, File = "bladeFlurry.ogg" },
 			},

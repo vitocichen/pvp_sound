@@ -1459,8 +1459,11 @@ end
 
 ---@param spellId number
 ---@param fallbackName string?
-local function SpellLabel(spellId, fallbackName)
-	local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellId)
+local function SpellLabel(spellId, fallbackName, overrideName)
+	local name = overrideName
+	if not name or name == "" then
+		name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellId)
+	end
 	local icon = C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(spellId)
 	name = name or fallbackName
 	if name and icon then
@@ -1504,6 +1507,7 @@ local function DedupeSpells(spells)
 				Id = spell.Id,
 				File = spell.File,
 				Name = spell.Name,
+				Label = spell.Label,
 				Mode = mode,
 				Modes = {},
 				Ids = {},
@@ -1664,6 +1668,8 @@ local function BuildMergedClasses()
 					Id = spell.Id,
 					File = spell.File,
 					Mode = "enemy",
+					Name = spell.Name,
+					Label = spell.Label,
 				}
 			end
 		end
@@ -1774,7 +1780,7 @@ local function BuildSpellGroup(parent, anchor, spells, dividerText)
 
 		local chk = mini:Checkbox({
 			Parent = parent,
-			LabelText = SpellLabel(spellId, spell.Name),
+			LabelText = SpellLabel(spellId, spell.Name, spell.Label),
 			Tooltip = string.format(L["spell_toggle_tooltip"], spellId, file),
 		GetValue = function()
 				return IsMergedSpellEnabled(spell)
