@@ -46,9 +46,11 @@ function M:RegisterMappedSet(ids, unitToken, filesBySpellId, basePath, channel)
 	info.unitToken = unitToken
 	info.outputChannel = channel or "Master"
 
+	local voicePack = addon.Core.VoicePack
 	for spellId, file in pairs(filesBySpellId) do
 		info.spellID = spellId
-		info.soundFileName = basePath .. file
+		local full = voicePack and voicePack.Path and voicePack:Path(file)
+		info.soundFileName = full or (basePath .. file)
 
 		local handle = AddOne(info)
 		if handle then

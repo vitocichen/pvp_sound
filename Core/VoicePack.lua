@@ -1,7 +1,9 @@
 ---@type string, Addon
 local addonName, addon = ...
 
--- Voice packs live under Interface\AddOns\PVP_Sound\Media\<PackName>\ as .ogg/.mp3.
+-- Shipped packs: Interface\AddOns\PVP_Sound\Media\<PackName>\
+-- DIY packs:     Interface\AddOns\PVP_Sound_Custom\<PackName>\  (sibling addon; survives updates)
+-- Legacy DIY:    Media\<PackName>\ is still probed as fallback.
 ---@class VoicePack
 local M = {}
 addon.Core.VoicePack = M
@@ -11,13 +13,22 @@ local CACHED_PACK
 local db
 
 local DEFAULT_PACK = "夏一可1.25x"
+local CUSTOM_ADDON = "PVP_Sound_Custom"
 
 local function MediaRoot()
 	return "Interface\\AddOns\\" .. addonName .. "\\Media\\"
 end
 
+local function CustomRoot()
+	return "Interface\\AddOns\\" .. CUSTOM_ADDON .. "\\"
+end
+
 local function PackFolderPath(packName)
 	return MediaRoot() .. packName .. "\\"
+end
+
+local function CustomFolderPath(packName)
+	return CustomRoot() .. packName .. "\\"
 end
 
 ---@param path string
@@ -32,11 +43,29 @@ local function PathExists(path)
 	return false
 end
 
----Resolve clip path: try given name, then swap .ogg/.mp3.
+---@param packName string
+---@return boolean
+local function IsShippedPack(packName)
+	if packName == DEFAULT_PACK then
+		return true
+	end
+	local manifest = addon.Data.VoicePackManifest
+	if not manifest then
+		return false
+	end
+	for i = 1, #manifest do
+		if manifest[i] == packName then
+			return true
+		end
+	end
+	return false
+end
+
+---Resolve clip path: try given name, then swap .ogg/.mp3. Returns nil if none exist.
 ---@param basePath string
 ---@param fileName string
----@return string
-local function ResolveClip(basePath, fileName)
+---@return string?
+local function TryResolveClip(basePath, fileName)
 	local stem = fileName:gsub("%.ogg$", ""):gsub("%.mp3$", ""):gsub("%.OGG$", ""):gsub("%.MP3$", "")
 	local candidates = {
 		basePath .. fileName,
@@ -49,7 +78,19 @@ local function ResolveClip(basePath, fileName)
 			return p
 		end
 	end
-	-- Prefer .ogg for AddAuraSound even if we cannot probe (engine resolves at play time).
+	return nil
+end
+
+---Resolve clip path: try given name, then swap .ogg/.mp3.
+---@param basePath string
+---@param fileName string
+---@return string
+local function ResolveClip(basePath, fileName)
+	local found = TryResolveClip(basePath, fileName)
+	if found then
+		return found
+	end
+	local stem = fileName:gsub("%.ogg$", ""):gsub("%.mp3$", ""):gsub("%.OGG$", ""):gsub("%.MP3$", "")
 	return basePath .. stem .. ".ogg"
 end
 
@@ -105,7 +146,7 @@ function M:ListPacks()
 	return list
 end
 
----Register a custom Media\<name> pack for the dropdown.
+---Register a custom pack name (files live under PVP_Sound_Custom\<name>\).
 ---@param packName string
 ---@return boolean
 function M:RegisterExtraPack(packName)
@@ -132,7 +173,11 @@ function M:GetBasePath()
 		return CACHED_BASE
 	end
 	CACHED_PACK = pack
-	CACHED_BASE = PackFolderPath(pack)
+	if IsShippedPack(pack) then
+		CACHED_BASE = PackFolderPath(pack)
+	else
+		CACHED_BASE = CustomFolderPath(pack)
+	end
 	return CACHED_BASE
 end
 
@@ -140,7 +185,20 @@ end
 ---@return string?
 function M:Path(fileName)
 	if not fileName or fileName == "" then return nil end
-	return ResolveClip(self:GetBasePath(), fileName)
+	local pack = self:GetSelectedPack()
+	if IsShippedPack(pack) then
+		return ResolveClip(PackFolderPath(pack), fileName)
+	end
+	local custom = TryResolveClip(CustomFolderPath(pack), fileName)
+	if custom then
+		return custom
+	end
+	-- Legacy DIY that was still placed under Media\<name>\.
+	local legacy = TryResolveClip(PackFolderPath(pack), fileName)
+	if legacy then
+		return legacy
+	end
+	return CustomFolderPath(pack) .. fileName:gsub("%.mp3$", ".ogg"):gsub("%.MP3$", ".ogg")
 end
 
 ---Legacy path used before multi-pack layout (Media\Voice_zhCN).
@@ -157,4 +215,9 @@ end
 ---@return string
 function M:DefaultPack()
 	return DEFAULT_PACK
+end
+
+---@return string
+function M:CustomAddonFolder()
+	return CUSTOM_ADDON
 end

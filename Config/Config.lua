@@ -743,6 +743,11 @@ local function BuildHomeTab(content)
 			L["Voice DIY Hint 1"],
 			L["Voice DIY Hint 2"],
 			L["Voice DIY Hint 3"],
+			L["Voice DIY Hint 4"],
+			L["Voice DIY Hint 5"],
+			L["Voice DIY Hint 6"],
+			L["Voice DIY Hint 7"],
+			L["Voice DIY Hint 8"],
 		},
 	})
 	diyHint:SetPoint("TOPLEFT", diyDivider, "BOTTOMLEFT", 0, -verticalSpacing)

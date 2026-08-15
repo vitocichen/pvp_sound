@@ -1,0 +1,9 @@
+## Interface: 120100, 120007
+## Title: PVP Sound Custom Voice
+## Title-zhCN: PVP Sound 自定义语音（请勿删除）
+## Notes: DIY voice packs for PVP Sound. Keep this folder when updating PVP Sound.
+## Notes-zhCN: PVP Sound 的 DIY 语音包目录。更新主插件时请保留本文件夹。
+## Author: DK-姜世离（燃烧之刃）
+## LoadOnDemand: 0
+
+# Put your pack folders next to this file, e.g. PVP_Sound_Custom\我的包\IceBlock.ogg
