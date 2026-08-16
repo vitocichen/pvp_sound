@@ -1,7 +1,9 @@
 ---@type string, Addon
 local _, addon = ...
 local moduleUtil = addon.Utils.ModuleUtil
-local consumables = addon.Data.Consumables
+local data = addon.Data.Consumables
+local spellWatch = data.Spells
+local itemWatch = data.Items
 
 ---@class ConsumableModule
 local M = {}
@@ -10,15 +12,13 @@ addon.Modules.ConsumableModule = M
 local eventsFrame
 local hwFrame
 local worldHooked
+local primed
 local pendingText
-local lastAnnounceAt = {}
-local DEDUP = 0.4
-
-local function ConsumableName(spellID)
-	local info = consumables[spellID]
-	if not info then return nil end
-	return info.zh or info.en
-end
+local lastAnnounceAt = 0
+local lastAnnounceText
+local lastSpellStart = {}
+local lastItemStart = {}
+local DEDUP = 0.8
 
 local function ChatLocked()
 	if C_ChatInfo and C_ChatInfo.InChatMessagingLockdown then
@@ -33,8 +33,6 @@ local function StopHardwareWait()
 	hwFrame:Hide()
 end
 
--- SAY is a protected function: calling it from UNIT_SPELLCAST_SUCCEEDED or
--- C_Timer.After(0) yields "插件导致界面行为失效". Must run on a real key/click.
 local function FlushPendingSay()
 	local text = pendingText
 	if not text then return end
@@ -65,7 +63,17 @@ local function EnsureHardwareWait()
 	end
 end
 
-local function QueueSay(text)
+local function QueueSay(name)
+	if not name or name == "" then return end
+	if not moduleUtil:IsConsumableSayEnabled() then return end
+	local now = GetTime()
+	local text = (addon.L["consumable_say_prefix"] or "【pvp_sound检测】我已吃下 ") .. name
+	if lastAnnounceText == text and (now - lastAnnounceAt) < DEDUP then
+		return
+	end
+	lastAnnounceAt = now
+	lastAnnounceText = text
+	print("|cffffd100[PVP Sound]|r " .. text)
 	pendingText = text
 	EnsureHardwareWait()
 	hwFrame:Show()
@@ -73,34 +81,84 @@ local function QueueSay(text)
 	hwFrame:SetPropagateKeyboardInput(true)
 end
 
-local function Announce(spellID, sendNow)
+local function ReadSpellCooldown(spellID)
+	if C_Spell and C_Spell.GetSpellCooldown then
+		local ok, info = pcall(C_Spell.GetSpellCooldown, spellID)
+		if ok and type(info) == "table" then
+			return tonumber(info.startTime) or 0, tonumber(info.duration) or 0
+		end
+	end
+	if GetSpellCooldown then
+		local start, duration = GetSpellCooldown(spellID)
+		return tonumber(start) or 0, tonumber(duration) or 0
+	end
+	return 0, 0
+end
+
+local function ReadItemCooldown(itemID)
+	if C_Container and C_Container.GetItemCooldown then
+		local start, duration = C_Container.GetItemCooldown(itemID)
+		return tonumber(start) or 0, tonumber(duration) or 0
+	end
+	if C_Item and C_Item.GetItemCooldown then
+		local ok, info = pcall(C_Item.GetItemCooldown, itemID)
+		if ok and type(info) == "table" then
+			return tonumber(info.startTime) or 0, tonumber(info.duration) or 0
+		end
+	end
+	if GetItemCooldown then
+		local start, duration = GetItemCooldown(itemID)
+		return tonumber(start) or 0, tonumber(duration) or 0
+	end
+	return 0, 0
+end
+
+-- Query our hardcoded IDs. Do not use secret values from combat events.
+local function ScanCooldowns(announce)
+	local hit
+	for itemID, info in pairs(itemWatch) do
+		local start, duration = ReadItemCooldown(itemID)
+		if start > 0 and duration > 60 then
+			if announce and lastItemStart[itemID] and lastItemStart[itemID] ~= start then
+				hit = hit or info.zh
+			end
+			lastItemStart[itemID] = start
+		end
+	end
+	for spellID, info in pairs(spellWatch) do
+		local start, duration = ReadSpellCooldown(spellID)
+		if start > 0 and duration > 60 then
+			if announce and lastSpellStart[spellID] and lastSpellStart[spellID] ~= start then
+				hit = hit or info.zh
+			end
+			lastSpellStart[spellID] = start
+		end
+	end
+	if hit then
+		QueueSay(hit)
+	end
+end
+
+local function AnnounceSpell(spellID)
 	if issecretvalue and issecretvalue(spellID) then return end
 	spellID = tonumber(spellID)
 	if not spellID then return end
-	local name = ConsumableName(spellID)
-	if not name then return end
-	if not moduleUtil:IsConsumableSayEnabled() then return end
-
-	local now = GetTime()
-	if lastAnnounceAt[spellID] and (now - lastAnnounceAt[spellID]) < DEDUP then
-		return
-	end
-	lastAnnounceAt[spellID] = now
-
-	local text = (addon.L["consumable_say_prefix"] or "【pvp_sound检测】我已吃下 ") .. name
-	if sendNow then
-		pendingText = text
-		FlushPendingSay()
-		if pendingText then
-			QueueSay(text)
-		end
-		return
-	end
-	QueueSay(text)
+	local info = spellWatch[spellID]
+	if not info then return end
+	QueueSay(info.zh)
 end
 
 function M:DebugTest(spellID)
-	Announce(tonumber(spellID) or 1234768, true)
+	spellID = tonumber(spellID) or 1234768
+	local info = spellWatch[spellID] or { zh = "银月城生命药水" }
+	QueueSay(info.zh)
+	pendingText = (addon.L["consumable_say_prefix"] or "【pvp_sound检测】我已吃下 ") .. info.zh
+	FlushPendingSay()
+	if pendingText then
+		EnsureHardwareWait()
+		hwFrame:Show()
+		hwFrame:EnableKeyboard(true)
+	end
 end
 
 function M:Init()
@@ -108,11 +166,27 @@ function M:Init()
 	EnsureHardwareWait()
 	eventsFrame = CreateFrame("Frame")
 	eventsFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+	eventsFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+	eventsFrame:RegisterEvent("BAG_UPDATE_COOLDOWN")
+	eventsFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 	eventsFrame:SetScript("OnEvent", function(_, event, unit, _, spellID)
-		if event ~= "UNIT_SPELLCAST_SUCCEEDED" then return end
-		if unit ~= "player" then return end
-		if not spellID then return end
-		Announce(spellID, false)
+		if event == "PLAYER_ENTERING_WORLD" then
+			ScanCooldowns(false)
+			primed = true
+			return
+		end
+		if event == "SPELL_UPDATE_COOLDOWN" or event == "BAG_UPDATE_COOLDOWN" then
+			if primed then
+				ScanCooldowns(true)
+			end
+			return
+		end
+		if event == "UNIT_SPELLCAST_SUCCEEDED" and unit == "player" then
+			AnnounceSpell(spellID)
+			if primed then
+				ScanCooldowns(true)
+			end
+		end
 	end)
 end
 
