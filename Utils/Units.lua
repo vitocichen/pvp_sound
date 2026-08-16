@@ -24,6 +24,31 @@ for i = 1, MAX_RAID_MEMBERS do
 	allRaidUnitsIds[#allRaidUnitsIds + 1] = "raidpet" .. i
 end
 
+---Secret-safe boolean. Unknown/secret → false (safe for if/and/or).
+function M:KnownTrue(value)
+	if value == nil then
+		return false
+	end
+	if issecretvalue(value) then
+		return false
+	end
+	return value and true or false
+end
+
+function M:Exists(unitToken)
+	if not unitToken then
+		return false
+	end
+	return M:KnownTrue(UnitExists(unitToken))
+end
+
+function M:IsSameUnit(unitA, unitB)
+	if not unitA or not unitB then
+		return false
+	end
+	return M:KnownTrue(UnitIsUnit(unitA, unitB))
+end
+
 function M:FriendlyUnits()
 	if not IsInGroup() then
 		return {}
@@ -35,11 +60,8 @@ function M:FriendlyUnits()
 
 	for i = 1, #units do
 		local unit = units[i]
-		if not UnitIsUnit(unit, "player") then
-			local exists = UnitExists(unit)
-			if not issecretvalue(exists) and exists then
-				results[#results + 1] = unit
-			end
+		if not M:IsSameUnit(unit, "player") and M:Exists(unit) then
+			results[#results + 1] = unit
 		end
 	end
 
@@ -86,8 +108,8 @@ end
 function M:IsPetOrMinion(unitToken)
 	if not unitToken then return false end
 	if string.find(unitToken, "pet", 1, true) then return true end
-	if UnitIsOtherPlayersPet(unitToken) then return true end
-	if UnitIsMinion and UnitIsMinion(unitToken) then return true end
+	if M:KnownTrue(UnitIsOtherPlayersPet(unitToken)) then return true end
+	if UnitIsMinion and M:KnownTrue(UnitIsMinion(unitToken)) then return true end
 	return false
 end
 

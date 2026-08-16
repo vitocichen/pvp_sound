@@ -123,8 +123,10 @@ local function SpeakSpellName(name)
 end
 
 local function IsHostileCaster(unit)
-	if not unit or not UnitExists(unit) then return false end
-	if UnitIsUnit(unit, "player") then return false end
+	if not unit then return false end
+	-- Token check only (no UnitIsUnit): Midnight PvP makes UnitIsUnit(targettarget, "player") a secret boolean.
+	if unit == "player" or unit == "pet" or unit == "vehicle" then return false end
+	if not units:Exists(unit) then return false end
 	if units:IsPetOrMinion(unit) then return false end
 	if units:IsFriend(unit) then return false end
 	return units:CanAttack(unit)
@@ -259,7 +261,7 @@ local function OnCastInterrupted(event, unit, extraArg)
 		if event == "UNIT_SPELLCAST_CHANNEL_STOP"
 			and kickPlayerKicked
 			and unit
-			and not UnitIsFriend(unit, "player")
+			and not units:IsFriend(unit)
 		then
 			PlayInterruptAlert()
 		end
@@ -545,8 +547,12 @@ function M:Init()
 			elseif event == "UNIT_SPELLCAST_INTERRUPTED" or event == "UNIT_SPELLCAST_CHANNEL_STOP" then
 				OnCastInterrupted(event, unit, extraArg)
 			elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+				-- BBF Kick Popup: only our own kick spell arms the interrupt window.
 				if (unit == "player" or unit == "pet") and spellID and INTERRUPT_SPELLS[spellID] then
 					MarkPlayerKicked()
+				end
+				if unit == "player" or unit == "pet" or unit == "targettarget" or unit == "focustarget" or unit == "mouseover" then
+					return
 				end
 				OnCastSuccess(unit, spellID)
 			else
