@@ -68,7 +68,7 @@ local function QueueSay(name)
 	if not moduleUtil:IsConsumableSayEnabled() then return end
 	local now = GetTime()
 	local prefix = addon.L["consumable_say_prefix"] or "！！【PVP_SOUND检测】我已吃下"
-	local text = prefix .. "【" .. name .. "】！！"
+	local text = prefix .. "【" .. name .. "】药水！！"
 	if lastAnnounceText == text and (now - lastAnnounceAt) < DEDUP then
 		return
 	end
@@ -153,7 +153,7 @@ function M:DebugTest(spellID)
 	local info = spellWatch[spellID] or { zh = "银月城生命药水" }
 	QueueSay(info.zh)
 	local prefix = addon.L["consumable_say_prefix"] or "！！【PVP_SOUND检测】我已吃下"
-	pendingText = prefix .. "【" .. info.zh .. "】！！"
+	pendingText = prefix .. "【" .. info.zh .. "】药水！！"
 	FlushPendingSay()
 	if pendingText then
 		EnsureHardwareWait()
