@@ -62,6 +62,8 @@ function addon.DebugDiag()
 	print(string.format("  interrupt: enabled=%s sound=%s",
 		tostring(moduleUtil:IsInterruptAlertsEnabled()),
 		tostring(db.InterruptSoundFile or "interrupted.ogg")))
+	print(string.format("  consumableSay: enabled=%s",
+		tostring(moduleUtil:IsConsumableSayEnabled())))
 	print(string.format("  cast: enabled=%s",
 		tostring(moduleUtil:IsCastAlertsEnabled())))
 	print(string.format("  voicePack=%s path=%s",

@@ -53,6 +53,9 @@ local function OnAddonLoaded()
 	else
 		addon.Modules.SoundModuleLegacy:Init()
 	end
+	if addon.Modules.ConsumableModule then
+		addon.Modules.ConsumableModule:Init()
+	end
 
 	db = mini:GetSavedVars()
 
@@ -73,6 +76,9 @@ function addon:Refresh()
 		if addon.Modules.SoundModuleLegacy and addon.Modules.SoundModuleLegacy.Refresh then
 			addon.Modules.SoundModuleLegacy:Refresh()
 		end
+	end
+	if addon.Modules.ConsumableModule and addon.Modules.ConsumableModule.Refresh then
+		addon.Modules.ConsumableModule:Refresh()
 	end
 end
 

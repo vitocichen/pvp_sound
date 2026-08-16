@@ -46,7 +46,7 @@ local function BuildDefaultSelfCcSpells()
 end
 
 local dbDefaults = {
-	Version = 28,
+	Version = 29,
 	WhatsNewVersion = false,
 	VoicePack = "夏一可1.25x",
 	ExtraVoicePacks = {},
@@ -63,13 +63,14 @@ local dbDefaults = {
 		PreferredMode = 1,
 	},
 	-- Enabled = enemy buff; CcEnabled = self/party debuff; HealerCcEnabled = healer-in-CC;
-	-- InterruptAlert = cast-interrupted voice; CastBar = system target-cast announce gate.
+	-- InterruptAlert = cast-interrupted voice; CastBar = system target-cast announce gate;
+	-- ConsumableSay = /say when you use listed PvP potions (no aura).
 	-- TargetFocusOnly = buff monitor (false = all enemies); CcScope = self|party|partyonly for debuffs.
 	Zones = {
-		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
-		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
-		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
-		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
+		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
 	},
 	-- Sparse disable maps: key=spellId, value=true means unchecked/disabled.
 	-- Missing key = enabled (default on). Avoids huge Spells={all true} SavedVariables issues.
@@ -404,6 +405,19 @@ local function MigrateV28(savedDb)
 	savedDb.Version = 28
 end
 
+-- v29: per-zone ConsumableSay (honest /say when using listed potions).
+local function MigrateV29(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 29) then return end
+	savedDb.Zones = savedDb.Zones or {}
+	for _, key in ipairs({ "World", "Arena", "BattleGrounds", "PvE" }) do
+		savedDb.Zones[key] = savedDb.Zones[key] or {}
+		if savedDb.Zones[key].ConsumableSay == nil then
+			savedDb.Zones[key].ConsumableSay = true
+		end
+	end
+	savedDb.Version = 29
+end
+
 local function EnsureSysCastDefaults(savedDb)
 	savedDb.SysCast = savedDb.SysCast or {}
 	local mode = tonumber(savedDb.SysCast.PreferredMode)
@@ -448,10 +462,10 @@ end
 local function EnsureZoneDefaults(savedDb)
 	savedDb.Zones = savedDb.Zones or {}
 	local defaults = {
-		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
-		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
-		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
-		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
+		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
 	}
 	for key, def in pairs(defaults) do
 		savedDb.Zones[key] = savedDb.Zones[key] or {}
@@ -493,6 +507,11 @@ local function EnsureZoneDefaults(savedDb)
 			zone.CastBarTargetOnly = def.CastBarTargetOnly
 		else
 			zone.CastBarTargetOnly = zone.CastBarTargetOnly and true or false
+		end
+		if zone.ConsumableSay == nil then
+			zone.ConsumableSay = def.ConsumableSay
+		else
+			zone.ConsumableSay = zone.ConsumableSay and true or false
 		end
 	end
 end
@@ -590,6 +609,7 @@ local function BuildHomeTab(content)
 			L["home_intro_debuff"],
 			L["home_intro_healer"],
 			L["home_intro_cast"],
+			L["home_intro_consumable"],
 			" ",
 			L["home_intro_tts_warning"],
 			" ",
@@ -804,6 +824,7 @@ local function BuildZonesTab(content)
 			L["zones_intro_buff"],
 			L["zones_intro_debuff"],
 			L["zones_intro_interrupt"],
+			L["zones_intro_consumable"],
 			L["zones_intro_healer"],
 			L["zones_intro_cast"],
 		},
@@ -1044,7 +1065,24 @@ local function BuildZonesTab(content)
 			InterruptSoundLabel
 		)
 
-		last = interruptChk
+		-- Row 6: consumable honesty /say (self UNIT_SPELLCAST_SUCCEEDED)
+		local consumableChk = mini:Checkbox({
+			Parent = content,
+			LabelText = L["Enable Consumable Say"],
+			Tooltip = L["Enable consumable honesty alerts in this zone."],
+			GetValue = function()
+				local zone = db.Zones[zoneKey]
+				return not zone or zone.ConsumableSay ~= false
+			end,
+			SetValue = function(value)
+				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
+				db.Zones[zoneKey].ConsumableSay = value and true or false
+				M:Apply()
+			end,
+		})
+		consumableChk:SetPoint("TOPLEFT", interruptChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+		last = consumableChk
 	end
 end
 
@@ -1829,6 +1867,115 @@ end
 
 ---@param parent Frame
 ---@param anchor Region
+
+
+local function ConsumableLabel(entry)
+	local name = (entry and (entry.zh or entry.en)) or ""
+	local icon
+	if entry and entry.spellID and C_Spell and C_Spell.GetSpellTexture then
+		icon = C_Spell.GetSpellTexture(entry.spellID)
+	end
+	if (not icon) and entry and entry.itemID then
+		if C_Item and C_Item.GetItemIconByID then
+			icon = C_Item.GetItemIconByID(entry.itemID)
+		elseif GetItemIcon then
+			icon = GetItemIcon(entry.itemID)
+		end
+	end
+	if name ~= "" and icon then
+		return string.format("|T%s:20:20:0:0|t %s", icon, name)
+	end
+	return name
+end
+
+local function BuildConsumableWatchSection(parent, anchor)
+	local data = addon.Data.Consumables
+	local list = data and data.List
+	if not list or #list == 0 then
+		return anchor
+	end
+
+	local divider = mini:Divider({
+		Parent = parent,
+		Text = L["spell_group_consumables"],
+	})
+	divider:SetPoint("LEFT", parent, "LEFT")
+	divider:SetPoint("RIGHT", parent, "RIGHT")
+	divider:SetPoint("TOP", anchor, "BOTTOM", 0, -verticalSpacing * 2)
+
+	local columns = 2
+	local columnWidth = mini:ColumnWidth(columns, 0, 0)
+	local lastLeft, lastRight = divider, divider
+
+	for i, entry in ipairs(list) do
+		local name = entry.zh or entry.en or ""
+		local col = (i - 1) % columns
+		local row = math.floor((i - 1) / columns)
+		local itemID = entry.itemID
+		local spellID = entry.spellID
+		local chk = mini:Checkbox({
+			Parent = parent,
+			LabelText = ConsumableLabel(entry),
+			GetValue = function()
+				return true
+			end,
+			SetValue = function()
+			end,
+		})
+		-- Keep mouse so hover tooltip works; click cannot uncheck.
+		chk:SetScript("OnClick", function(self)
+			self:SetChecked(true)
+		end)
+		chk:SetScript("OnEnter", function(self)
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			local shown = false
+			if itemID then
+				local ok = pcall(GameTooltip.SetItemByID, GameTooltip, itemID)
+				shown = ok and true or false
+			end
+			if (not shown) and spellID then
+				if GameTooltip.SetSpellByID then
+					local ok = pcall(GameTooltip.SetSpellByID, GameTooltip, spellID)
+					shown = ok and true or false
+				end
+				if (not shown) and C_Spell and C_Spell.GetSpellLink then
+					local link = C_Spell.GetSpellLink(spellID)
+					if link then
+						pcall(GameTooltip.SetHyperlink, GameTooltip, link)
+						shown = true
+					end
+				end
+			end
+			if not shown then
+				GameTooltip:SetText(name, 1, 0.82, 0)
+				GameTooltip:AddLine(L["consumable_watch_locked_tooltip"], 1, 1, 1, true)
+			end
+			GameTooltip:Show()
+		end)
+		chk:SetScript("OnLeave", function()
+			GameTooltip:Hide()
+		end)
+
+		if col == 0 then
+			if row == 0 then
+				chk:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -verticalSpacing)
+			else
+				chk:SetPoint("TOPLEFT", lastLeft, "BOTTOMLEFT", 0, -4)
+			end
+			lastLeft = chk
+		else
+			if row == 0 then
+				chk:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", columnWidth + horizontalSpacing, -verticalSpacing)
+			else
+				chk:SetPoint("TOPLEFT", lastRight, "BOTTOMLEFT", 0, -4)
+			end
+			lastRight = chk
+		end
+	end
+
+	return lastLeft
+end
+
 ---@param classEntry table
 ---@param opts table? { showDivider = boolean?, splitCategories = boolean? }
 ---@return Region bottom
@@ -1883,6 +2030,7 @@ local function MigrateSettingsSnapshot(savedDb)
 	MigrateV26(savedDb)
 	MigrateV27(savedDb)
 	MigrateV28(savedDb)
+	MigrateV29(savedDb)
 end
 
 local function RefreshFrameTree(frame)
@@ -2322,6 +2470,7 @@ function M:Init()
 	MigrateV26(rawDb)
 	MigrateV27(rawDb)
 	MigrateV28(rawDb)
+	MigrateV29(rawDb)
 
 	-- Spells defaults stay empty; Disabled* sparse maps are the source of truth.
 	dbDefaults.Spells = {}
@@ -2424,6 +2573,15 @@ function M:Init()
 		end
 		if msg == "test" then
 			DoTest()
+			return
+		end
+		local potionArg = msg:match("^potion%s*(.*)$") or msg:match("^consumable%s*(.*)$")
+		if potionArg ~= nil then
+			if addon.Modules.ConsumableModule and addon.Modules.ConsumableModule.DebugTest then
+				addon.Modules.ConsumableModule:DebugTest(potionArg)
+			else
+				print("|cffff3333[PVP Sound]|r ConsumableModule 未加载。")
+			end
 			return
 		end
 		mini:OpenSettings(category, scroll)
@@ -2544,9 +2702,11 @@ function M:Init()
 				break
 			end
 		end
+		local last = intro
 		if generalEntry then
-			BuildClassSection(content, intro, generalEntry, { showDivider = false })
+			last = BuildClassSection(content, intro, generalEntry, { showDivider = false })
 		end
+		BuildConsumableWatchSection(content, last)
 	end
 
 	local function BuildClassSpellsTab(content)
