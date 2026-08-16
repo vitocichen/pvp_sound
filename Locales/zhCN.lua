@@ -102,7 +102,7 @@ L:SetStrings({
 	["Enable cast voice alerts in this zone."] = "在此区域启用系统目标施法播报（辅助功能 → 音频辅助）。详细参数在「读条」页设置。",
 	["SysCast Zone Hint"] = "系统播放 · 仅目标",
 	["Enable interrupt voice alerts in this zone."] = "仅在你成功打断敌方施法时播放提示音。音效可在右侧下拉选择。",
-	["Enable consumable honesty alerts in this zone."] = "自己使用列表内药水时弹出按钮，点击后在说频道发送「【pvp_sound检测】我已吃下 xxx」。系统禁止插件在战斗/PVP中自动说话，所以必须点一下。",
+	["Enable consumable honesty alerts in this zone."] = "自己使用列表内药水时，自动在说频道发送「【pvp_sound检测】我已吃下 xxx」。装了本插件的人都会这样通报，方便互相确认。",
 	["Monitor Range"] = "监控范围",
 	["Monitor Target Focus"] = "目标+焦点敌人",
 	["Monitor Everyone"] = "所有敌人",

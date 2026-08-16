@@ -98,7 +98,7 @@ L:SetDefaultStrings({
 	["Enable cast voice alerts in this zone."] = "Enable system target-cast announcements in this zone (Accessibility → Audio Accessibility). Tune options on the Cast tab.",
 	["SysCast Zone Hint"] = "System · target only",
 	["Enable interrupt voice alerts in this zone."] = "Play a sound only when you successfully interrupt an enemy cast. Pick the clip in the dropdown.",
-	["Enable consumable honesty alerts in this zone."] = "When you use a listed potion, a button pops up. Click it to /say the honesty line. Blizzard blocks addons from auto-speaking in combat/PvP.",
+	["Enable consumable honesty alerts in this zone."] = "When you use a listed potion, automatically /say the honesty line so nearby players can see it.",
 	["Monitor Range"] = "Monitor Range",
 	["Monitor Target Focus"] = "Target + Focus enemies",
 	["Monitor Everyone"] = "All enemies",
