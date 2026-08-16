@@ -1065,24 +1065,9 @@ local function BuildZonesTab(content)
 			InterruptSoundLabel
 		)
 
-		-- Row 6: consumable honesty /say (self UNIT_SPELLCAST_SUCCEEDED)
-		local consumableChk = mini:Checkbox({
-			Parent = content,
-			LabelText = L["Enable Consumable Say"],
-			Tooltip = L["Enable consumable honesty alerts in this zone."],
-			GetValue = function()
-				local zone = db.Zones[zoneKey]
-				return not zone or zone.ConsumableSay ~= false
-			end,
-			SetValue = function(value)
-				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
-				db.Zones[zoneKey].ConsumableSay = value and true or false
-				M:Apply()
-			end,
-		})
-		consumableChk:SetPoint("TOPLEFT", interruptChk, "BOTTOMLEFT", 0, -verticalSpacing)
+		-- Consumable honesty /say: always on, no toggle (removed per user request)
 
-		last = consumableChk
+		last = interruptChk
 	end
 end
 
@@ -2427,6 +2412,8 @@ local function BuildChangelogTab(content)
 	local block = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v3.0.6"],
+			" ",
 			L["changelog_v3.0.5"],
 			" ",
 			L["changelog_v3.0.4"],

@@ -1,5 +1,12 @@
 # PVP Sound
 
+## [v3.0.6](https://github.com/vitocichen/pvp_sound/tree/v3.0.6) (2026-08-17)
+[Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.6)
+
+- 添加了更多的职业技能（武僧乾元之巅、猎人狂野怒火/协同进攻、法师奥术涌动、盗贼冲动/头奖、萨满风暴守护者/毁灭之风、牧师心灵帷幕/相位变换、战士毁灭之风、通用血性狂怒等）
+- 支持药水检测（消耗品诚实播报，默认开启、不可关闭）
+- 修复了部分错误
+
 ## [v3.0.5](https://github.com/vitocichen/pvp_sound/tree/v3.0.5) (2026-08-15)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.5)
 
