@@ -1868,6 +1868,26 @@ end
 ---@param parent Frame
 ---@param anchor Region
 
+
+local function ConsumableLabel(entry)
+	local name = (entry and (entry.zh or entry.en)) or ""
+	local icon
+	if entry and entry.spellID and C_Spell and C_Spell.GetSpellTexture then
+		icon = C_Spell.GetSpellTexture(entry.spellID)
+	end
+	if (not icon) and entry and entry.itemID then
+		if C_Item and C_Item.GetItemIconByID then
+			icon = C_Item.GetItemIconByID(entry.itemID)
+		elseif GetItemIcon then
+			icon = GetItemIcon(entry.itemID)
+		end
+	end
+	if name ~= "" and icon then
+		return string.format("|T%s:20:20:0:0|t %s", icon, name)
+	end
+	return name
+end
+
 local function BuildConsumableWatchSection(parent, anchor)
 	local data = addon.Data.Consumables
 	local list = data and data.List
@@ -1895,7 +1915,7 @@ local function BuildConsumableWatchSection(parent, anchor)
 		local spellID = entry.spellID
 		local chk = mini:Checkbox({
 			Parent = parent,
-			LabelText = name,
+			LabelText = ConsumableLabel(entry),
 			GetValue = function()
 				return true
 			end,
