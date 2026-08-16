@@ -1867,6 +1867,65 @@ end
 
 ---@param parent Frame
 ---@param anchor Region
+
+local function BuildConsumableWatchSection(parent, anchor)
+	local data = addon.Data.Consumables
+	local list = data and data.List
+	if not list or #list == 0 then
+		return anchor
+	end
+
+	local divider = mini:Divider({
+		Parent = parent,
+		Text = L["spell_group_consumables"],
+	})
+	divider:SetPoint("LEFT", parent, "LEFT")
+	divider:SetPoint("RIGHT", parent, "RIGHT")
+	divider:SetPoint("TOP", anchor, "BOTTOM", 0, -verticalSpacing * 2)
+
+	local columns = 2
+	local columnWidth = mini:ColumnWidth(columns, 0, 0)
+	local lastLeft, lastRight = divider, divider
+
+	for i, entry in ipairs(list) do
+		local name = entry.zh or entry.en or ""
+		local col = (i - 1) % columns
+		local row = math.floor((i - 1) / columns)
+		local chk = mini:Checkbox({
+			Parent = parent,
+			LabelText = name,
+			Tooltip = L["consumable_watch_locked_tooltip"],
+			GetValue = function()
+				return true
+			end,
+			SetValue = function()
+			end,
+		})
+		chk:SetScript("OnClick", function(self)
+			self:SetChecked(true)
+		end)
+		chk:Disable()
+
+		if col == 0 then
+			if row == 0 then
+				chk:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -verticalSpacing)
+			else
+				chk:SetPoint("TOPLEFT", lastLeft, "BOTTOMLEFT", 0, -4)
+			end
+			lastLeft = chk
+		else
+			if row == 0 then
+				chk:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", columnWidth + horizontalSpacing, -verticalSpacing)
+			else
+				chk:SetPoint("TOPLEFT", lastRight, "BOTTOMLEFT", 0, -4)
+			end
+			lastRight = chk
+		end
+	end
+
+	return lastLeft
+end
+
 ---@param classEntry table
 ---@param opts table? { showDivider = boolean?, splitCategories = boolean? }
 ---@return Region bottom
@@ -2593,9 +2652,11 @@ function M:Init()
 				break
 			end
 		end
+		local last = intro
 		if generalEntry then
-			BuildClassSection(content, intro, generalEntry, { showDivider = false })
+			last = BuildClassSection(content, intro, generalEntry, { showDivider = false })
 		end
+		BuildConsumableWatchSection(content, last)
 	end
 
 	local function BuildClassSpellsTab(content)

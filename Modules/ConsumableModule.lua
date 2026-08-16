@@ -41,7 +41,7 @@ local function FlushPendingSay()
 	StopHardwareWait()
 	local send = (C_ChatInfo and C_ChatInfo.SendChatMessage) or SendChatMessage
 	if send then
-		send(text, "SAY")
+		send(text, "YELL")
 	end
 end
 
@@ -67,7 +67,8 @@ local function QueueSay(name)
 	if not name or name == "" then return end
 	if not moduleUtil:IsConsumableSayEnabled() then return end
 	local now = GetTime()
-	local text = (addon.L["consumable_say_prefix"] or "【pvp_sound检测】我已吃下 ") .. name
+	local prefix = addon.L["consumable_say_prefix"] or "！！【PVP_SOUND检测】我已吃下"
+	local text = prefix .. "【" .. name .. "】！！"
 	if lastAnnounceText == text and (now - lastAnnounceAt) < DEDUP then
 		return
 	end
@@ -152,7 +153,8 @@ function M:DebugTest(spellID)
 	spellID = tonumber(spellID) or 1234768
 	local info = spellWatch[spellID] or { zh = "银月城生命药水" }
 	QueueSay(info.zh)
-	pendingText = (addon.L["consumable_say_prefix"] or "【pvp_sound检测】我已吃下 ") .. info.zh
+	local prefix = addon.L["consumable_say_prefix"] or "！！【PVP_SOUND检测】我已吃下"
+	pendingText = prefix .. "【" .. info.zh .. "】！！"
 	FlushPendingSay()
 	if pendingText then
 		EnsureHardwareWait()
