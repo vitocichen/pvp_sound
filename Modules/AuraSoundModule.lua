@@ -105,6 +105,19 @@ local function RebuildEnabledEnemySounds()
 			enabledEnemySounds[spellId] = file
 		end
 	end
+	-- Potion / trinket auras: always on, not shown in class catalog checkboxes.
+	local consumables = addon.Data.Consumables
+	local list = consumables and consumables.List
+	if list then
+		for i = 1, #list do
+			local entry = list[i]
+			local spellId = entry and entry.spellID
+			local file = entry and entry.file
+			if spellId and file and file ~= "" then
+				enabledEnemySounds[spellId] = file
+			end
+		end
+	end
 end
 
 local function RebuildEnabledSelfCcSounds()

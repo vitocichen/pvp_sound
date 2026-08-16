@@ -257,4 +257,17 @@ addon.Data.EnemyBuffSounds = {
 	[8611] = "phaseShift.ogg", -- 相位变换 / Phase Shift (Priest)
 	[199261] = "deathWish.ogg", -- 死亡之愿 / Death Wish (Warrior)
 	[442726] = "malevolence.ogg", -- 怨毒 / Malevolence (Warlock)
+	-- Consumable auras (always-on; not in class catalog UI)
+	[1234768] = "silvermoonPotion.ogg", -- 银月城生命药水
+	[1236590] = "refreshingSerum.ogg", -- 复苏血清
+	[1263074] = "amaniExtract.ogg", -- 阿曼尼提取物
+	[1236994] = "recklessPotion.ogg", -- 鲁莽药水
+	[1236998] = "rampantAbandon.ogg", -- 狂放恣意饮剂
+	[1238443] = "zealotryPotion.ogg", -- 狂热药水
+	[1295247] = "concentratedSilvermoon.ogg", -- 浓缩银月城生命药水
+	[1236616] = "lightsPotential.ogg", -- 圣光潜力
+	[1235568] = "lightsPreservation.ogg", -- 圣光之护
+	[1295132] = "viscousGloss.ogg", -- 浓态光泽
+	[1238009] = "algariHealingPotion.ogg", -- 焕生治疗药水
+	[431941] = "rebornCheetahPotion.ogg", -- 重生猎豹药水
 }
