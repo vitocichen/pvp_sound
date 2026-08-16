@@ -860,4 +860,6 @@ addon.Data.SelfCcSounds = {
 	-- Demon Hunter debuffs (on you / teammates)
 	[207685] = "fearSigil.ogg", -- Sigil of Misery
 	[207771] = "Sinfulbrand.ogg", -- Fiery Brand
+	-- Death Knight debuffs (on you / teammates)
+	[207167] = "blindingSleet.ogg", -- Blinding Sleet / 致盲冰雨
 }

@@ -21,6 +21,7 @@ addon.Data.SelfCcCatalog = {
 				{ Id = 91800, File = "Smash.ogg", Name = "Gnaw", Ids = { [91800] = true, [91797] = true, [212332] = true, [212337] = true } },
 				{ Id = 91802, File = "ShamblingRush.ogg", Name = "Shambling Rush", Ids = { [91802] = true } },
 				{ Id = 77606, File = "darksimulacrum.ogg", Name = "Dark Simulacrum", Ids = { [77606] = true } },
+				{ Id = 207167, File = "blindingSleet.ogg", Name = "Blinding Sleet", Ids = { [207167] = true } },
 			},
 		},
 		{

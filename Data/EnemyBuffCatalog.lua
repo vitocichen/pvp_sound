@@ -15,7 +15,10 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 377360, File = "precognition.ogg" },
 				{ Id = 377362, File = "precognition.ogg" }, -- Precognition variant
 				{ Id = 212640, File = "mendingBandage.ogg" },
+				{ Id = 1293412, File = "mendingBandage.ogg", Label = "急救(49802)" }, -- 急救 (治疗绷带)
+				{ Id = 1299383, File = "mendingBandage.ogg", Label = "急救(41446)" }, -- 急救 (治疗绷带)
 				{ Id = 1251903, File = "necklaceShield.ogg", Label = "项链护盾" }, -- Void Stone Barrier
+				{ Id = 20572, File = "bloodFury.ogg", Label = "血性狂怒" }, -- Blood Fury
 			},
 		},
 		{
@@ -131,6 +134,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 212704, File = "beastWithin.ogg" },
 				{ Id = 264735, File = "survivalOfTheFittest.ogg" },
 				{ Id = 360952, File = "coordinatedAssault.ogg" },
+				{ Id = 1250646, File = "coordinatedAssault.ogg", Label = "协同进攻" }, -- Coordinated Assault
 				{ Id = 19574, File = "bestialWrath.ogg", Label = "狂野怒火" }, -- Bestial Wrath
 			},
 		},
@@ -149,6 +153,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 342246, File = "alterTime.ogg" },
 				{ Id = 108978, File = "alterTime.ogg" },
 				{ Id = 389794, File = "snowdrift.ogg" }, -- caster buff (blizzard around mage)
+				{ Id = 365362, File = "arcaneSurge.ogg", Label = "奥术涌动" }, -- Arcane Surge
 			},
 		},
 		{
@@ -237,6 +242,8 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 372761, File = "divineWordChastise.ogg" },
 				{ Id = 372783, File = "divineWordSanctuary.ogg" },
 				{ Id = 211319, File = "restitution.ogg" },
+				{ Id = 1246968, File = "mindCurtain.ogg", Label = "心灵帷幕" }, -- Mind Curtain
+				{ Id = 8611, File = "phaseShift.ogg", Label = "相位变换" }, -- Phase Shift
 			},
 		},
 		{
@@ -258,6 +265,8 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 11327, File = "Vanish.ogg" }, -- Vanish buff
 				{ Id = 343142, File = "dreadblades.ogg" },
 				{ Id = 13877, File = "bladeFlurry.ogg" },
+				{ Id = 13750, File = "AdrenalineRush.ogg", Label = "冲动" }, -- Adrenaline Rush
+				{ Id = 1214937, File = "jackpot.ogg", Label = "头奖" }, -- Jackpot
 			},
 		},
 		{
@@ -274,6 +283,8 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 443454, File = "NaturesSwiftness.ogg" }, -- Ancestral Swiftness
 				-- GLA lists cast 204336; the aura on the shaman/team is 8178 (MiniAuras Important).
 				{ Id = 8178, File = "Grounding.ogg" },
+				{ Id = 191634, File = "stormkeeper.ogg", Label = "风暴守护者" }, -- Stormkeeper
+				{ Id = 466772, File = "devastatingWind.ogg", Label = "毁灭之风" }, -- Devastating Wind
 			},
 		},
 		{
