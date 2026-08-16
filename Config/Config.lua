@@ -46,7 +46,7 @@ local function BuildDefaultSelfCcSpells()
 end
 
 local dbDefaults = {
-	Version = 28,
+	Version = 29,
 	WhatsNewVersion = false,
 	VoicePack = "夏一可1.25x",
 	ExtraVoicePacks = {},
@@ -63,13 +63,14 @@ local dbDefaults = {
 		PreferredMode = 1,
 	},
 	-- Enabled = enemy buff; CcEnabled = self/party debuff; HealerCcEnabled = healer-in-CC;
-	-- InterruptAlert = cast-interrupted voice; CastBar = system target-cast announce gate.
+	-- InterruptAlert = cast-interrupted voice; CastBar = system target-cast announce gate;
+	-- ConsumableSay = /say when you use listed PvP potions (no aura).
 	-- TargetFocusOnly = buff monitor (false = all enemies); CcScope = self|party|partyonly for debuffs.
 	Zones = {
-		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
-		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
-		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
-		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
+		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
 	},
 	-- Sparse disable maps: key=spellId, value=true means unchecked/disabled.
 	-- Missing key = enabled (default on). Avoids huge Spells={all true} SavedVariables issues.
@@ -404,6 +405,19 @@ local function MigrateV28(savedDb)
 	savedDb.Version = 28
 end
 
+-- v29: per-zone ConsumableSay (honest /say when using listed potions).
+local function MigrateV29(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 29) then return end
+	savedDb.Zones = savedDb.Zones or {}
+	for _, key in ipairs({ "World", "Arena", "BattleGrounds", "PvE" }) do
+		savedDb.Zones[key] = savedDb.Zones[key] or {}
+		if savedDb.Zones[key].ConsumableSay == nil then
+			savedDb.Zones[key].ConsumableSay = true
+		end
+	end
+	savedDb.Version = 29
+end
+
 local function EnsureSysCastDefaults(savedDb)
 	savedDb.SysCast = savedDb.SysCast or {}
 	local mode = tonumber(savedDb.SysCast.PreferredMode)
@@ -448,10 +462,10 @@ end
 local function EnsureZoneDefaults(savedDb)
 	savedDb.Zones = savedDb.Zones or {}
 	local defaults = {
-		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
-		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
-		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
-		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true },
+		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
 	}
 	for key, def in pairs(defaults) do
 		savedDb.Zones[key] = savedDb.Zones[key] or {}
@@ -493,6 +507,11 @@ local function EnsureZoneDefaults(savedDb)
 			zone.CastBarTargetOnly = def.CastBarTargetOnly
 		else
 			zone.CastBarTargetOnly = zone.CastBarTargetOnly and true or false
+		end
+		if zone.ConsumableSay == nil then
+			zone.ConsumableSay = def.ConsumableSay
+		else
+			zone.ConsumableSay = zone.ConsumableSay and true or false
 		end
 	end
 end
@@ -590,6 +609,7 @@ local function BuildHomeTab(content)
 			L["home_intro_debuff"],
 			L["home_intro_healer"],
 			L["home_intro_cast"],
+			L["home_intro_consumable"],
 			" ",
 			L["home_intro_tts_warning"],
 			" ",
@@ -804,6 +824,7 @@ local function BuildZonesTab(content)
 			L["zones_intro_buff"],
 			L["zones_intro_debuff"],
 			L["zones_intro_interrupt"],
+			L["zones_intro_consumable"],
 			L["zones_intro_healer"],
 			L["zones_intro_cast"],
 		},
@@ -1044,7 +1065,24 @@ local function BuildZonesTab(content)
 			InterruptSoundLabel
 		)
 
-		last = interruptChk
+		-- Row 6: consumable honesty /say (self UNIT_SPELLCAST_SUCCEEDED)
+		local consumableChk = mini:Checkbox({
+			Parent = content,
+			LabelText = L["Enable Consumable Say"],
+			Tooltip = L["Enable consumable honesty alerts in this zone."],
+			GetValue = function()
+				local zone = db.Zones[zoneKey]
+				return not zone or zone.ConsumableSay ~= false
+			end,
+			SetValue = function(value)
+				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
+				db.Zones[zoneKey].ConsumableSay = value and true or false
+				M:Apply()
+			end,
+		})
+		consumableChk:SetPoint("TOPLEFT", interruptChk, "BOTTOMLEFT", 0, -verticalSpacing)
+
+		last = consumableChk
 	end
 end
 
@@ -1883,6 +1921,7 @@ local function MigrateSettingsSnapshot(savedDb)
 	MigrateV26(savedDb)
 	MigrateV27(savedDb)
 	MigrateV28(savedDb)
+	MigrateV29(savedDb)
 end
 
 local function RefreshFrameTree(frame)
@@ -2322,6 +2361,7 @@ function M:Init()
 	MigrateV26(rawDb)
 	MigrateV27(rawDb)
 	MigrateV28(rawDb)
+	MigrateV29(rawDb)
 
 	-- Spells defaults stay empty; Disabled* sparse maps are the source of truth.
 	dbDefaults.Spells = {}
@@ -2424,6 +2464,15 @@ function M:Init()
 		end
 		if msg == "test" then
 			DoTest()
+			return
+		end
+		local potionArg = msg:match("^potion%s*(.*)$") or msg:match("^consumable%s*(.*)$")
+		if potionArg ~= nil then
+			if addon.Modules.ConsumableModule and addon.Modules.ConsumableModule.DebugTest then
+				addon.Modules.ConsumableModule:DebugTest(potionArg)
+			else
+				print("|cffff3333[PVP Sound]|r ConsumableModule 未加载。")
+			end
 			return
 		end
 		mini:OpenSettings(category, scroll)

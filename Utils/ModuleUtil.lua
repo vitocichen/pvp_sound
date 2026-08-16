@@ -55,3 +55,10 @@ function M:IsInterruptAlertsEnabled()
 	if not zone then return false end
 	return zone.InterruptAlert == true
 end
+
+-- Consumable honesty /say: independent per-zone toggle; default on.
+function M:IsConsumableSayEnabled()
+	local zone = self:GetZoneConfig()
+	if not zone then return true end
+	return zone.ConsumableSay ~= false
+end

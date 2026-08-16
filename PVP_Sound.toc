@@ -30,6 +30,7 @@ Data\CcSounds.lua
 Data\CcSpellIds.lua
 Data\CastSounds.lua
 Data\CastSuccessSounds.lua
+Data\Consumables.lua
 Data\VoicePackManifest.lua
 
 Core\VoicePack.lua
@@ -41,6 +42,7 @@ Core\UnitAuraWatcher.lua
 Modules\AuraSoundModule.lua
 Modules\SoundModule.lua
 Modules\SoundModule_Legacy.lua
+Modules\ConsumableModule.lua
 
 Config\Config.lua
 Config\Config_Legacy.lua
