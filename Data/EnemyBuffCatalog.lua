@@ -295,6 +295,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 104773, File = "unendingResolve2.ogg" },
 				{ Id = 113860, File = "darkSoul.ogg" },
 				{ Id = 212295, File = "netherWard.ogg" },
+				{ Id = 442726, File = "malevolence.ogg", Label = "怨毒" }, -- Malevolence
 			},
 		},
 		{
@@ -338,6 +339,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 386196, File = "damageStance.ogg" },
 				{ Id = 392966, File = "spellBlock.ogg" },
 				{ Id = 213871, File = "bodyguard.ogg" },
+				{ Id = 199261, File = "deathWish.ogg", Label = "死亡之愿" }, -- Death Wish
 			},
 		},
 	},

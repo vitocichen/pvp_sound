@@ -255,4 +255,6 @@ addon.Data.EnemyBuffSounds = {
 	[191634] = "stormkeeper.ogg", -- 风暴守护者 / Stormkeeper (Shaman)
 	[1246968] = "mindCurtain.ogg", -- 心灵帷幕 / Mind Curtain (Priest)
 	[8611] = "phaseShift.ogg", -- 相位变换 / Phase Shift (Priest)
+	[199261] = "deathWish.ogg", -- 死亡之愿 / Death Wish (Warrior)
+	[442726] = "malevolence.ogg", -- 怨毒 / Malevolence (Warlock)
 }
