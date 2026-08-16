@@ -47,6 +47,7 @@ L:SetDefaultStrings({
 	["Copy"] = "Copy",
 	["Copied"] = "Copied",
 	["consumable_say_prefix"] = "【pvp_sound检测】我已吃下 ",
+	["consumable_click_send"] = "Click to send: ",
 
 	["Zones"] = "Zones",
 	["zones_intro_buff"] = "|cFFFFD100buff|r: buffs — monitors |cFFFF6060enemy|r buffs.",
@@ -97,7 +98,7 @@ L:SetDefaultStrings({
 	["Enable cast voice alerts in this zone."] = "Enable system target-cast announcements in this zone (Accessibility → Audio Accessibility). Tune options on the Cast tab.",
 	["SysCast Zone Hint"] = "System · target only",
 	["Enable interrupt voice alerts in this zone."] = "Play a sound only when you successfully interrupt an enemy cast. Pick the clip in the dropdown.",
-	["Enable consumable honesty alerts in this zone."] = "When you use a listed potion (no buff), send a Say message. Only your own use can be detected.",
+	["Enable consumable honesty alerts in this zone."] = "When you use a listed potion, a button pops up. Click it to /say the honesty line. Blizzard blocks addons from auto-speaking in combat/PvP.",
 	["Monitor Range"] = "Monitor Range",
 	["Monitor Target Focus"] = "Target + Focus enemies",
 	["Monitor Everyone"] = "All enemies",
