@@ -74,7 +74,6 @@ local function QueueSay(name)
 	end
 	lastAnnounceAt = now
 	lastAnnounceText = text
-	print("|cffffd100[PVP Sound]|r " .. text)
 	pendingText = text
 	EnsureHardwareWait()
 	hwFrame:Show()

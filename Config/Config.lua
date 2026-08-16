@@ -1891,20 +1891,50 @@ local function BuildConsumableWatchSection(parent, anchor)
 		local name = entry.zh or entry.en or ""
 		local col = (i - 1) % columns
 		local row = math.floor((i - 1) / columns)
+		local itemID = entry.itemID
+		local spellID = entry.spellID
 		local chk = mini:Checkbox({
 			Parent = parent,
 			LabelText = name,
-			Tooltip = L["consumable_watch_locked_tooltip"],
 			GetValue = function()
 				return true
 			end,
 			SetValue = function()
 			end,
 		})
+		-- Keep mouse so hover tooltip works; click cannot uncheck.
 		chk:SetScript("OnClick", function(self)
 			self:SetChecked(true)
 		end)
-		chk:Disable()
+		chk:SetScript("OnEnter", function(self)
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			local shown = false
+			if itemID then
+				local ok = pcall(GameTooltip.SetItemByID, GameTooltip, itemID)
+				shown = ok and true or false
+			end
+			if (not shown) and spellID then
+				if GameTooltip.SetSpellByID then
+					local ok = pcall(GameTooltip.SetSpellByID, GameTooltip, spellID)
+					shown = ok and true or false
+				end
+				if (not shown) and C_Spell and C_Spell.GetSpellLink then
+					local link = C_Spell.GetSpellLink(spellID)
+					if link then
+						pcall(GameTooltip.SetHyperlink, GameTooltip, link)
+						shown = true
+					end
+				end
+			end
+			if not shown then
+				GameTooltip:SetText(name, 1, 0.82, 0)
+				GameTooltip:AddLine(L["consumable_watch_locked_tooltip"], 1, 1, 1, true)
+			end
+			GameTooltip:Show()
+		end)
+		chk:SetScript("OnLeave", function()
+			GameTooltip:Hide()
+		end)
 
 		if col == 0 then
 			if row == 0 then
