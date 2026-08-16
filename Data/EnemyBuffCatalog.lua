@@ -22,7 +22,7 @@ addon.Data.EnemyBuffCatalog = {
 			Key = "DeathKnight",
 			Name = "Death Knight",
 			Spells = {
-				{ Id = 42650, File = "RaiseAbomination.ogg" }, -- Army of the Dead (enemy buff)
+				{ Id = 42650, File = "ArmyOfTheDead.ogg", Label = "亡者大军" }, -- Army of the Dead (enemy buff)
 				{ Id = 1233448, File = "DarkTransformation.ogg" }, -- Dark Mutation (enemy buff)
 				{ Id = 48743, File = "DeathPact.ogg", Harmful = true }, -- Death Pact / 天灾契约 (self-debuff on the DK)
 				{ Id = 326801, File = "crimsonRune.ogg", Label = "鲜红符文" }, -- Rune of Sanguination (passive)
@@ -131,6 +131,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 212704, File = "beastWithin.ogg" },
 				{ Id = 264735, File = "survivalOfTheFittest.ogg" },
 				{ Id = 360952, File = "coordinatedAssault.ogg" },
+				{ Id = 19574, File = "bestialWrath.ogg", Label = "狂野怒火" }, -- Bestial Wrath
 			},
 		},
 		{
@@ -164,6 +165,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 197908, File = "manaTea.ogg" },
 				{ Id = 209584, File = "zenFocusTea.ogg" },
 				{ Id = 202335, File = "doubleBarrel.ogg" },
+				{ Id = 1249625, File = "peakOfSerenity.ogg", Label = "乾元之巅" }, -- Peak of Serenity
 			},
 		},
 		{

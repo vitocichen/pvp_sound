@@ -34,7 +34,7 @@ addon.Data.EnemyBuffSounds = {
 	[33206] = "PainSuppression.ogg",
 	[33891] = "incarnationTree.ogg",
 	[34709] = "shadowSight.ogg",
-	[42650] = "RaiseAbomination.ogg", -- Army of the Dead (enemy buff)
+	[42650] = "ArmyOfTheDead.ogg", -- 亡者大军 / Army of the Dead (enemy buff)
 	[45182] = "cheatDeath.ogg",
 	[45438] = "IceBlock.ogg",
 	[46924] = "Bladestorm.ogg",
@@ -242,4 +242,6 @@ addon.Data.EnemyBuffSounds = {
 	[1272854] = "pony.ogg",
 	[1289616] = "pony.ogg",
 	[1289617] = "pony.ogg",
+	[19574] = "bestialWrath.ogg", -- 狂野怒火 / Bestial Wrath (Hunter)
+	[1249625] = "peakOfSerenity.ogg", -- 乾元之巅 / Peak of Serenity (Monk)
 }
