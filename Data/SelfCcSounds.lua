@@ -870,4 +870,11 @@ addon.Data.SelfCcSounds = {
 	[410598] = "SoulRip.ogg", -- Soul Rip / 夺魂
 	-- Death Knight debuffs (on you / teammates)
 	[207167] = "blindingSleet.ogg", -- Blinding Sleet / 致盲冰雨
+	-- Druid offensive debuffs (on you / teammates)
+	[222509] = "FeralFrenzy.ogg", -- Feral Frenzy / 野性狂乱
+	[274837] = "FeralFrenzy.ogg",
+	[274838] = "FeralFrenzy.ogg",
+	[412269] = "FeralFrenzy.ogg",
+	[412271] = "FeralFrenzy.ogg",
+	[412279] = "FeralFrenzy.ogg",
 }

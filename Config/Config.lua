@@ -46,7 +46,7 @@ local function BuildDefaultSelfCcSpells()
 end
 
 local dbDefaults = {
-	Version = 29,
+	Version = 30,
 	WhatsNewVersion = false,
 	VoicePack = "夏一可1.25x",
 	ExtraVoicePacks = {},
@@ -418,6 +418,51 @@ local function MigrateV29(savedDb)
 	savedDb.Version = 29
 end
 
+local function CollectDefaultOffSelfCcIds()
+	local ids = {}
+	local classes = selfCcCatalog and selfCcCatalog.Classes
+	if not classes then return ids end
+	for i = 1, #classes do
+		local spells = classes[i].Spells
+		if spells then
+			for j = 1, #spells do
+				local spell = spells[j]
+				if spell and spell.DefaultOff then
+					if spell.Id then
+						ids[spell.Id] = true
+					end
+					if spell.Ids then
+						for spellId in pairs(spell.Ids) do
+							ids[spellId] = true
+						end
+					end
+				end
+			end
+		end
+	end
+	return ids
+end
+
+-- Catalog DefaultOff spells start unchecked. Missing disable-map keys mean enabled,
+-- so this must be one-shot (migration / factory reset), not copied from dbDefaults
+-- every login — otherwise ticking the box would not stick.
+local function SeedDefaultOffSelfCc(savedDb)
+	if type(savedDb) ~= "table" then return end
+	savedDb.DisabledSelfCcSpells = savedDb.DisabledSelfCcSpells or {}
+	savedDb.SelfCcSpells = savedDb.SelfCcSpells or {}
+	for spellId in pairs(CollectDefaultOffSelfCcIds()) do
+		savedDb.DisabledSelfCcSpells[spellId] = true
+		savedDb.SelfCcSpells[spellId] = false
+	end
+end
+
+-- v30: Feral Frenzy and other DefaultOff self-CC spells start unchecked.
+local function MigrateV30(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 30) then return end
+	SeedDefaultOffSelfCc(savedDb)
+	savedDb.Version = 30
+end
+
 local function EnsureSysCastDefaults(savedDb)
 	savedDb.SysCast = savedDb.SysCast or {}
 	local mode = tonumber(savedDb.SysCast.PreferredMode)
@@ -732,6 +777,7 @@ local function BuildHomeTab(content)
 				dbDefaults.DisabledSelfCcSpells = {}
 				mini:ResetSavedVars(dbDefaults)
 				db = mini:GetSavedVars()
+				SeedDefaultOffSelfCc(db)
 				db.Profiles = keepProfiles
 				if type(keepActive) == "string" then
 					db.ActiveProfileName = keepActive
@@ -2105,6 +2151,7 @@ local function MigrateSettingsSnapshot(savedDb)
 	MigrateV27(savedDb)
 	MigrateV28(savedDb)
 	MigrateV29(savedDb)
+	MigrateV30(savedDb)
 end
 
 local function RefreshFrameTree(frame)
@@ -2156,14 +2203,14 @@ local function ApplySettingsSnapshot(snap, notifyMsg)
 	end
 	db = mini:GetSavedVars()
 	_G.PVPSoundDB = db
-	-- Keep sparse disable maps from the raw snapshot (before defaults fill).
-	local keepDisabledEnemy = CopyDisableMap(snap.DisabledEnemySpells)
-	local keepDisabledSelfCc = CopyDisableMap(snap.DisabledSelfCcSpells)
 	local copy = profiles:DeepCopy(snap)
 	MigrateSettingsSnapshot(copy)
+	-- Keep disable maps from the migrated snapshot. Empty dbDefaults maps must
+	-- not wipe DefaultOff seeding (e.g. Feral Frenzy) or other sparse-map migrations.
+	local keepDisabledEnemy = CopyDisableMap(copy.DisabledEnemySpells)
+	local keepDisabledSelfCc = CopyDisableMap(copy.DisabledSelfCcSpells)
 	-- Fill missing keys from defaults without wiping Profiles.
 	mini:CopyTable(dbDefaults, copy)
-	-- Defaults use empty {} disable maps; restore snapshot disables after fill.
 	copy.DisabledEnemySpells = keepDisabledEnemy
 	copy.DisabledSelfCcSpells = keepDisabledSelfCc
 	profiles:ApplySettings(db, copy)
@@ -2350,6 +2397,7 @@ local function BuildProfilesTab(content)
 		end
 		ShowConfirm(L["profiles_reset_confirm"], function()
 				local defaultsSnap = profiles:CaptureSettings(dbDefaults)
+				SeedDefaultOffSelfCc(defaultsSnap)
 				ApplySettingsSnapshot(defaultsSnap, L["Settings reset to default."])
 			end)
 	end)
@@ -2549,6 +2597,7 @@ function M:Init()
 	MigrateV27(rawDb)
 	MigrateV28(rawDb)
 	MigrateV29(rawDb)
+	MigrateV30(rawDb)
 
 	-- Spells defaults stay empty; Disabled* sparse maps are the source of truth.
 	dbDefaults.Spells = {}
