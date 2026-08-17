@@ -61,9 +61,9 @@ addon.Data.EnemyBuffCatalog = {
 			Spells = {
 				{ Id = 198589, File = "blur.ogg" },
 				{ Id = 212800, File = "blur.ogg" },
-				{ Id = 162264, File = "metamorphosis.ogg" },
+				{ Id = 162264, File = "metamorphosis.ogg", Label = "恶魔变形" },
 				{ Id = 187827, File = "metamorphosis.ogg" },
-				{ Id = 1217607, File = "metamorphosis.ogg" }, -- Metamorphosis variant
+				{ Id = 1217607, File = "metamorphosis.ogg" }, -- 虚空变形 / Void Transformation
 				{ Id = 209426, File = "darkness.ogg" }, -- Darkness (aura on the DH / team)
 				{ Id = 188501, File = "spectralSight.ogg" },
 				{ Id = 206803, File = "rainFromAbove.ogg" },
@@ -133,8 +133,8 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 202748, File = "survivalTactics.ogg" },
 				{ Id = 212704, File = "beastWithin.ogg" },
 				{ Id = 264735, File = "survivalOfTheFittest.ogg" },
-				{ Id = 360952, File = "coordinatedAssault.ogg" },
-				{ Id = 1250646, File = "coordinatedAssault.ogg", Label = "协同进攻" }, -- Coordinated Assault
+				{ Id = 360952, File = "coordinatedAssault.ogg", Label = "协同进攻" },
+				{ Id = 1250646, File = "soulHuntStrike.ogg", Label = "狩魂一击" }, -- Soul Hunt Strike
 				{ Id = 19574, File = "bestialWrath.ogg", Label = "狂野怒火" }, -- Bestial Wrath
 			},
 		},
@@ -154,6 +154,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 108978, File = "alterTime.ogg" },
 				{ Id = 389794, File = "snowdrift.ogg" }, -- caster buff (blizzard around mage)
 				{ Id = 365362, File = "arcaneSurge.ogg", Label = "奥术涌动" }, -- Arcane Surge
+				{ Id = 210824, File = "touchOfTheMagi.ogg", Label = "大法师之触" }, -- Touch of the Magi (on the target)
 			},
 		},
 		{
@@ -171,6 +172,8 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 209584, File = "zenFocusTea.ogg" },
 				{ Id = 202335, File = "doubleBarrel.ogg" },
 				{ Id = 1249625, File = "peakOfSerenity.ogg", Label = "乾元之巅" }, -- Peak of Serenity
+				{ Id = 125174, File = "touchOfKarma.ogg", Label = "业报之触" }, -- Touch of Karma (buff)
+				{ Id = 122470, File = "touchOfKarma.ogg" }, -- Touch of Karma (cast / variant)
 			},
 		},
 		{
@@ -217,6 +220,9 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 1272854, File = "pony.ogg" },
 				{ Id = 1289616, File = "pony.ogg" },
 				{ Id = 1289617, File = "pony.ogg" },
+				{ Id = 6940, File = "Sacrifice.ogg", Label = "牺牲祝福" }, -- Blessing of Sacrifice
+				{ Id = 1260251, File = "ExecutionSentence.ogg", Label = "处决宣判", Harmful = true },
+				{ Id = 260251, File = "ExecutionSentence.ogg", Harmful = true },
 			},
 		},
 		{
@@ -243,7 +249,8 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 372783, File = "divineWordSanctuary.ogg" },
 				{ Id = 211319, File = "restitution.ogg" },
 				{ Id = 1246968, File = "mindCurtain.ogg", Label = "心灵帷幕" }, -- Mind Curtain
-				{ Id = 8611, File = "phaseShift.ogg", Label = "相位变换" }, -- Phase Shift
+				{ Id = 8611, File = "phaseShift.ogg", Label = "相位变换" }, -- Phase Shift (legacy id)
+				{ Id = 408558, File = "phaseShift.ogg" }, -- Phase Shift (PvP talent)
 			},
 		},
 		{
@@ -275,9 +282,10 @@ addon.Data.EnemyBuffCatalog = {
 			Spells = {
 				{ Id = 108271, File = "astralShift.ogg" },
 				{ Id = 79206, File = "SpiritwalkersGrace.ogg" },
-				{ Id = 114050, File = "ascendance.ogg" },
+				{ Id = 114050, File = "ascendance.ogg", Label = "升腾" },
 				{ Id = 114051, File = "ascendance.ogg" },
 				{ Id = 114052, File = "ascendance.ogg" },
+				{ Id = 1219480, File = "ascendance.ogg" }, -- Fire Ascendance
 				{ Id = 384352, File = "doomWinds.ogg" },
 				{ Id = 378081, File = "NaturesSwiftness.ogg" }, -- Nature's Swiftness
 				{ Id = 443454, File = "NaturesSwiftness.ogg" }, -- Ancestral Swiftness
@@ -296,6 +304,8 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 113860, File = "darkSoul.ogg" },
 				{ Id = 212295, File = "netherWard.ogg" },
 				{ Id = 442726, File = "malevolence.ogg", Label = "怨毒" }, -- Malevolence
+				{ Id = 80240, File = "havoc.ogg", Label = "浩劫", Harmful = true }, -- Havoc
+				{ Id = 410598, File = "SoulRip.ogg", Label = "夺魂", Harmful = true }, -- Soul Rip
 			},
 		},
 		{
@@ -337,6 +347,9 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 147833, File = "Intervene.ogg" },
 				{ Id = 386208, File = "defensestance.ogg" },
 				{ Id = 386196, File = "damageStance.ogg" },
+				{ Id = 7366, File = "battleStance.ogg", Label = "狂暴姿态" }, -- original Xia Yike clip
+				{ Id = 2458, File = "battleStance.ogg" },
+				{ Id = 386164, File = "combatStance.ogg", Label = "战斗姿态" },
 				{ Id = 392966, File = "spellBlock.ogg" },
 				{ Id = 213871, File = "bodyguard.ogg" },
 				{ Id = 199261, File = "deathWish.ogg", Label = "死亡之愿" }, -- Death Wish

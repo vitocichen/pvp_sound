@@ -1,5 +1,11 @@
 # PVP Sound
 
+## [v3.0.7](https://github.com/vitocichen/pvp_sound/tree/v3.0.7) (2026-08-17)
+[Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.7)
+
+- 新增/修正职业技能 ID：恶魔猎人恶魔变形/虚空变形、猎人狩魂一击、法师大法师之触、圣骑士牺牲祝福/处决宣判、牧师相位变换/沉默、萨满升腾、战士战斗姿态/狂暴姿态、武僧业报之触、术士浩劫/夺魂
+- 处决宣判、大法师之触、沉默按 debuff 播报（自己/队友中了会喊）
+
 ## [v3.0.6](https://github.com/vitocichen/pvp_sound/tree/v3.0.6) (2026-08-17)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.6)
 

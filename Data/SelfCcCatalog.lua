@@ -16,7 +16,7 @@ addon.Data.SelfCcCatalog = {
 			Key = "DeathKnight",
 			Name = "Death Knight",
 			Spells = {
-				{ Id = 93422, File = "asphyxiate.ogg", Name = "Asphyxiate", Ids = { [93422] = true, [108194] = true, [221562] = true, [285266] = true } },
+				{ Id = 221562, File = "asphyxiate.ogg", Name = "Asphyxiate", Label = "窒息", Ids = { [93422] = true, [108194] = true, [221562] = true, [285266] = true } },
 				{ Id = 47476, File = "Strangulate.ogg", Name = "Strangulate", Ids = { [47476] = true, [51131] = true, [55314] = true, [55334] = true, [66018] = true } },
 				{ Id = 91800, File = "Smash.ogg", Name = "Gnaw", Ids = { [91800] = true, [91797] = true, [212332] = true, [212337] = true } },
 				{ Id = 91802, File = "ShamblingRush.ogg", Name = "Shambling Rush", Ids = { [91802] = true } },
@@ -81,6 +81,7 @@ addon.Data.SelfCcCatalog = {
 				-- 389831 = stun debuff on victims. Do NOT register 389794 here:
 				-- 389794 is the caster's own buff and would self-announce on Frost Mage.
 				{ Id = 389831, File = "snowdriftWinter.ogg", Name = "Snowdrift", Ids = { [389831] = true } },
+				{ Id = 210824, File = "touchOfTheMagi.ogg", Name = "Touch of the Magi", Ids = { [210824] = true } },
 			},
 		},
 		{
@@ -99,6 +100,7 @@ addon.Data.SelfCcCatalog = {
 				{ Id = 20066, File = "Repentance.ogg", Name = "Repentance", Ids = { [20066] = true, [29511] = true, [32779] = true, [66008] = true, [81947] = true, [82168] = true, [173315] = true, [263672] = true, [427583] = true } },
 				{ Id = 105421, File = "blindingLight.ogg", Name = "Blinding Light", Ids = { [105421] = true, [36950] = true, [152953] = true, [215260] = true, [216692] = true, [279869] = true, [363523] = true, [428170] = true, [1258514] = true } },
 				{ Id = 10326, File = "Turnevil.ogg", Name = "Turn Evil", Ids = { [10326] = true, [145067] = true } },
+				{ Id = 1260251, File = "ExecutionSentence.ogg", Name = "Execution Sentence", Ids = { [1260251] = true, [260251] = true } },
 			},
 		},
 		{
@@ -108,7 +110,7 @@ addon.Data.SelfCcCatalog = {
 				{ Id = 8122, File = "Fear4.ogg", Name = "Psychic Scream", Ids = { [8122] = true, [13704] = true, [22884] = true, [26042] = true, [27610] = true, [34322] = true, [43432] = true, [65543] = true, [85966] = true, [164443] = true, [165764] = true, [168382] = true, [205605] = true, [216515] = true, [222414] = true, [290105] = true, [306748] = true, [308375] = true, [439873] = true, [1262326] = true } },
 				{ Id = 34984, File = "PsychicHorror.ogg", Name = "Psychic Horror", Ids = { [34984] = true, [64044] = true, [65545] = true } },
 				{ Id = 605, File = "MindControl.ogg", Name = "Mind Control", Ids = { [605] = true, [36797] = true, [43550] = true, [67229] = true, [136287] = true, [183191] = true, [263073] = true } },
-				{ Id = 6726, File = "silence.ogg", Name = "Silence", Ids = { [6726] = true, [8988] = true, [12528] = true, [15487] = true, [18278] = true, [18327] = true, [22666] = true, [23207] = true, [26069] = true, [27559] = true, [29943] = true, [30225] = true, [37160] = true, [38491] = true, [38913] = true, [54093] = true, [56777] = true, [65542] = true, [80967] = true, [207678] = true, [215774] = true, [226452] = true, [329903] = true, [346991] = true, [1234572] = true } },
+				{ Id = 15487, File = "silence.ogg", Name = "Silence", Ids = { [6726] = true, [8988] = true, [12528] = true, [15487] = true, [18278] = true, [18327] = true, [22666] = true, [23207] = true, [26069] = true, [27559] = true, [29943] = true, [30225] = true, [37160] = true, [38491] = true, [38913] = true, [54093] = true, [56777] = true, [65542] = true, [80967] = true, [207678] = true, [215774] = true, [226452] = true, [329903] = true, [346991] = true, [1234572] = true } },
 				{ Id = 200196, File = "chastise.ogg", Name = "Holy Word: Chastise", Ids = { [200196] = true, [200200] = true, [247587] = true } },
 				{ Id = 11444, File = "ShackleUndead.ogg", Name = "Shackle Undead", Ids = { [11444] = true, [40135] = true } },
 			},
@@ -148,6 +150,8 @@ addon.Data.SelfCcCatalog = {
 				{ Id = 6358, File = "seduction.ogg", Name = "Seduction", Ids = { [6358] = true, [29490] = true, [30850] = true, [31865] = true, [86377] = true, [86545] = true, [176177] = true, [183763] = true, [230159] = true, [238428] = true, [241799] = true, [261589] = true, [1201554] = true } },
 				{ Id = 6466, File = "AxeToss.ogg", Name = "Axe Toss", Ids = { [6466] = true, [89766] = true, [193824] = true, [325820] = true } },
 				{ Id = 30283, File = "shadowFury.ogg", Name = "Shadowfury", Ids = { [30283] = true, [45270] = true, [81441] = true, [320132] = true } },
+				{ Id = 80240, File = "havoc.ogg", Name = "Havoc", Label = "浩劫", Ids = { [80240] = true } },
+				{ Id = 410598, File = "SoulRip.ogg", Name = "Soul Rip", Label = "夺魂", Ids = { [410598] = true } },
 			},
 		},
 		{

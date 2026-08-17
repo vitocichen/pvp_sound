@@ -860,6 +860,14 @@ addon.Data.SelfCcSounds = {
 	-- Demon Hunter debuffs (on you / teammates)
 	[207685] = "fearSigil.ogg", -- Sigil of Misery
 	[207771] = "Sinfulbrand.ogg", -- Fiery Brand
+	-- Mage
+	[210824] = "touchOfTheMagi.ogg", -- Touch of the Magi
+	-- Paladin
+	[1260251] = "ExecutionSentence.ogg", -- Execution Sentence
+	[260251] = "ExecutionSentence.ogg",
+	-- Warlock
+	[80240] = "havoc.ogg", -- Havoc / 浩劫
+	[410598] = "SoulRip.ogg", -- Soul Rip / 夺魂
 	-- Death Knight debuffs (on you / teammates)
 	[207167] = "blindingSleet.ogg", -- Blinding Sleet / 致盲冰雨
 }
