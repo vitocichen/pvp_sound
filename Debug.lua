@@ -4,6 +4,7 @@ local _, addon = ...
 -- debug/combat-trace: chat prints for reload → hit mob → combat errors.
 -- Turn off: /run PVP_Sound_DebugTrace = false  (after load, addon.DebugCombatTrace)
 addon.DebugCombatTrace = true
+addon.DebugBuild = "combat-trace-2"
 
 local PREFIX = "|cff66ccff[PS dbg]|r "
 local ERR_PREFIX = "|cffff3333[PS dbg ERR]|r "
@@ -66,9 +67,16 @@ do
 			return
 		end
 		addon.DbgCall("dump:" .. tostring(event), function()
-			local units = addon.Utils and addon.Utils.Units
+			if event == "PLAYER_ENTERING_WORLD" then
+				addon.Dbg("build=%s", tostring(addon.DebugBuild))
+			end
 			addon.Dbg("%s lockdown=%s", event, tostring(InCombatLockdown and InCombatLockdown()))
-			if event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_TARGET_CHANGED" then
+			-- Combat start/lockdown: do not call Unit* or nameplate APIs (taints target UI).
+			if event == "PLAYER_REGEN_DISABLED" or InCombatLockdown() then
+				return
+			end
+			local units = addon.Utils and addon.Utils.Units
+			if event == "PLAYER_TARGET_CHANGED" then
 				if units and units.Exists and units:Exists("target") then
 					local isPlayer = UnitIsPlayer("target")
 					addon.Dbg("  target=%s isPlayer=%s canAttack=%s isEnemyPlayer=%s name=%s",

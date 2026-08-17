@@ -705,6 +705,8 @@ function M:Init()
 					auraSounds:RemoveSet(enemyByToken[arg1])
 					enemyByToken[arg1] = nil
 				end
+			elseif InCombatLockdown() and event ~= "PLAYER_REGEN_ENABLED" then
+				addon.Dbg("skip Refresh in combat event=%s", tostring(event))
 			else
 				M:Refresh(event)
 			end
