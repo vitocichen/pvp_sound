@@ -331,9 +331,9 @@ function M:DebugSysCast(arg)
 	}
 
 	local function getMaster()
-		if CAA.IsEnabled then
-			local ok, v = pcall(CAA.IsEnabled)
-			if ok and v ~= nil then
+		if GetCVarBool then
+			local ok, v = pcall(GetCVarBool, "CAAEnabled")
+			if ok and v ~= nil and not (issecretvalue and issecretvalue(v)) then
 				return v and true or false
 			end
 		end
@@ -342,16 +342,12 @@ function M:DebugSysCast(arg)
 
 	local function setMaster(enabled)
 		enabled = not not enabled
-		local okApi, ret = true, nil
-		if CAA.SetEnabled then
-			okApi, ret = pcall(CAA.SetEnabled, enabled)
-		end
 		local okCvar = pcall(SetCVar, "CAAEnabled", enabled and "1" or "0")
 		print(string.format(
-			"|cffffd100[PVP Sound]|r 总开关 SetEnabled=%s/%s SetCVar(CAAEnabled)=%s → %s",
-			tostring(okApi), tostring(ret), tostring(okCvar), enabled and "开" or "关"
+			"|cffffd100[PVP Sound]|r 总开关 SetCVar(CAAEnabled)=%s → %s",
+			tostring(okCvar), enabled and "开" or "关"
 		))
-		return okApi or okCvar
+		return okCvar
 	end
 
 	local function getMode()

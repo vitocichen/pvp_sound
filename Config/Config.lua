@@ -1088,23 +1088,50 @@ local function SysCastAvailable()
 	return C_CombatAudioAlert ~= nil
 end
 
+---Plain boolean or nil if secret/unknown (Midnight GetCVar can taint).
+local function KnownBool(value)
+	if value == nil then
+		return nil
+	end
+	if issecretvalue and issecretvalue(value) then
+		return nil
+	end
+	return value and true or false
+end
+
+-- ESC「启动战斗音频预警」is CVar CAAEnabled (AudioAssist.lua uses GetCVarBool).
+-- Do not prefer C_CombatAudioAlert.IsEnabled: there is no SetEnabled in the API,
+-- so IsEnabled can stay false while the CVar (and Blizzard checkbox) is on.
 local function SysCastGetMaster()
-	local CAA = C_CombatAudioAlert
-	if CAA and CAA.IsEnabled then
-		local ok, v = pcall(CAA.IsEnabled)
-		if ok and v ~= nil then
-			return v and true or false
+	if GetCVarBool then
+		local ok, v = pcall(GetCVarBool, "CAAEnabled")
+		local b = ok and KnownBool(v) or nil
+		if b ~= nil then
+			return b
 		end
 	end
-	return (tonumber(GetCVar and GetCVar("CAAEnabled")) or 0) ~= 0
+	if CVarCallbackRegistry and CVarCallbackRegistry.GetCVarValueBool then
+		local ok, v = pcall(function()
+			return CVarCallbackRegistry:GetCVarValueBool("CAAEnabled")
+		end)
+		local b = ok and KnownBool(v) or nil
+		if b ~= nil then
+			return b
+		end
+	end
+	local raw = GetCVar and GetCVar("CAAEnabled")
+	if KnownBool(raw) ~= nil then
+		return KnownBool(raw)
+	end
+	local n = tonumber(raw)
+	if n ~= nil then
+		return n ~= 0
+	end
+	return false
 end
 
 local function SysCastSetMaster(enabled)
 	enabled = not not enabled
-	local CAA = C_CombatAudioAlert
-	if CAA and CAA.SetEnabled then
-		pcall(CAA.SetEnabled, enabled)
-	end
 	pcall(SetCVar, "CAAEnabled", enabled and "1" or "0")
 end
 
@@ -1154,6 +1181,10 @@ local function SysCastSetFormat(fmt)
 end
 
 local function SysCastGetVoice()
+	local cvar = tonumber(GetCVar and GetCVar("CAATargetCastVoice"))
+	if cvar ~= nil then
+		return cvar
+	end
 	local CAA = C_CombatAudioAlert
 	local _, _, cat = SysCastEnums()
 	if CAA and CAA.GetCategoryVoice then
@@ -1167,6 +1198,7 @@ end
 
 local function SysCastSetVoice(voiceId)
 	voiceId = tonumber(voiceId) or 0
+	pcall(SetCVar, "CAATargetCastVoice", tostring(voiceId))
 	local CAA = C_CombatAudioAlert
 	local _, _, cat = SysCastEnums()
 	if CAA and CAA.SetCategoryVoice then
@@ -1251,8 +1283,16 @@ end
 local function SysCastBuildVoiceItems()
 	local items = {}
 	local names = {}
-	local voices = C_VoiceChat and C_VoiceChat.GetTtsVoices and C_VoiceChat.GetTtsVoices() or nil
-	if voices then
+	-- Only call GetTtsVoices after the 读条 tab is shown (lazy). Calling it during
+	-- ADDON_LOADED can consume VOICE_CHAT_TTS_VOICES_UPDATE and blank the system page.
+	local voices
+	if C_VoiceChat and C_VoiceChat.GetTtsVoices then
+		local ok, result = pcall(C_VoiceChat.GetTtsVoices)
+		if ok then
+			voices = result
+		end
+	end
+	if type(voices) == "table" then
 		for _, v in ipairs(voices) do
 			if v and v.voiceID ~= nil then
 				items[#items + 1] = v.voiceID
@@ -2830,6 +2870,7 @@ function M:Init()
 		{
 			Key = "SysCast",
 			Title = L["SysCast Tab"],
+			Lazy = true,
 			Build = function(content) BuildSysCastTab(content) end,
 		},
 		{
@@ -2873,6 +2914,17 @@ function M:Init()
 		ContentInsets = { Top = verticalSpacing },
 		Tabs = tabs,
 	})
+
+	scroll:HookScript("OnShow", function()
+		local tc = M.TabController
+		if not tc then
+			return
+		end
+		local content = tc:GetContent(tc:GetSelected())
+		if content and content.MiniRefresh then
+			content:MiniRefresh()
+		end
+	end)
 
 	StaticPopupDialogs["PVPSOUND_CONFIRM"] = {
 		text = "%s",

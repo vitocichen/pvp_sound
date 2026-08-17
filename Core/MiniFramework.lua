@@ -300,10 +300,28 @@ function M:CreateTabs(options)
 
 		selectedKey = tabs[i].Key
 
+		local tab = tabs[i]
+		-- Lazy tabs (SysCast) must not Build during ADDON_LOADED: C_VoiceChat.GetTtsVoices
+		-- can fire VOICE_CHAT_TTS_VOICES_UPDATE before Blizzard AudioAssist registers,
+		-- leaving ESC → Accessibility → Audio Accessibility empty after /reload.
+		if tab.LazyBuild then
+			local build = tab.LazyBuild
+			tab.LazyBuild = nil
+			local ok, err = pcall(build, tab.Content)
+			if not ok then
+				print("|cffff3333[PVP Sound]|r tab build error: " .. tostring(err))
+			end
+		end
+
 		for j = 1, #tabs do
 			local isSel = (j == i)
 			tabs[j].Content:SetShown(isSel)
 			SetSelected(tabs[j].Button, isSel)
+		end
+
+		local content = tab.Content
+		if content and content.MiniRefresh then
+			content:MiniRefresh()
 		end
 
 		if options.OnTabChanged then
@@ -373,7 +391,11 @@ function M:CreateTabs(options)
 		end)
 
 		if type(def.Build) == "function" then
-			def.Build(content)
+			if def.Lazy then
+				tab.LazyBuild = def.Build
+			else
+				def.Build(content)
+			end
 		end
 	end
 
@@ -670,8 +692,11 @@ function M:Slider(options)
 	box:SetJustifyH("CENTER")
 	box:SetCursorPosition(0)
 
+	local suppressFromRefresh = false
 	slider:SetScript("OnValueChanged", function(_, sliderValue, userInput)
-		if userInput ~= nil and not userInput then return end
+		if suppressFromRefresh then return end
+		-- Programmatic SetValue passes userInput=false; nil still happens on some clients.
+		if userInput == false then return end
 		box:SetText(tostring(sliderValue))
 		options.SetValue(sliderValue)
 	end)
@@ -692,7 +717,10 @@ function M:Slider(options)
 
 	function slider.MiniRefresh(sliderSelf)
 		local value = options.GetValue()
+		suppressFromRefresh = true
 		sliderSelf:SetValue(value)
+		suppressFromRefresh = false
+		box:SetText(tostring(value))
 	end
 
 	AddControlForRefresh(options.Parent, slider)
