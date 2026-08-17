@@ -50,6 +50,9 @@ local function OnAddonLoaded()
 	if modern then
 		addon.Modules.AuraSoundModule:Init()
 		addon.Modules.SoundModule:Init()
+		if addon.Modules.TrinketModule then
+			addon.Modules.TrinketModule:Init()
+		end
 	else
 		addon.Modules.SoundModuleLegacy:Init()
 	end
@@ -71,6 +74,9 @@ function addon:Refresh()
 		end
 		if addon.Modules.AuraSoundModule and addon.Modules.AuraSoundModule.Refresh then
 			addon.Modules.AuraSoundModule:Refresh("addon:Refresh")
+		end
+		if addon.Modules.TrinketModule and addon.Modules.TrinketModule.Refresh then
+			addon.Modules.TrinketModule:Refresh()
 		end
 	else
 		if addon.Modules.SoundModuleLegacy and addon.Modules.SoundModuleLegacy.Refresh then
