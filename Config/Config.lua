@@ -2501,6 +2501,8 @@ local function BuildChangelogTab(content)
 	local block = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v3.0.7"],
+			" ",
 			L["changelog_v3.0.6"],
 			" ",
 			L["changelog_v3.0.5"],
@@ -2695,7 +2697,7 @@ function M:Init()
 
 	local authorLine = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
 	authorLine:SetText(L["Author: DK-姜世离（燃烧之刃）"])
-	authorLine:SetPoint("TOPLEFT", descBlock, "BOTTOMLEFT", 0, -4)
+	authorLine:SetPoint("TOPLEFT", descBlock, "BOTTOMLEFT", 0, -verticalSpacing)
 
 	local function MakeLinkPopup(frameName, title, hint, url, boxWidth, popupWidth, popupHeight)
 		local popup = CreateFrame("Frame", frameName, UIParent, "BasicFrameTemplateWithInset")
@@ -2798,7 +2800,7 @@ function M:Init()
 	end)
 
 	local tabsPanel = CreateFrame("Frame", nil, panel)
-	tabsPanel:SetPoint("TOPLEFT", authorLine, "BOTTOMLEFT", 0, -verticalSpacing)
+	tabsPanel:SetPoint("TOPLEFT", authorLine, "BOTTOMLEFT", 0, -verticalSpacing * 2)
 	tabsPanel:SetPoint("RIGHT", panel, "RIGHT", 0, 0)
 	tabsPanel:SetPoint("BOTTOM", panel, "BOTTOM", 0, verticalSpacing * 2)
 

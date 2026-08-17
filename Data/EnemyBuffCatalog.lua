@@ -346,8 +346,8 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 199086, File = "warpath.ogg" },
 				{ Id = 147833, File = "Intervene.ogg" },
 				{ Id = 386208, File = "defensestance.ogg" },
-				{ Id = 386196, File = "damageStance.ogg" },
-				{ Id = 7366, File = "battleStance.ogg", Label = "狂暴姿态" }, -- original Xia Yike clip
+				{ Id = 386196, File = "battleStance.ogg", Label = "狂暴姿态" },
+				{ Id = 7366, File = "battleStance.ogg" },
 				{ Id = 2458, File = "battleStance.ogg" },
 				{ Id = 386164, File = "combatStance.ogg", Label = "战斗姿态" },
 				{ Id = 392966, File = "spellBlock.ogg" },

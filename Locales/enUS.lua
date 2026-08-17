@@ -186,6 +186,7 @@ L:SetDefaultStrings({
 	["Changelog"] = "Changelog",
 	["PVP Sound - What's New?"] = "PVP Sound - What's New?",
 	["changelog_v3.0.5"] = "|cFFFFD100v3.0.5|r — Interrupt alert now plays only when you land the kick (no more false positives from cancelled casts); fixed Adaptation spell ID; added some spells (Death Pact, Necklace Shield, Crimson Rune, Vanish).",
+	["changelog_v3.0.7"] = "|cFFFFD100v3.0.7|r — Re-recorded missing Xia Yike lines with AI, added more spell IDs, and fixed addon errors.",
 	["changelog_v3.0.6"] = "|cFFFFD100v3.0.6|r — Added more class abilities; added consumable detection; fixed some bugs.",
 	["changelog_v3.0.4"] = "|cFFFFD100v3.0.4|r — Boosted Xiaoxiao voice pack volume; DIY voice packs now live beside the addon so they are not lost on update.",
 	["changelog_v3.0.3"] = "|cFFFFD100v3.0.3|r — Added 'Party Only' debuff alert scope (teammates, not self); new enemy buffs: DK Army of the Dead, DH Metamorphosis/Darkness; new self/teammate debuffs: DH Sigil of Misery/Fiery Brand; added The War Within (11.x) spell variants (Avenging Wrath, Divine Protection, etc.).",
