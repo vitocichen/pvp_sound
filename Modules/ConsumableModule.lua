@@ -150,7 +150,7 @@ end
 
 function M:DebugTest(spellID)
 	spellID = tonumber(spellID) or 1234768
-	local info = spellWatch[spellID] or { zh = "银月城生命药水" }
+	local info = spellWatch[spellID] or { zh = "生命药水" }
 	QueueSay(info.zh)
 	local prefix = addon.L["consumable_say_prefix"] or "！！【PVP_SOUND检测】我已吃下"
 	pendingText = prefix .. "【" .. info.zh .. "】药水！！"
