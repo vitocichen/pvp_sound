@@ -198,6 +198,9 @@ L:SetDefaultStrings({
 	["Donate Popup Title"] = "Support PVP Sound",
 	["Donate Popup Hint"] = "Copy the link and open in your browser to donate:",
 	["Donate Open Hint"] = "|cFF888888Can't open? Try visiting the URL above in your browser|r",
+	["Plugin Feedback"] = "Feedback",
+	["Feedback Popup Title"] = "Feedback",
+	["Feedback Popup Hint"] = "If you run into problems or have better ideas, we'd love your feedback.\nCopy the link and open the Discord channel in your browser:",
 
 	["Important"] = "Important",
 	["Defensive"] = "Defensive",

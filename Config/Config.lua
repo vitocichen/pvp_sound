@@ -1898,6 +1898,7 @@ local function BuildConsumableWatchSection(parent, anchor)
 		local row = math.floor((i - 1) / columns)
 		local itemID = entry.itemID
 		local spellID = entry.spellID
+		local file = entry.file
 		local chk = mini:Checkbox({
 			Parent = parent,
 			LabelText = ConsumableLabel(entry),
@@ -1907,9 +1908,15 @@ local function BuildConsumableWatchSection(parent, anchor)
 			SetValue = function()
 			end,
 		})
-		-- Keep mouse so hover tooltip works; click cannot uncheck.
+		-- Locked on; click still previews the clip like other spell checkboxes.
 		chk:SetScript("OnClick", function(self)
 			self:SetChecked(true)
+			if file then
+				local path = voicePack:Path(file)
+				if path then
+					pcall(PlaySoundFile, path, db.Sound and db.Sound.Channel or "Master")
+				end
+			end
 		end)
 		chk:SetScript("OnEnter", function(self)
 			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -2608,65 +2615,104 @@ function M:Init()
 	authorLine:SetText(L["Author: DK-姜世离（燃烧之刃）"])
 	authorLine:SetPoint("TOPLEFT", descBlock, "BOTTOMLEFT", 0, -4)
 
+	local function MakeLinkPopup(frameName, title, hint, url, boxWidth, popupWidth, popupHeight)
+		local popup = CreateFrame("Frame", frameName, UIParent, "BasicFrameTemplateWithInset")
+		popup:SetSize(popupWidth or 440, popupHeight or 140)
+		popup:SetPoint("CENTER")
+		popup:SetFrameStrata("DIALOG")
+		popup:EnableMouse(true)
+		popup:SetMovable(true)
+		popup:RegisterForDrag("LeftButton")
+		popup:SetScript("OnDragStart", popup.StartMoving)
+		popup:SetScript("OnDragStop", popup.StopMovingOrSizing)
+		popup:Hide()
+		popup.TitleText:SetText(title)
+
+		local hintFs = popup:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+		hintFs:SetWidth((popupWidth or 440) - 48)
+		hintFs:SetWordWrap(true)
+		hintFs:SetJustifyH("CENTER")
+		hintFs:SetText(hint)
+		hintFs:SetPoint("TOP", popup, "TOP", 0, -32)
+
+		local editBox = CreateFrame("EditBox", nil, popup, "InputBoxTemplate")
+		editBox:SetSize(boxWidth or 300, 20)
+		editBox:SetPoint("TOP", hintFs, "BOTTOM", -20, -12)
+		editBox:SetAutoFocus(false)
+		editBox:SetText(url)
+		editBox:SetCursorPosition(0)
+		editBox:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+		editBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+		editBox:SetScript("OnTextChanged", function(self)
+			self:SetText(url)
+			self:HighlightText()
+		end)
+
+		local copyBtn = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
+		copyBtn:SetSize(60, 22)
+		copyBtn:SetPoint("LEFT", editBox, "RIGHT", 8, 0)
+		copyBtn:SetText(L["Copy"])
+		copyBtn:SetScript("OnClick", function(self)
+			editBox:SetText(url)
+			editBox:HighlightText()
+			editBox:SetFocus()
+			self:SetText(L["Copied"])
+			C_Timer.After(1.5, function() self:SetText(L["Copy"]) end)
+		end)
+
+		local openHint = popup:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+		openHint:SetText(L["Donate Open Hint"])
+		openHint:SetPoint("TOP", editBox, "BOTTOM", -20, -8)
+
+		return popup, editBox
+	end
+
+	local donateURL = "https://vitocichen.github.io/DK-jiangshili/"
+	local feedbackURL = "https://discord.com/channels/1538829151497355274/1538873466168672387"
+	local donatePopup, donateEditBox = MakeLinkPopup(
+		"PVPSoundDonatePopup",
+		L["Donate Popup Title"],
+		L["Donate Popup Hint"],
+		donateURL,
+		300,
+		440
+	)
+	local feedbackPopup, feedbackEditBox = MakeLinkPopup(
+		"PVPSoundFeedbackPopup",
+		L["Feedback Popup Title"],
+		L["Feedback Popup Hint"],
+		feedbackURL,
+		380,
+		520,
+		170
+	)
+
 	local donateBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
 	donateBtn:SetSize(80, 22)
 	donateBtn:SetPoint("LEFT", authorLine, "RIGHT", horizontalSpacing, 2)
 	donateBtn:SetText(L["Donate"])
 
-	local donatePopup = CreateFrame("Frame", "PVPSoundDonatePopup", UIParent, "BasicFrameTemplateWithInset")
-	donatePopup:SetSize(440, 140)
-	donatePopup:SetPoint("CENTER")
-	donatePopup:SetFrameStrata("DIALOG")
-	donatePopup:EnableMouse(true)
-	donatePopup:SetMovable(true)
-	donatePopup:RegisterForDrag("LeftButton")
-	donatePopup:SetScript("OnDragStart", donatePopup.StartMoving)
-	donatePopup:SetScript("OnDragStop", donatePopup.StopMovingOrSizing)
-	donatePopup:Hide()
-	donatePopup.TitleText:SetText(L["Donate Popup Title"])
+	local feedbackBtn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+	feedbackBtn:SetSize(110, 22)
+	feedbackBtn:SetPoint("LEFT", donateBtn, "RIGHT", horizontalSpacing, 0)
+	feedbackBtn:SetText(L["Plugin Feedback"])
 
-	local donateHint = donatePopup:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-	donateHint:SetText(L["Donate Popup Hint"])
-	donateHint:SetPoint("TOP", donatePopup, "TOP", 0, -32)
-
-	local donateURL = "https://vitocichen.github.io/DK-jiangshili/"
-	local donateEditBox = CreateFrame("EditBox", nil, donatePopup, "InputBoxTemplate")
-	donateEditBox:SetSize(300, 20)
-	donateEditBox:SetPoint("TOP", donateHint, "BOTTOM", -20, -12)
-	donateEditBox:SetAutoFocus(false)
-	donateEditBox:SetText(donateURL)
-	donateEditBox:SetCursorPosition(0)
-	donateEditBox:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
-	donateEditBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-	donateEditBox:SetScript("OnTextChanged", function(self)
-		self:SetText(donateURL)
-		self:HighlightText()
-	end)
-
-	local donateCopyBtn = CreateFrame("Button", nil, donatePopup, "UIPanelButtonTemplate")
-	donateCopyBtn:SetSize(60, 22)
-	donateCopyBtn:SetPoint("LEFT", donateEditBox, "RIGHT", 8, 0)
-	donateCopyBtn:SetText(L["Copy"])
-	donateCopyBtn:SetScript("OnClick", function(self)
-		donateEditBox:SetText(donateURL)
-		donateEditBox:HighlightText()
-		donateEditBox:SetFocus()
-		self:SetText(L["Copied"])
-		C_Timer.After(1.5, function() self:SetText(L["Copy"]) end)
-	end)
-
-	local donateOpenHint = donatePopup:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	donateOpenHint:SetText(L["Donate Open Hint"])
-	donateOpenHint:SetPoint("TOP", donateEditBox, "BOTTOM", -20, -8)
+	local function ToggleLinkPopup(popup, editBox, url, other)
+		if popup:IsShown() then
+			popup:Hide()
+			return
+		end
+		if other then other:Hide() end
+		popup:Show()
+		editBox:SetText(url)
+		editBox:SetCursorPosition(0)
+	end
 
 	donateBtn:SetScript("OnClick", function()
-		if donatePopup:IsShown() then
-			donatePopup:Hide()
-		else
-			donatePopup:Show()
-			donateEditBox:SetText(donateURL)
-			donateEditBox:SetCursorPosition(0)
-		end
+		ToggleLinkPopup(donatePopup, donateEditBox, donateURL, feedbackPopup)
+	end)
+	feedbackBtn:SetScript("OnClick", function()
+		ToggleLinkPopup(feedbackPopup, feedbackEditBox, feedbackURL, donatePopup)
 	end)
 
 	local tabsPanel = CreateFrame("Frame", nil, panel)

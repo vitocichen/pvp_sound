@@ -202,6 +202,9 @@ L:SetStrings({
 	["Donate Popup Title"] = "打赏支持",
 	["Donate Popup Hint"] = "复制链接，在浏览器中打开即可扫码打赏：",
 	["Donate Open Hint"] = "|cFF888888打不开？请尝试使用浏览器直接访问上方网址|r",
+	["Plugin Feedback"] = "插件交流反馈",
+	["Feedback Popup Title"] = "插件交流反馈",
+	["Feedback Popup Hint"] = "如果你在使用中遇到了问题，或者有更好的想法，欢迎交流反馈。\n复制链接，在浏览器中打开 Discord 频道：",
 
 	["Important"] = "重要",
 	["Defensive"] = "防御",
