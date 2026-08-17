@@ -390,7 +390,7 @@ local function MigrateV28(savedDb)
 	if not savedDb or (savedDb.Version and savedDb.Version >= 28) then return end
 	savedDb.SysCast = savedDb.SysCast or {}
 	if savedDb.SysCast.PreferredMode == nil then
-		local mode = tonumber(GetCVar and GetCVar("CAATargetCastMode")) or 1
+		local mode = addon.Utils.Units:PublicNumber(GetCVar and GetCVar("CAATargetCastMode")) or 1
 		if mode < 1 then
 			mode = 1
 		end
@@ -1089,6 +1089,7 @@ local function SysCastAvailable()
 end
 
 ---Plain boolean or nil if secret/unknown (Midnight GetCVar can taint).
+---GetCVar returns "0"/"1" strings; a non-empty string is truthy in Lua, so "0" must not become true.
 local function KnownBool(value)
 	if value == nil then
 		return nil
@@ -1096,13 +1097,59 @@ local function KnownBool(value)
 	if issecretvalue and issecretvalue(value) then
 		return nil
 	end
+	local t = type(value)
+	if t == "string" then
+		local n = tonumber(value)
+		if n ~= nil then
+			return n ~= 0
+		end
+		local lower = value:lower()
+		if lower == "true" or lower == "yes" then
+			return true
+		end
+		if lower == "false" or lower == "no" or lower == "" then
+			return false
+		end
+		return nil
+	end
+	if t == "number" then
+		return value ~= 0
+	end
 	return value and true or false
+end
+
+local function PublicNumber(value)
+	if value == nil then
+		return nil
+	end
+	if issecretvalue and issecretvalue(value) then
+		return nil
+	end
+	local ok, n = pcall(tonumber, value)
+	if not ok or n == nil then
+		return nil
+	end
+	if issecretvalue and issecretvalue(n) then
+		return nil
+	end
+	return n
 end
 
 -- ESC「启动战斗音频预警」is CVar CAAEnabled (AudioAssist.lua uses GetCVarBool).
 -- Do not prefer C_CombatAudioAlert.IsEnabled: there is no SetEnabled in the API,
 -- so IsEnabled can stay false while the CVar (and Blizzard checkbox) is on.
 local function SysCastGetMaster()
+	-- Prefer GetCVar: Midnight GetCVarBool is often secret, and the string "0" must
+	-- parse as false (Lua treats any non-empty string as true).
+	local raw = GetCVar and GetCVar("CAAEnabled")
+	local fromRaw = KnownBool(raw)
+	if fromRaw ~= nil then
+		return fromRaw
+	end
+	local n = tonumber(raw)
+	if n ~= nil then
+		return n ~= 0
+	end
 	if GetCVarBool then
 		local ok, v = pcall(GetCVarBool, "CAAEnabled")
 		local b = ok and KnownBool(v) or nil
@@ -1119,24 +1166,19 @@ local function SysCastGetMaster()
 			return b
 		end
 	end
-	local raw = GetCVar and GetCVar("CAAEnabled")
-	if KnownBool(raw) ~= nil then
-		return KnownBool(raw)
-	end
-	local n = tonumber(raw)
-	if n ~= nil then
-		return n ~= 0
-	end
 	return false
 end
 
 local function SysCastSetMaster(enabled)
 	enabled = not not enabled
+	if Settings and Settings.SetValue then
+		pcall(Settings.SetValue, "CAAEnabled", enabled)
+	end
 	pcall(SetCVar, "CAAEnabled", enabled and "1" or "0")
 end
 
 local function SysCastGetMode()
-	return tonumber(GetCVar and GetCVar("CAATargetCastMode")) or 0
+	return PublicNumber(GetCVar and GetCVar("CAATargetCastMode")) or 0
 end
 
 local function SysCastSetMode(mode)
@@ -1162,10 +1204,10 @@ local function SysCastGetFormat()
 	if CAA and CAA.GetFormatSetting then
 		local ok, v = pcall(CAA.GetFormatSetting, unit, alert)
 		if ok and v ~= nil then
-			return tonumber(v) or 0
+			return PublicNumber(v) or 0
 		end
 	end
-	return tonumber(GetCVar and GetCVar("CAATargetCastFormat")) or 0
+	return PublicNumber(GetCVar and GetCVar("CAATargetCastFormat")) or 0
 end
 
 local function SysCastSetFormat(fmt)
@@ -1181,7 +1223,7 @@ local function SysCastSetFormat(fmt)
 end
 
 local function SysCastGetVoice()
-	local cvar = tonumber(GetCVar and GetCVar("CAATargetCastVoice"))
+	local cvar = PublicNumber(GetCVar and GetCVar("CAATargetCastVoice"))
 	if cvar ~= nil then
 		return cvar
 	end
@@ -1190,10 +1232,10 @@ local function SysCastGetVoice()
 	if CAA and CAA.GetCategoryVoice then
 		local ok, v = pcall(CAA.GetCategoryVoice, cat)
 		if ok and v ~= nil then
-			return tonumber(v) or 0
+			return PublicNumber(v) or 0
 		end
 	end
-	return tonumber(GetCVar and GetCVar("CAAVoice")) or 0
+	return PublicNumber(GetCVar and GetCVar("CAAVoice")) or 0
 end
 
 local function SysCastSetVoice(voiceId)
@@ -1212,10 +1254,10 @@ local function SysCastGetVolume()
 	if CAA and CAA.GetCategoryVolume then
 		local ok, v = pcall(CAA.GetCategoryVolume, cat)
 		if ok and v ~= nil then
-			return tonumber(v) or 100
+			return PublicNumber(v) or 100
 		end
 	end
-	return tonumber(GetCVar and GetCVar("CAAVolume")) or 100
+	return PublicNumber(GetCVar and GetCVar("CAAVolume")) or 100
 end
 
 local function SysCastSetVolume(vol)
@@ -1236,10 +1278,10 @@ local function SysCastGetThrottle()
 	if CAA and CAA.GetThrottle then
 		local ok, v = pcall(CAA.GetThrottle, throttleType)
 		if ok and v ~= nil then
-			return tonumber(v) or 0
+			return PublicNumber(v) or 0
 		end
 	end
-	return tonumber(GetCVar and GetCVar("CAATargetCastThrottle")) or 0
+	return PublicNumber(GetCVar and GetCVar("CAATargetCastThrottle")) or 0
 end
 
 local function SysCastSetThrottle(sec)
@@ -1256,7 +1298,7 @@ local function SysCastSetThrottle(sec)
 end
 
 local function SysCastGetMinTime()
-	return tonumber(GetCVar and GetCVar("CAATargetCastMinTime")) or 0.5
+	return PublicNumber(GetCVar and GetCVar("CAATargetCastMinTime")) or 0.5
 end
 
 local function SysCastSetMinTime(sec)

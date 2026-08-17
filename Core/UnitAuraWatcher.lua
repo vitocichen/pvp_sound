@@ -137,6 +137,9 @@ local function IterateAuras(unit, filter, callback)
 		local durationInfo = C_UnitAuras.GetAuraDuration(unit, auraData.auraInstanceID)
 		local start = durationInfo and durationInfo:GetStartTime()
 		local duration = durationInfo and durationInfo:GetTotalDuration()
+		if issecretvalue and (issecretvalue(start) or issecretvalue(duration)) then
+			start, duration = nil, nil
+		end
 
 		if start and duration then
 			local dispelColor = C_UnitAuras.GetAuraDispelTypeColor(unit, auraData.auraInstanceID, dispelColorCurve)

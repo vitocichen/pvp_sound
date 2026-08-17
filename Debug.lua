@@ -76,7 +76,7 @@ function addon.DebugDiag()
 		if token:find("%(selfCC%)$") or token:find("%(healerCC%)$") then
 			print(string.format("    %s handles=%d", token, n))
 		else
-			local exists = UnitExists(token)
+			local exists = units:Exists(token)
 			local canAtk = units:CanAttack(token)
 			local isEnemy = units:IsEnemy(token)
 			local isPlayer = UnitIsPlayer(token)
@@ -89,7 +89,7 @@ function addon.DebugDiag()
 		print("  |cffff6666无注册：选中敌对玩家，或关掉「仅目标/焦点」并打开姓名板；debuff 应有 player(selfCC)|r")
 	end
 
-	if UnitExists("target") then
+	if units:Exists("target") then
 		print(string.format("  target: enemyPlayer=%s canAttack=%s isEnemy=%s",
 			tostring(units:IsEnemyPlayer("target")),
 			tostring(units:CanAttack("target")),

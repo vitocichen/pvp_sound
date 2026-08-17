@@ -35,6 +35,24 @@ function M:KnownTrue(value)
 	return value and true or false
 end
 
+---Public number or nil. Secret / tainted cooldown and CVar values must not be compared.
+function M:PublicNumber(value)
+	if value == nil then
+		return nil
+	end
+	if issecretvalue and issecretvalue(value) then
+		return nil
+	end
+	local ok, n = pcall(tonumber, value)
+	if not ok or n == nil then
+		return nil
+	end
+	if issecretvalue and issecretvalue(n) then
+		return nil
+	end
+	return n
+end
+
 function M:Exists(unitToken)
 	if not unitToken then
 		return false

@@ -3,7 +3,6 @@ local _, addon = ...
 local moduleUtil = addon.Utils.ModuleUtil
 local data = addon.Data.Consumables
 local spellWatch = data.Spells
-local itemWatch = data.Items
 
 ---@class ConsumableModule
 local M = {}
@@ -16,8 +15,7 @@ local primed
 local pendingText
 local lastAnnounceAt = 0
 local lastAnnounceText
-local lastSpellStart = {}
-local lastItemStart = {}
+local seenAura = {}
 local DEDUP = 0.8
 
 local function ChatLocked()
@@ -81,67 +79,39 @@ local function QueueSay(name)
 	hwFrame:SetPropagateKeyboardInput(true)
 end
 
-local function ReadSpellCooldown(spellID)
-	if C_Spell and C_Spell.GetSpellCooldown then
-		local ok, info = pcall(C_Spell.GetSpellCooldown, spellID)
-		if ok and type(info) == "table" then
-			return tonumber(info.startTime) or 0, tonumber(info.duration) or 0
-		end
+---Hardcoded spellID only. Do not read cooldown start/duration (secret in combat).
+local function PlayerHasAura(spellID)
+	if not spellID then
+		return false
 	end
-	if GetSpellCooldown then
-		local start, duration = GetSpellCooldown(spellID)
-		return tonumber(start) or 0, tonumber(duration) or 0
+	if issecretvalue and issecretvalue(spellID) then
+		return false
 	end
-	return 0, 0
+	if not (C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID) then
+		return false
+	end
+	local ok, aura = pcall(C_UnitAuras.GetPlayerAuraBySpellID, spellID)
+	if not ok or aura == nil then
+		return false
+	end
+	if issecretvalue and issecretvalue(aura) then
+		return false
+	end
+	return true
 end
 
-local function ReadItemCooldown(itemID)
-	if C_Container and C_Container.GetItemCooldown then
-		local start, duration = C_Container.GetItemCooldown(itemID)
-		return tonumber(start) or 0, tonumber(duration) or 0
-	end
-	if C_Item and C_Item.GetItemCooldown then
-		local ok, info = pcall(C_Item.GetItemCooldown, itemID)
-		if ok and type(info) == "table" then
-			return tonumber(info.startTime) or 0, tonumber(info.duration) or 0
-		end
-	end
-	if GetItemCooldown then
-		local start, duration = GetItemCooldown(itemID)
-		return tonumber(start) or 0, tonumber(duration) or 0
-	end
-	return 0, 0
-end
-
--- Query our hardcoded IDs. Do not use secret values from combat events.
-local function ScanCooldowns(announce)
-	local hit
-	for itemID, info in pairs(itemWatch) do
-		local start, duration = ReadItemCooldown(itemID)
-		if start > 0 and duration > 60 then
-			if announce and lastItemStart[itemID] and lastItemStart[itemID] ~= start then
-				hit = hit or info.zh
-			end
-			lastItemStart[itemID] = start
-		end
-	end
+local function ScanPlayerAuras(announce)
 	for spellID, info in pairs(spellWatch) do
-		local start, duration = ReadSpellCooldown(spellID)
-		if start > 0 and duration > 60 then
-			if announce and lastSpellStart[spellID] and lastSpellStart[spellID] ~= start then
-				hit = hit or info.zh
-			end
-			lastSpellStart[spellID] = start
+		local has = PlayerHasAura(spellID)
+		if announce and has and not seenAura[spellID] then
+			QueueSay(info.zh)
 		end
-	end
-	if hit then
-		QueueSay(hit)
+		seenAura[spellID] = has
 	end
 end
 
 local function AnnounceSpell(spellID)
-	if issecretvalue and issecretvalue(spellID) then return end
-	spellID = tonumber(spellID)
+	spellID = addon.Utils.Units:PublicNumber(spellID)
 	if not spellID then return end
 	local info = spellWatch[spellID]
 	if not info then return end
@@ -167,26 +137,22 @@ function M:Init()
 	EnsureHardwareWait()
 	eventsFrame = CreateFrame("Frame")
 	eventsFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
-	eventsFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
-	eventsFrame:RegisterEvent("BAG_UPDATE_COOLDOWN")
 	eventsFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+	eventsFrame:RegisterUnitEvent("UNIT_AURA", "player")
 	eventsFrame:SetScript("OnEvent", function(_, event, unit, _, spellID)
 		if event == "PLAYER_ENTERING_WORLD" then
-			ScanCooldowns(false)
+			ScanPlayerAuras(false)
 			primed = true
 			return
 		end
-		if event == "SPELL_UPDATE_COOLDOWN" or event == "BAG_UPDATE_COOLDOWN" then
+		if event == "UNIT_AURA" then
 			if primed then
-				ScanCooldowns(true)
+				ScanPlayerAuras(true)
 			end
 			return
 		end
 		if event == "UNIT_SPELLCAST_SUCCEEDED" and unit == "player" then
 			AnnounceSpell(spellID)
-			if primed then
-				ScanCooldowns(true)
-			end
 		end
 	end)
 end

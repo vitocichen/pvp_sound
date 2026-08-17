@@ -139,10 +139,10 @@ local function IsCastUnitInRange(unit)
 	if not targetOnly then
 		return true
 	end
-	if UnitExists("target") and UnitIsUnit(unit, "target") then
+	if units:Exists("target") and units:IsSameUnit(unit, "target") then
 		return true
 	end
-	if UnitExists("focus") and UnitIsUnit(unit, "focus") then
+	if units:Exists("focus") and units:IsSameUnit(unit, "focus") then
 		return true
 	end
 	return false
@@ -151,15 +151,15 @@ end
 ---@return string? name
 ---@return number? spellId
 local function ReadCastInfo(unit)
-	if not unit or not UnitExists(unit) then
+	if not unit or not units:Exists(unit) then
 		return nil, nil
 	end
 	local name, _, _, _, _, _, _, _, spellId = UnitCastingInfo(unit)
 	if name then
-		return name, spellId
+		return name, units:PublicNumber(spellId)
 	end
 	name, _, _, _, _, _, _, spellId = UnitChannelInfo(unit)
-	return name, spellId
+	return name, units:PublicNumber(spellId)
 end
 
 local function AnnounceCast(name, spellID)
@@ -337,7 +337,7 @@ function M:DebugSysCast(arg)
 				return v and true or false
 			end
 		end
-		return (tonumber(GetCVar and GetCVar("CAAEnabled")) or 0) ~= 0
+		return (units:PublicNumber(GetCVar and GetCVar("CAAEnabled")) or 0) ~= 0
 	end
 
 	local function setMaster(enabled)
@@ -352,17 +352,17 @@ function M:DebugSysCast(arg)
 
 	local function getMode()
 		local v = GetCVar and GetCVar("CAATargetCastMode")
-		return tonumber(v)
+		return units:PublicNumber(v)
 	end
 
 	local function getFormat()
 		if CAA.GetFormatSetting then
 			local ok, v = pcall(CAA.GetFormatSetting, unit, alert)
 			if ok and v ~= nil then
-				return tonumber(v)
+				return units:PublicNumber(v)
 			end
 		end
-		return tonumber(GetCVar and GetCVar("CAATargetCastFormat"))
+		return units:PublicNumber(GetCVar and GetCVar("CAATargetCastFormat"))
 	end
 
 	local function setMode(v, ensureMaster)
@@ -490,9 +490,9 @@ function M:SyncSysCastZoneGate()
 	db = db or addon.Core.Framework:GetSavedVars()
 	db.SysCast = db.SysCast or {}
 
-	local preferred = tonumber(db.SysCast.PreferredMode)
+	local preferred = units:PublicNumber(db.SysCast.PreferredMode)
 	if preferred == nil then
-		preferred = tonumber(GetCVar("CAATargetCastMode")) or 1
+		preferred = units:PublicNumber(GetCVar("CAATargetCastMode")) or 1
 		if preferred < 1 then
 			preferred = 1
 		end
@@ -507,7 +507,7 @@ function M:SyncSysCastZoneGate()
 		-- Do not force CAAEnabled here; master stays under the 读条 page / system UI.
 	end
 
-	local cur = tonumber(GetCVar("CAATargetCastMode")) or 0
+	local cur = units:PublicNumber(GetCVar("CAATargetCastMode")) or 0
 	if cur ~= want then
 		pcall(SetCVar, "CAATargetCastMode", tostring(want))
 	end

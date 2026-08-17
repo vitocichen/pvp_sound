@@ -587,10 +587,11 @@ function M:Checkbox(options)
 	checkbox.Text:SetFontObject("GameFontNormal")
 	checkbox:SetChecked(options.GetValue() and true or false)
 	-- Fully own OnClick: do not store GetChecked() (can be secret on 12.1 and dropped on logout).
+	-- SetChecked from the intended value, not a re-read: GetCVar "0" is truthy if mishandled.
 	checkbox:SetScript("OnClick", function(self)
 		local newValue = not options.GetValue()
 		options.SetValue(newValue and true or false)
-		self:SetChecked(options.GetValue() and true or false)
+		self:SetChecked(newValue and true or false)
 	end)
 
 	if options.Tooltip then

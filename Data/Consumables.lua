@@ -1,8 +1,8 @@
 ---@type string, Addon
 local _, addon = ...
 
--- Watch by spellID and itemID. Midnight often hides UNIT_SPELLCAST_SUCCEEDED
--- spell IDs; item/spell cooldown APIs still accept our hardcoded numbers.
+-- Potion clips play via AddAuraSound (enemy buffs). Honesty /yell watches
+-- player auras with GetPlayerAuraBySpellID using these hardcoded IDs.
 addon.Data.Consumables = {
 	List = {
 		{ zh = "生命药水", en = "Health Potion", itemID = 241304, spellID = 1234768, file = "silvermoonPotion.ogg" },
