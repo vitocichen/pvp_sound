@@ -80,19 +80,6 @@ do
 				else
 					addon.Dbg("  target=(none or secret exists)")
 				end
-				if event == "PLAYER_REGEN_DISABLED" and C_NamePlate and C_NamePlate.GetNamePlates then
-					local plates = C_NamePlate.GetNamePlates() or {}
-					addon.Dbg("  nameplates=%d", #plates)
-					for i = 1, math.min(#plates, 5) do
-						local token = plates[i] and plates[i].unitToken
-						if token and units then
-							addon.Dbg("  plate %s isPlayer=%s isEnemyPlayer=%s",
-								tostring(token),
-								addon.DbgVal(UnitIsPlayer(token)),
-								tostring(units:IsEnemyPlayer(token)))
-						end
-					end
-				end
 			end
 		end)
 	end)

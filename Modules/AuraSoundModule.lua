@@ -213,10 +213,23 @@ local function GetEnemyWatchTokens()
 	end
 
 	if not targetFocusOnly then
-		for _, nameplate in ipairs(C_NamePlate.GetNamePlates() or {}) do
-			local unitToken = nameplate.unitToken
-			if units:IsEnemyPlayer(unitToken) then
-				AddToken(unitToken)
+		-- Combat: never index Compact nameplate frames (GetNamePlates). That taints
+		-- and shows 插件导致界面行为失效. NAME_PLATE_UNIT_ADDED still registers.
+		if InCombatLockdown() then
+			if addon.Dbg then
+				addon.Dbg("GetEnemyWatchTokens skip GetNamePlates (combat)")
+			end
+			for token in pairs(enemyByToken) do
+				if type(token) == "string" and token:find("^nameplate") then
+					AddToken(token)
+				end
+			end
+		else
+			for _, nameplate in ipairs(C_NamePlate.GetNamePlates() or {}) do
+				local unitToken = nameplate.unitToken
+				if units:IsEnemyPlayer(unitToken) then
+					AddToken(unitToken)
+				end
 			end
 		end
 	end
