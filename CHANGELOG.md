@@ -1,5 +1,11 @@
 # PVP Sound
 
+## [v3.0.9](https://github.com/vitocichen/pvp_sound/tree/v3.0.9) (2026-08-18)
+[Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.9)
+
+- 修复重载后打怪/进战斗时出现的「插件导致界面行为失效」
+- 新增竞技场角斗士徽章语音播报
+
 ## [v3.0.8](https://github.com/vitocichen/pvp_sound/tree/v3.0.8) (2026-08-18)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.8)
 

@@ -213,10 +213,20 @@ local function GetEnemyWatchTokens()
 	end
 
 	if not targetFocusOnly then
-		for _, nameplate in ipairs(C_NamePlate.GetNamePlates() or {}) do
-			local unitToken = nameplate.unitToken
-			if units:IsEnemyPlayer(unitToken) then
-				AddToken(unitToken)
+		-- Combat: do not index Compact nameplate frames (GetNamePlates).
+		-- NAME_PLATE_UNIT_ADDED still registers new plates.
+		if InCombatLockdown() then
+			for token in pairs(enemyByToken) do
+				if type(token) == "string" and token:find("^nameplate") then
+					AddToken(token)
+				end
+			end
+		else
+			for _, nameplate in ipairs(C_NamePlate.GetNamePlates() or {}) do
+				local unitToken = nameplate.unitToken
+				if units:IsEnemyPlayer(unitToken) then
+					AddToken(unitToken)
+				end
 			end
 		end
 	end
