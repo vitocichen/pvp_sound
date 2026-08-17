@@ -8,7 +8,7 @@ addon.Data.EnemyBuffCatalog = {
 			Key = "General",
 			Name = "General",
 			Spells = {
-				{ Id = 336126, File = "Trinket.ogg", Label = "饰品", Ids = { [336126] = true, [42292] = true, [195710] = true, [208683] = true } }, -- Gladiator's Medallion (arena CcRemoverFrame)
+				{ Id = 336126, File = "Trinket.ogg", Label = "徽章", Ids = { [336126] = true, [42292] = true, [195710] = true, [208683] = true } }, -- Gladiator's Medallion (arena CcRemoverFrame)
 				{ Id = 336139, File = "trinket1.ogg", Label = "适应" }, -- Adapted (visible buff)
 				{ Id = 214027, File = "trinket1.ogg", Label = "适应" }, -- Adaptation talent
 				{ Id = 34709, File = "shadowSight.ogg" },
