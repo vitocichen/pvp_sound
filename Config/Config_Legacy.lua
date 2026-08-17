@@ -514,6 +514,9 @@ local function BuildHomeTab(content)
 		tutorialEditBox:SetText(L["Voice Tutorial URL"])
 		tutorialEditBox:HighlightText()
 		tutorialEditBox:SetFocus()
+		if CopyToClipboard then
+			pcall(CopyToClipboard, L["Voice Tutorial URL"])
+		end
 		self:SetText(L["Copied"])
 		C_Timer.After(1.5, function() self:SetText(L["Copy"]) end)
 	end)
@@ -1606,6 +1609,9 @@ function M:Init()
 		donateEditBox:SetText(donateURL)
 		donateEditBox:HighlightText()
 		donateEditBox:SetFocus()
+		if CopyToClipboard then
+			pcall(CopyToClipboard, donateURL)
+		end
 		self:SetText(L["Copied"])
 		C_Timer.After(1.5, function() self:SetText(L["Copy"]) end)
 	end)

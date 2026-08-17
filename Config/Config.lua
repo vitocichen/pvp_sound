@@ -2740,6 +2740,9 @@ function M:Init()
 			editBox:SetText(url)
 			editBox:HighlightText()
 			editBox:SetFocus()
+			if CopyToClipboard then
+				pcall(CopyToClipboard, url)
+			end
 			self:SetText(L["Copied"])
 			C_Timer.After(1.5, function() self:SetText(L["Copy"]) end)
 		end)
