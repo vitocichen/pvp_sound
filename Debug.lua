@@ -4,7 +4,7 @@ local _, addon = ...
 -- debug/combat-trace: chat prints for reload → hit mob → combat errors.
 -- Turn off: /run PVP_Sound_DebugTrace = false  (after load, addon.DebugCombatTrace)
 addon.DebugCombatTrace = true
-addon.DebugBuild = "combat-trace-2"
+addon.DebugBuild = "combat-trace-3"
 
 local PREFIX = "|cff66ccff[PS dbg]|r "
 local ERR_PREFIX = "|cffff3333[PS dbg ERR]|r "
