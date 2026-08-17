@@ -68,23 +68,30 @@ local function OnAddonLoaded()
 end
 
 function addon:Refresh()
-	if UseModern() then
-		if addon.Modules.SoundModule and addon.Modules.SoundModule.Refresh then
-			addon.Modules.SoundModule:Refresh()
+	local function inner()
+		if UseModern() then
+			if addon.Modules.SoundModule and addon.Modules.SoundModule.Refresh then
+				addon.Modules.SoundModule:Refresh()
+			end
+			if addon.Modules.AuraSoundModule and addon.Modules.AuraSoundModule.Refresh then
+				addon.Modules.AuraSoundModule:Refresh("addon:Refresh")
+			end
+			if addon.Modules.TrinketModule and addon.Modules.TrinketModule.Refresh then
+				addon.Modules.TrinketModule:Refresh()
+			end
+		else
+			if addon.Modules.SoundModuleLegacy and addon.Modules.SoundModuleLegacy.Refresh then
+				addon.Modules.SoundModuleLegacy:Refresh()
+			end
 		end
-		if addon.Modules.AuraSoundModule and addon.Modules.AuraSoundModule.Refresh then
-			addon.Modules.AuraSoundModule:Refresh("addon:Refresh")
-		end
-		if addon.Modules.TrinketModule and addon.Modules.TrinketModule.Refresh then
-			addon.Modules.TrinketModule:Refresh()
-		end
-	else
-		if addon.Modules.SoundModuleLegacy and addon.Modules.SoundModuleLegacy.Refresh then
-			addon.Modules.SoundModuleLegacy:Refresh()
+		if addon.Modules.ConsumableModule and addon.Modules.ConsumableModule.Refresh then
+			addon.Modules.ConsumableModule:Refresh()
 		end
 	end
-	if addon.Modules.ConsumableModule and addon.Modules.ConsumableModule.Refresh then
-		addon.Modules.ConsumableModule:Refresh()
+	if addon.DbgCall then
+		addon.DbgCall("addon:Refresh", inner)
+	else
+		inner()
 	end
 end
 

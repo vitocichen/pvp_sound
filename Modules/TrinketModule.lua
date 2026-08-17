@@ -62,16 +62,21 @@ end
 
 local function OnCooldownSet(index, cooldown)
 	if not cooldown then return end
-	local shown = cooldown:IsShown()
-	if not shown then
-		cdActive[index] = false
-		return
-	end
-	if cdActive[index] then return end
-	cdActive[index] = true
-	if ShouldPlay() then
-		PlayTrinket()
-	end
+	addon.DbgCall("Trinket:SetCooldown:" .. tostring(index), function()
+		if addon.Dbg then
+			addon.Dbg("trinket CD index=%s shown=%s", tostring(index), addon.DbgVal(cooldown:IsShown()))
+		end
+		local shown = cooldown:IsShown()
+		if not shown then
+			cdActive[index] = false
+			return
+		end
+		if cdActive[index] then return end
+		cdActive[index] = true
+		if ShouldPlay() then
+			PlayTrinket()
+		end
+	end)
 end
 
 local function HookCooldown(cooldown, index)

@@ -157,6 +157,9 @@ function M:IsEnemyPlayer(unitToken)
 	local isPlayer = UnitIsPlayer(unitToken)
 	if issecretvalue(isPlayer) then
 		-- Attackable non-pet with secret IsPlayer: keep (nameplate / arena).
+		if addon.Dbg then
+			addon.Dbg("IsEnemyPlayer %s isPlayer=SECRET -> true", tostring(unitToken))
+		end
 		return true
 	end
 	return isPlayer and true or false

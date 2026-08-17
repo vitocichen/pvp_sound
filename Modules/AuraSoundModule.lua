@@ -256,6 +256,10 @@ local function RegisterEnemyToken(unitToken, basePath, channel)
 	if not next(enabledEnemySounds) then return end
 	if not ShouldWatchToken(unitToken) then return end
 
+	if addon.Dbg then
+		addon.Dbg("RegisterEnemyToken %s isPlayer=%s",
+			tostring(unitToken), addon.DbgVal(UnitIsPlayer(unitToken)))
+	end
 	enemyByToken[unitToken] = auraSounds:RegisterMappedSet(nil, unitToken, enabledEnemySounds, basePath, channel)
 end
 
@@ -382,6 +386,17 @@ local function RefreshHealerCc(basePath, channel, active)
 end
 
 function M:Refresh(reason)
+	if addon.DbgCall and not M._dbgRefreshing then
+		M._dbgRefreshing = true
+		addon.DbgCall("AuraRefresh:" .. tostring(reason), function()
+			M:Refresh(reason)
+		end)
+		M._dbgRefreshing = false
+		return
+	end
+	if addon.Dbg then
+		addon.Dbg("AuraRefresh reason=%s combat=%s", tostring(reason), tostring(InCombatLockdown and InCombatLockdown()))
+	end
 	if not auraSounds:IsAvailable() then return end
 
 	RebuildEnabledEnemySounds()
@@ -645,36 +660,42 @@ function M:Init()
 	eventsFrame:RegisterEvent("DUEL_FINISHED")
 	eventsFrame:RegisterUnitEvent("UNIT_FACTION", "target", "focus", "arena1", "arena2", "arena3")
 	eventsFrame:SetScript("OnEvent", function(_, event, arg1)
-		if event == "NAME_PLATE_UNIT_ADDED" then
-			if (not IsTargetFocusOnly()) and units:IsEnemyPlayer(arg1) then
-				local basePath = voicePack:GetBasePath()
-				if BuffZoneEnabled() and basePath then
-					-- Skip if this enemy is already watched as target/focus (different token, same GUID).
-					local guid = UnitGUID(arg1)
-					local already = false
-					if guid and not issecretvalue(guid) then
-						for token in pairs(enemyByToken) do
-							local g = UnitGUID(token)
-							if g and not issecretvalue(g) and g == guid then
-								already = true
-								break
+		addon.DbgCall("AuraSound:" .. tostring(event), function()
+			if event == "NAME_PLATE_UNIT_ADDED" then
+				addon.Dbg("NAME_PLATE_ADDED %s isPlayer=%s isEnemyPlayer=%s",
+					tostring(arg1),
+					addon.DbgVal(UnitIsPlayer(arg1)),
+					tostring(units:IsEnemyPlayer(arg1)))
+				if (not IsTargetFocusOnly()) and units:IsEnemyPlayer(arg1) then
+					local basePath = voicePack:GetBasePath()
+					if BuffZoneEnabled() and basePath then
+						-- Skip if this enemy is already watched as target/focus (different token, same GUID).
+						local guid = UnitGUID(arg1)
+						local already = false
+						if guid and not issecretvalue(guid) then
+							for token in pairs(enemyByToken) do
+								local g = UnitGUID(token)
+								if g and not issecretvalue(g) and g == guid then
+									already = true
+									break
+								end
 							end
 						end
-					end
-					if not already then
-						RebuildEnabledEnemySounds()
-						RegisterEnemyToken(arg1, basePath, Channel())
+						if not already then
+							RebuildEnabledEnemySounds()
+							RegisterEnemyToken(arg1, basePath, Channel())
+						end
 					end
 				end
+			elseif event == "NAME_PLATE_UNIT_REMOVED" then
+				if arg1 and enemyByToken[arg1] then
+					auraSounds:RemoveSet(enemyByToken[arg1])
+					enemyByToken[arg1] = nil
+				end
+			else
+				M:Refresh(event)
 			end
-		elseif event == "NAME_PLATE_UNIT_REMOVED" then
-			if arg1 and enemyByToken[arg1] then
-				auraSounds:RemoveSet(enemyByToken[arg1])
-				enemyByToken[arg1] = nil
-			end
-		else
-			M:Refresh(event)
-		end
+		end)
 	end)
 
 	-- Dev-only preview stays on the settings Test button (not a public slash).

@@ -508,6 +508,10 @@ function M:SyncSysCastZoneGate()
 	end
 
 	local cur = units:PublicNumber(GetCVar("CAATargetCastMode")) or 0
+	if addon.Dbg then
+		addon.Dbg("SyncSysCast want=%s cur=%s combat=%s",
+			tostring(want), addon.DbgVal(GetCVar("CAATargetCastMode")), tostring(InCombatLockdown and InCombatLockdown()))
+	end
 	if cur ~= want then
 		pcall(SetCVar, "CAATargetCastMode", tostring(want))
 	end
@@ -535,25 +539,36 @@ function M:Init()
 		castFrame:RegisterEvent("PVP_MATCH_STATE_CHANGED")
 		castFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 		castFrame:SetScript("OnEvent", function(_, event, unit, _, spellID, extraArg)
-			if event == "PLAYER_ENTERING_WORLD" then
-				M:SyncSysCastZoneGate()
-			elseif event == "PVP_MATCH_STATE_CHANGED" then
-				OnMatchStateChanged()
-				M:SyncSysCastZoneGate()
-			elseif event == "UNIT_SPELLCAST_INTERRUPTED" or event == "UNIT_SPELLCAST_CHANNEL_STOP" then
-				OnCastInterrupted(event, unit, extraArg)
-			elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
-				-- BBF Kick Popup: only our own kick spell arms the interrupt window.
-				if (unit == "player" or unit == "pet") and spellID and INTERRUPT_SPELLS[spellID] then
-					MarkPlayerKicked()
+			addon.DbgCall("SoundModule:" .. tostring(event), function()
+				if event == "UNIT_SPELLCAST_START"
+					or event == "UNIT_SPELLCAST_CHANNEL_START"
+					or event == "UNIT_SPELLCAST_INTERRUPTED"
+					or event == "UNIT_SPELLCAST_CHANNEL_STOP"
+					or (spellID ~= nil and issecretvalue and issecretvalue(spellID))
+				then
+					addon.Dbg("cast %s unit=%s spellID=%s extra=%s",
+						event, tostring(unit), addon.DbgVal(spellID), addon.DbgVal(extraArg))
 				end
-				if unit == "player" or unit == "pet" or unit == "targettarget" or unit == "focustarget" or unit == "mouseover" then
-					return
+				if event == "PLAYER_ENTERING_WORLD" then
+					M:SyncSysCastZoneGate()
+				elseif event == "PVP_MATCH_STATE_CHANGED" then
+					OnMatchStateChanged()
+					M:SyncSysCastZoneGate()
+				elseif event == "UNIT_SPELLCAST_INTERRUPTED" or event == "UNIT_SPELLCAST_CHANNEL_STOP" then
+					OnCastInterrupted(event, unit, extraArg)
+				elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
+					-- BBF Kick Popup: only our own kick spell arms the interrupt window.
+					if (unit == "player" or unit == "pet") and spellID and INTERRUPT_SPELLS[spellID] then
+						MarkPlayerKicked()
+					end
+					if unit == "player" or unit == "pet" or unit == "targettarget" or unit == "focustarget" or unit == "mouseover" then
+						return
+					end
+					OnCastSuccess(unit, spellID)
+				else
+					TryAnnounceUnit(unit, spellID)
 				end
-				OnCastSuccess(unit, spellID)
-			else
-				TryAnnounceUnit(unit, spellID)
-			end
+			end)
 		end)
 	end
 

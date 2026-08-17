@@ -1,6 +1,103 @@
 ---@type string, Addon
 local _, addon = ...
 
+-- debug/combat-trace: chat prints for reload → hit mob → combat errors.
+-- Turn off: /run PVP_Sound_DebugTrace = false  (after load, addon.DebugCombatTrace)
+addon.DebugCombatTrace = true
+
+local PREFIX = "|cff66ccff[PS dbg]|r "
+local ERR_PREFIX = "|cffff3333[PS dbg ERR]|r "
+local logCount = 0
+local LOG_CAP = 80
+
+function addon.DbgVal(v)
+	if v == nil then
+		return "nil"
+	end
+	if issecretvalue and issecretvalue(v) then
+		return "SECRET(" .. type(v) .. ")"
+	end
+	local t = type(v)
+	if t == "boolean" or t == "number" or t == "string" then
+		return tostring(v)
+	end
+	return t
+end
+
+function addon.Dbg(fmt, ...)
+	if not addon.DebugCombatTrace then
+		return
+	end
+	logCount = logCount + 1
+	if logCount > LOG_CAP then
+		if logCount == LOG_CAP + 1 then
+			print(PREFIX .. "log cap " .. LOG_CAP .. " reached; errors still print")
+		end
+		return
+	end
+	print(PREFIX .. string.format(fmt, ...))
+end
+
+function addon.DbgCall(tag, fn)
+	local ok, err = xpcall(fn, function(e)
+		local stack = ""
+		if debugstack then
+			local s, st = pcall(debugstack, 3, 8, 0)
+			if s and type(st) == "string" then
+				stack = "\n" .. st
+			end
+		end
+		return tostring(e) .. stack
+	end)
+	if not ok then
+		print(ERR_PREFIX .. tostring(tag) .. " " .. tostring(err))
+	end
+	return ok
+end
+
+do
+	local f = CreateFrame("Frame")
+	f:RegisterEvent("PLAYER_ENTERING_WORLD")
+	f:RegisterEvent("PLAYER_REGEN_DISABLED")
+	f:RegisterEvent("PLAYER_REGEN_ENABLED")
+	f:RegisterEvent("PLAYER_TARGET_CHANGED")
+	f:SetScript("OnEvent", function(_, event)
+		if not addon.DebugCombatTrace then
+			return
+		end
+		addon.DbgCall("dump:" .. tostring(event), function()
+			local units = addon.Utils and addon.Utils.Units
+			addon.Dbg("%s lockdown=%s", event, tostring(InCombatLockdown and InCombatLockdown()))
+			if event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_TARGET_CHANGED" then
+				if units and units.Exists and units:Exists("target") then
+					local isPlayer = UnitIsPlayer("target")
+					addon.Dbg("  target=%s isPlayer=%s canAttack=%s isEnemyPlayer=%s name=%s",
+						"target",
+						addon.DbgVal(isPlayer),
+						addon.DbgVal(UnitCanAttack("player", "target")),
+						tostring(units:IsEnemyPlayer("target")),
+						addon.DbgVal(UnitName("target")))
+				else
+					addon.Dbg("  target=(none or secret exists)")
+				end
+				if event == "PLAYER_REGEN_DISABLED" and C_NamePlate and C_NamePlate.GetNamePlates then
+					local plates = C_NamePlate.GetNamePlates() or {}
+					addon.Dbg("  nameplates=%d", #plates)
+					for i = 1, math.min(#plates, 5) do
+						local token = plates[i] and plates[i].unitToken
+						if token and units then
+							addon.Dbg("  plate %s isPlayer=%s isEnemyPlayer=%s",
+								tostring(token),
+								addon.DbgVal(UnitIsPlayer(token)),
+								tostring(units:IsEnemyPlayer(token)))
+						end
+					end
+				end
+			end
+		end)
+	end)
+end
+
 -- Internal diagnostics only (not registered as a public slash command).
 function addon.DebugDiag()
 	local moduleUtil = addon.Utils.ModuleUtil

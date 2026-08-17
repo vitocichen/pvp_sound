@@ -140,20 +140,23 @@ function M:Init()
 	eventsFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 	eventsFrame:RegisterUnitEvent("UNIT_AURA", "player")
 	eventsFrame:SetScript("OnEvent", function(_, event, unit, _, spellID)
-		if event == "PLAYER_ENTERING_WORLD" then
-			ScanPlayerAuras(false)
-			primed = true
-			return
-		end
-		if event == "UNIT_AURA" then
-			if primed then
-				ScanPlayerAuras(true)
+		addon.DbgCall("Consumable:" .. tostring(event), function()
+			if event == "PLAYER_ENTERING_WORLD" then
+				ScanPlayerAuras(false)
+				primed = true
+				return
 			end
-			return
-		end
-		if event == "UNIT_SPELLCAST_SUCCEEDED" and unit == "player" then
-			AnnounceSpell(spellID)
-		end
+			if event == "UNIT_AURA" then
+				if primed then
+					ScanPlayerAuras(true)
+				end
+				return
+			end
+			if event == "UNIT_SPELLCAST_SUCCEEDED" and unit == "player" then
+				addon.Dbg("consumable SUCCEEDED unit=%s spellID=%s", tostring(unit), addon.DbgVal(spellID))
+				AnnounceSpell(spellID)
+			end
+		end)
 	end)
 end
 
