@@ -7,7 +7,7 @@ local eventsFrame
 local db
 
 -- Bump when there's a change worth popping a "What's New" dialog.
-local WHATS_NEW_VERSION = "3.0.7"
+local WHATS_NEW_VERSION = "3.0.8"
 
 local function UseModern()
 	return addon.Core.Compat:UseAddAuraSound()

@@ -56,6 +56,7 @@ addon.Data.SelfCcCatalog = {
 			Spells = {
 				{ Id = 360806, File = "sleepWalk.ogg", Name = "Sleep Walk", Ids = { [360806] = true } },
 				{ Id = 355689, File = "landslide.ogg", Name = "Landslide", Ids = { [355689] = true, [21808] = true, [398345] = true, [414257] = true } },
+				{ Id = 371032, File = "terrorOfTheSkies.ogg", Name = "Terror of the Skies", Label = "天空霸主", Ids = { [372245] = true } },
 			},
 		},
 		{

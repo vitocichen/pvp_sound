@@ -877,4 +877,6 @@ addon.Data.SelfCcSounds = {
 	[412269] = "FeralFrenzy.ogg",
 	[412271] = "FeralFrenzy.ogg",
 	[412279] = "FeralFrenzy.ogg",
+	-- Evoker: 371032 is the talent (UI); 372245 is the stun on you / teammates.
+	[372245] = "terrorOfTheSkies.ogg", -- Terror of the Skies / 天空霸主
 }

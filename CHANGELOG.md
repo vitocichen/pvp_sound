@@ -1,5 +1,10 @@
 # PVP Sound
 
+## [v3.0.8](https://github.com/vitocichen/pvp_sound/tree/v3.0.8) (2026-08-18)
+[Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.8)
+
+- 添加了更多的职业ID
+
 ## [v3.0.7](https://github.com/vitocichen/pvp_sound/tree/v3.0.7) (2026-08-17)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.7)
 
