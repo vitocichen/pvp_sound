@@ -2800,7 +2800,7 @@ function M:Init()
 	end)
 
 	local tabsPanel = CreateFrame("Frame", nil, panel)
-	tabsPanel:SetPoint("TOPLEFT", authorLine, "BOTTOMLEFT", 0, -verticalSpacing * 2)
+	tabsPanel:SetPoint("TOPLEFT", authorLine, "BOTTOMLEFT", 0, -verticalSpacing)
 	tabsPanel:SetPoint("RIGHT", panel, "RIGHT", 0, 0)
 	tabsPanel:SetPoint("BOTTOM", panel, "BOTTOM", 0, verticalSpacing * 2)
 
