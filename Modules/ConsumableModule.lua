@@ -10,6 +10,7 @@ addon.Modules.ConsumableModule = M
 
 local eventsFrame
 local hwFrame
+local worldHooked
 local primed
 local pendingText
 local lastAnnounceAt = 0
@@ -43,19 +44,25 @@ local function FlushPendingSay()
 end
 
 local function EnsureHardwareWait()
-	-- Never HookScript WorldFrame: that taints targeting and shows
-	-- 插件导致界面行为失效 on the next click after /reload.
-	-- Potion yell waits for the next keypress instead.
-	if hwFrame then return end
-	hwFrame = CreateFrame("Frame", nil, UIParent)
-	hwFrame:SetPoint("CENTER")
-	hwFrame:SetSize(1, 1)
-	hwFrame:EnableKeyboard(false)
-	hwFrame:Hide()
-	hwFrame:SetScript("OnKeyDown", function(self)
-		self:SetPropagateKeyboardInput(true)
-		FlushPendingSay()
-	end)
+	if not hwFrame then
+		hwFrame = CreateFrame("Frame", nil, UIParent)
+		hwFrame:SetPoint("CENTER")
+		hwFrame:SetSize(1, 1)
+		hwFrame:SetScript("OnKeyDown", function(self)
+			self:SetPropagateKeyboardInput(true)
+			FlushPendingSay()
+		end)
+	end
+	-- TEMP: restore WorldFrame mouse hook to A/B the 3.0.6 taint.
+	if not worldHooked and WorldFrame then
+		worldHooked = true
+		WorldFrame:HookScript("OnMouseDown", function()
+			if addon.Dbg then
+				addon.Dbg("WorldFrame OnMouseDown pending=%s", pendingText and "yes" or "no")
+			end
+			FlushPendingSay()
+		end)
+	end
 end
 
 local function QueueSay(name)
@@ -131,6 +138,7 @@ end
 
 function M:Init()
 	if eventsFrame then return end
+	EnsureHardwareWait()
 	eventsFrame = CreateFrame("Frame")
 	eventsFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 	eventsFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
