@@ -1111,23 +1111,9 @@ local function BuildZonesTab(content)
 			InterruptSoundLabel
 		)
 
-		local consumableChk = mini:Checkbox({
-			Parent = content,
-			LabelText = L["Enable Consumable Say"],
-			Tooltip = L["Enable consumable honesty alerts in this zone."],
-			GetValue = function()
-				local zone = db.Zones[zoneKey]
-				return not zone or zone.ConsumableSay ~= false
-			end,
-			SetValue = function(value)
-				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
-				db.Zones[zoneKey].ConsumableSay = value and true or false
-				M:Apply()
-			end,
-		})
-		consumableChk:SetPoint("TOPLEFT", interruptChk, "BOTTOMLEFT", 0, -verticalSpacing)
+		-- Consumable honesty yell: always on, no toggle.
 
-		last = consumableChk
+		last = interruptChk
 	end
 end
 

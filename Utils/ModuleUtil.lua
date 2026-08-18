@@ -56,9 +56,7 @@ function M:IsInterruptAlertsEnabled()
 	return zone.InterruptAlert == true
 end
 
--- Consumable honesty yell: per-zone ConsumableSay (default on).
+-- Consumable honesty yell: always on (no toggle).
 function M:IsConsumableSayEnabled()
-	local zone = self:GetZoneConfig()
-	if not zone then return true end
-	return zone.ConsumableSay ~= false
+	return true
 end
