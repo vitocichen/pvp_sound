@@ -389,7 +389,7 @@ local function AnnounceHealerCC(zone)
 		local path = "Interface\\AddOns\\PVP_Sound\\Media\\" .. fileName
 		pcall(PlaySoundFile, path, "Master")
 	else
-		local text = zone.HealerCCText or "治疗被控"
+		local text = zone.HealerCCText or addon.L["healer_cc_tts_default"]
 		if not text or text == "" then return end
 		pcall(function()
 			local speechRate = cachedTTSSpeechRate or 7

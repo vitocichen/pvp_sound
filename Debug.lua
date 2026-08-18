@@ -49,8 +49,9 @@ function addon.DebugDiag()
 
 	local buffOn = zone and zone.Enabled == true
 	local debuffOn = not zone or zone.CcEnabled ~= false
-	local buffRange = (zone and zone.TargetFocusOnly == false) and "所有人" or "仅目标+焦点"
-	local debuffRange = (zone and zone.CcScope == "party") and "自己+队友" or "自己"
+	local L = addon.L
+	local buffRange = (zone and zone.TargetFocusOnly == false) and L["debug_diag_range_all"] or L["debug_diag_range_tf"]
+	local debuffRange = (zone and zone.CcScope == "party") and L["debug_diag_scope_party"] or L["debug_diag_scope_self"]
 	print(string.format("  buff: enabled=%s range=%s (TargetFocusOnly=%s)",
 		tostring(buffOn), buffRange, tostring(zone and zone.TargetFocusOnly)))
 	print(string.format("  debuff: enabled=%s range=%s (CcScope=%s)",
@@ -86,7 +87,7 @@ function addon.DebugDiag()
 	end
 
 	if total == 0 then
-		print("  |cffff6666无注册：选中敌对玩家，或关掉「仅目标/焦点」并打开姓名板；debuff 应有 player(selfCC)|r")
+		print("  |cffff6666" .. L["debug_diag_no_reg"] .. "|r")
 	end
 
 	if units:Exists("target") then

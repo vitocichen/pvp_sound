@@ -41,3 +41,7 @@ setmetatable(L, {
 function L:GetLocale()
 	return locale
 end
+
+function L:IsChinese()
+	return locale == "zhCN" or locale == "zhTW"
+end

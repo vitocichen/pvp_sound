@@ -56,7 +56,7 @@ local dbDefaults = {
 			InterruptExcludePets = true,
 			HealerCC = true,
 			HealerCCMode = "TTS",
-			HealerCCText = "治疗被控",
+			HealerCCText = L["healer_cc_tts_default"],
 			HealerCCSoundFile = "夏一可_控制成功.ogg",
 		},
 		BattleGrounds = {
@@ -76,7 +76,7 @@ local dbDefaults = {
 			InterruptExcludePets = true,
 			HealerCC = true,
 			HealerCCMode = "TTS",
-			HealerCCText = "治疗被控",
+			HealerCCText = L["healer_cc_tts_default"],
 			HealerCCSoundFile = "夏一可_控制成功.ogg",
 		},
 		PvE = {
@@ -164,7 +164,7 @@ local function MigrateV2(savedDb)
 					zone.HealerCC = true
 				end
 				if zone.HealerCCText == nil then
-					zone.HealerCCText = "治疗被控"
+					zone.HealerCCText = L["healer_cc_tts_default"]
 				end
 			end
 		end
@@ -234,7 +234,7 @@ local function MigrateV6(savedDb)
 			bg.HealerCCMode = "TTS"
 		end
 		if bg.HealerCCText == nil then
-			bg.HealerCCText = "治疗被控"
+			bg.HealerCCText = L["healer_cc_tts_default"]
 		end
 		if bg.HealerCCSoundFile == nil then
 			bg.HealerCCSoundFile = "夏一可_控制成功.ogg"
@@ -1100,7 +1100,7 @@ local function BuildZoneTab(content, zoneKey)
 			Parent = content,
 			Width = 200,
 			GetValue = function()
-				return GetZone().HealerCCText or "治疗被控"
+				return GetZone().HealerCCText or L["healer_cc_tts_default"]
 			end,
 			SetValue = function(value)
 				GetZone().HealerCCText = value
@@ -1149,7 +1149,7 @@ local function BuildZoneTab(content, zoneKey)
 				local voiceId = db.TTS and db.TTS.VoiceID or 0
 				local vol = db.TTS and db.TTS.Volume or 100
 				local rate = db.TTS and db.TTS.SpeechRate or 7
-				local text = GetZone().HealerCCText or "治疗被控"
+				local text = GetZone().HealerCCText or L["healer_cc_tts_default"]
 				C_VoiceChat.SpeakText(voiceId, text, rate, vol, true)
 			end
 		end)
@@ -1240,7 +1240,7 @@ local function DowngradeFromModernSchema(savedDb)
 			InterruptMode = "Target",
 			HealerCC = true,
 			HealerCCMode = "TTS",
-			HealerCCText = "治疗被控",
+			HealerCCText = L["healer_cc_tts_default"],
 			HealerCCSoundFile = "夏一可_控制成功.ogg",
 		}),
 		BattleGrounds = Zone(zoneEnabled.BattleGrounds, {
@@ -1251,7 +1251,7 @@ local function DowngradeFromModernSchema(savedDb)
 			CastBarTargetOnly = true,
 			HealerCC = true,
 			HealerCCMode = "TTS",
-			HealerCCText = "治疗被控",
+			HealerCCText = L["healer_cc_tts_default"],
 			HealerCCSoundFile = "夏一可_控制成功.ogg",
 		}),
 		PvE = Zone(false, {

@@ -4,6 +4,7 @@ local moduleUtil = addon.Utils.ModuleUtil
 local units = addon.Utils.Units
 local auraSounds = addon.Core.AuraSounds
 local voicePack = addon.Core.VoicePack
+local L = addon.L
 
 local enemyBuffSounds = addon.Data.EnemyBuffSounds
 local selfCcSounds = addon.Data.SelfCcSounds
@@ -489,19 +490,19 @@ function M:PlayTest(spellID)
 	spellID = spellID or 45438
 	local file = enemyBuffSounds[spellID] or selfCcSounds[spellID]
 	if not file then
-		print(string.format("|cff33ff99[PVP Sound]|r spellID=%d 无语音映射", spellID))
+		print(string.format("|cff33ff99[PVP Sound]|r " .. L["debug_no_spell_map"], spellID))
 		return
 	end
 	local path = voicePack:Path(file)
 	if not path then
-		print("|cff33ff99[PVP Sound]|r 语音文件缺失：请确认 Media\\语音包文件夹 完整")
+		print("|cff33ff99[PVP Sound]|r " .. L["debug_voice_file_missing"])
 		return
 	end
 	local ok = PlaySoundFile(path, Channel())
 	if ok then
-		print(string.format("|cff33ff99[PVP Sound]|r 试播 %d → %s (ok)", spellID, file))
+		print(string.format("|cff33ff99[PVP Sound]|r " .. L["debug_preview_ok"], spellID, file))
 	else
-		print(string.format("|cff33ff99[PVP Sound]|r 试播失败 %d → %s", spellID, path))
+		print(string.format("|cff33ff99[PVP Sound]|r " .. L["debug_preview_fail"], spellID, path))
 	end
 end
 

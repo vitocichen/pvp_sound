@@ -3,6 +3,7 @@ local addonName, addon = ...
 local moduleUtil = addon.Utils.ModuleUtil
 local units = addon.Utils.Units
 local voicePack = addon.Core.VoicePack
+local L = addon.L
 
 -- Cast/interrupt: zone CastBar gates Blizzard Accessibility target-cast (CAA).
 -- Addon no longer double-announces cast-start (system handles that); keeps instant totems + interrupts.
@@ -184,7 +185,7 @@ local function AnnounceCast(name, spellID)
 	end
 	-- Last resort: short pack clip so outdoor tests still hear something.
 	if not PlayFile(FALLBACK_CAST_FILE) then
-		print(string.format("|cffffd100[PVP Sound]|r 读条检测到但无法播放：%s", tostring(name or spellID or "?")))
+		print(string.format("|cffffd100[PVP Sound]|r " .. L["debug_cast_no_play"], tostring(name or spellID or "?")))
 	end
 end
 
@@ -294,8 +295,8 @@ function M:DebugCastTest()
 	if name then
 		AnnounceCast(name, spellId)
 	else
-		AnnounceCast("变形术", 118)
-		print("|cffffd100[PVP Sound]|r 目标未在读条，已试播「变形术」/118。")
+		AnnounceCast(L["debug_polymorph"], 118)
+		print("|cffffd100[PVP Sound]|r " .. L["debug_casttest_fallback"])
 	end
 end
 
@@ -311,7 +312,7 @@ end
 function M:DebugSysCast(arg)
 	local CAA = C_CombatAudioAlert
 	if not CAA then
-		print("|cffff3333[PVP Sound]|r 无 C_CombatAudioAlert（客户端太旧？）")
+		print("|cffff3333[PVP Sound]|r " .. L["debug_syscast_no_api"])
 		return
 	end
 
@@ -319,15 +320,15 @@ function M:DebugSysCast(arg)
 	local alert = (Enum and Enum.CombatAudioAlertType and Enum.CombatAudioAlertType.Cast) or 1
 	local cat = (Enum and Enum.CombatAudioAlertCategory and Enum.CombatAudioAlertCategory.TargetCast) or 4
 
-	local MODE_LABEL = { [0] = "关闭", [1] = "施法开始时", [2] = "施法结束时" }
+	local MODE_LABEL = { [0] = L["SysCast Mode Off"], [1] = L["SysCast Mode Start"], [2] = L["SysCast Mode End"] }
 	local FORMAT_LABEL = {
-		[0] = "目标正在施放火球术",
-		[1] = "目标施放火球术",
-		[2] = "正在施放火球术",
-		[3] = "施放火球术",
-		[4] = "正在施放",
-		[5] = "施放",
-		[6] = "火球术",
+		[0] = L["SysCast Format 0"],
+		[1] = L["SysCast Format 1"],
+		[2] = L["SysCast Format 2"],
+		[3] = L["SysCast Format 3"],
+		[4] = L["SysCast Format 4"],
+		[5] = L["SysCast Format 5"],
+		[6] = L["SysCast Format 6"],
 	}
 
 	local function getMaster()
@@ -344,8 +345,8 @@ function M:DebugSysCast(arg)
 		enabled = not not enabled
 		local okCvar = pcall(SetCVar, "CAAEnabled", enabled and "1" or "0")
 		print(string.format(
-			"|cffffd100[PVP Sound]|r 总开关 SetCVar(CAAEnabled)=%s → %s",
-			tostring(okCvar), enabled and "开" or "关"
+			"|cffffd100[PVP Sound]|r " .. L["debug_syscast_master_set"],
+			tostring(okCvar), enabled and L["debug_syscast_on"] or L["debug_syscast_off"]
 		))
 		return okCvar
 	end
@@ -368,7 +369,7 @@ function M:DebugSysCast(arg)
 	local function setMode(v, ensureMaster)
 		v = tonumber(v)
 		if not v or v < 0 or v > 2 then
-			print("|cffff3333[PVP Sound]|r Mode 只能是 0/1/2（关闭/开始时/结束时）")
+			print("|cffff3333[PVP Sound]|r " .. L["debug_syscast_mode_invalid"])
 			return false
 		end
 		-- Mode>0 时若总开关关着，子项开了也不响 → 顺带打开总开关。
@@ -386,7 +387,7 @@ function M:DebugSysCast(arg)
 	local function setFormat(v)
 		v = tonumber(v)
 		if not v or v < 0 or v > 6 then
-			print("|cffff3333[PVP Sound]|r Format 只能是 0~6（措辞）")
+			print("|cffff3333[PVP Sound]|r " .. L["debug_syscast_format_invalid"])
 			return false
 		end
 		local okApi, ret = true, nil
@@ -412,8 +413,8 @@ function M:DebugSysCast(arg)
 		)
 		local minTime = GetCVar and GetCVar("CAATargetCastMinTime")
 		print(string.format(
-			"|cffffd100[PVP Sound]|r syscast 总开关=%s Mode=%s(%s) Format=%s(%s)",
-			enabled and "开" or "关",
+			"|cffffd100[PVP Sound]|r " .. L["debug_syscast_status"],
+			enabled and L["debug_syscast_on"] or L["debug_syscast_off"],
 			tostring(mode), MODE_LABEL[mode] or "?",
 			tostring(fmt), FORMAT_LABEL[fmt] or "?"
 		))
@@ -421,7 +422,7 @@ function M:DebugSysCast(arg)
 			"|cffffd100[PVP Sound]|r Voice=%s Vol=%s Throttle=%s MinTime=%s",
 			tostring(voice), tostring(vol), tostring(throttle), tostring(minTime)
 		))
-		print("|cffffd100[PVP Sound]|r master=总开关；Mode=关闭/开始/结束；Format=措辞。")
+		print("|cffffd100[PVP Sound]|r " .. L["debug_syscast_hint"])
 	end
 
 	arg = arg and tostring(arg):lower():match("^%s*(.-)%s*$") or ""
@@ -435,7 +436,7 @@ function M:DebugSysCast(arg)
 		elseif rest == "off" or rest == "0" or rest == "false" then
 			setMaster(false)
 		else
-			print("|cffff3333[PVP Sound]|r 用法: /ps syscast master on|off")
+			print("|cffff3333[PVP Sound]|r " .. L["debug_syscast_usage_master"])
 		end
 		dump()
 		return
@@ -457,7 +458,7 @@ function M:DebugSysCast(arg)
 		return
 	elseif cmd == "format" or cmd == "fmt" then
 		if rest == "" or rest == "list" then
-			print("|cffffd100[PVP Sound]|r Format 措辞列表：")
+			print("|cffffd100[PVP Sound]|r " .. L["debug_syscast_format_list"])
 			for i = 0, 6 do
 				print(string.format("  %d = %s", i, FORMAT_LABEL[i]))
 			end
@@ -470,8 +471,9 @@ function M:DebugSysCast(arg)
 	elseif cmd == "speak" or cmd == "test" then
 		dump()
 		if CAA.SpeakText then
-			local ok, id = pcall(CAA.SpeakText, "火球术", cat, true)
-			print("|cffffd100[PVP Sound]|r SpeakText(火球术, TargetCast) ok=" .. tostring(ok) .. " id=" .. tostring(id))
+			local previewText = L["SysCast Preview Text"]
+			local ok, id = pcall(CAA.SpeakText, previewText, cat, true)
+			print("|cffffd100[PVP Sound]|r " .. string.format(L["debug_syscast_speak"], previewText, tostring(ok), tostring(id)))
 		end
 		return
 	elseif cmd ~= "" and tonumber(cmd) and rest == "" then

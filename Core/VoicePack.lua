@@ -212,6 +212,25 @@ function M:Invalidate()
 	CACHED_PACK = nil
 end
 
+---Localized dropdown label; folder names stay Chinese on disk.
+---@param packName string?
+---@return string
+function M:DisplayName(packName)
+	if type(packName) ~= "string" or packName == "" then
+		return packName or ""
+	end
+	local L = addon.L
+	if L and L.IsChinese and L:IsChinese() then
+		return packName
+	end
+	local mapped = packName
+	mapped = mapped:gsub("英语女声", (L and L["pack_english_female"]) or "English Female")
+	mapped = mapped:gsub("夏一可", (L and L["pack_xia_yike"]) or "Xia Yike")
+	mapped = mapped:gsub("晓晓", (L and L["pack_xiaoxiao"]) or "Xiaoxiao")
+	mapped = mapped:gsub("(%a)(%d)", "%1 %2", 1)
+	return mapped
+end
+
 ---@return string
 function M:DefaultPack()
 	return DEFAULT_PACK

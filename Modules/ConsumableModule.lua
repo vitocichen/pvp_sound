@@ -57,12 +57,20 @@ local function EnsureHardwareWait()
 	end)
 end
 
+local function ConsumableName(info)
+	if not info then return "" end
+	if addon.L:IsChinese() then
+		return info.zh or info.en or ""
+	end
+	return info.en or info.zh or ""
+end
+
 local function QueueSay(name)
 	if not name or name == "" then return end
 	if not moduleUtil:IsConsumableSayEnabled() then return end
 	local now = GetTime()
-	local prefix = addon.L["consumable_say_prefix"] or "！！【PVP_SOUND检测】我已吃下"
-	local text = prefix .. "【" .. name .. "】药水！！"
+	local fmt = addon.L["consumable_say_format"]
+	local text = string.format(fmt, name)
 	if lastAnnounceText == text and (now - lastAnnounceAt) < DEDUP then
 		return
 	end
@@ -100,7 +108,7 @@ local function ScanPlayerAuras(announce)
 	for spellID, info in pairs(spellWatch) do
 		local has = PlayerHasAura(spellID)
 		if announce and has and not seenAura[spellID] then
-			QueueSay(info.zh)
+			QueueSay(ConsumableName(info))
 		end
 		seenAura[spellID] = has
 	end
@@ -111,15 +119,13 @@ local function AnnounceSpell(spellID)
 	if not spellID then return end
 	local info = spellWatch[spellID]
 	if not info then return end
-	QueueSay(info.zh)
+	QueueSay(ConsumableName(info))
 end
 
 function M:DebugTest(spellID)
 	spellID = tonumber(spellID) or 1234768
-	local info = spellWatch[spellID] or { zh = "生命药水" }
-	QueueSay(info.zh)
-	local prefix = addon.L["consumable_say_prefix"] or "！！【PVP_SOUND检测】我已吃下"
-	pendingText = prefix .. "【" .. info.zh .. "】药水！！"
+	local info = spellWatch[spellID] or { zh = "生命药水", en = "Health Potion" }
+	QueueSay(ConsumableName(info))
 	FlushPendingSay()
 	if pendingText then
 		EnsureHardwareWait()

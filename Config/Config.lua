@@ -694,7 +694,7 @@ local function BuildHomeTab(content)
 			M:Apply()
 		end,
 		GetText = function(value)
-			return value or voicePack:DefaultPack()
+			return voicePack:DisplayName(value or voicePack:DefaultPack())
 		end,
 	})
 	packDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
@@ -1111,9 +1111,23 @@ local function BuildZonesTab(content)
 			InterruptSoundLabel
 		)
 
-		-- Consumable honesty /say: always on, no toggle (removed per user request)
+		local consumableChk = mini:Checkbox({
+			Parent = content,
+			LabelText = L["Enable Consumable Say"],
+			Tooltip = L["Enable consumable honesty alerts in this zone."],
+			GetValue = function()
+				local zone = db.Zones[zoneKey]
+				return not zone or zone.ConsumableSay ~= false
+			end,
+			SetValue = function(value)
+				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
+				db.Zones[zoneKey].ConsumableSay = value and true or false
+				M:Apply()
+			end,
+		})
+		consumableChk:SetPoint("TOPLEFT", interruptChk, "BOTTOMLEFT", 0, -verticalSpacing)
 
-		last = interruptChk
+		last = consumableChk
 	end
 end
 
@@ -1611,9 +1625,13 @@ end
 ---@param spellId number
 ---@param fallbackName string?
 local function SpellLabel(spellId, fallbackName, overrideName)
-	local name = overrideName
+	-- Prefer the client's localized spell name so English UI is not stuck on Chinese Labels.
+	local name
+	if C_Spell and C_Spell.GetSpellName then
+		name = C_Spell.GetSpellName(spellId)
+	end
 	if not name or name == "" then
-		name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(spellId)
+		name = overrideName
 	end
 	local icon = C_Spell and C_Spell.GetSpellTexture and C_Spell.GetSpellTexture(spellId)
 	name = name or fallbackName
@@ -1706,13 +1724,22 @@ local function SpellIdList(spell)
 		ids[#ids + 1] = id
 	end
 	if spell then
+		add(spell.Id)
 		if spell.Ids then
 			for id in pairs(spell.Ids) do
 				add(id)
 			end
 		end
-		add(spell.Id)
 	end
+	table.sort(ids, function(a, b)
+		local pa, pb = tonumber(a) or 0, tonumber(b) or 0
+		local primary = spell and tonumber(spell.Id)
+		if primary then
+			if pa == primary and pb ~= primary then return true end
+			if pb == primary and pa ~= primary then return false end
+		end
+		return pa < pb
+	end)
 	return ids
 end
 
@@ -1821,6 +1848,7 @@ local function BuildMergedClasses()
 					Mode = "enemy",
 					Name = spell.Name,
 					Label = spell.Label,
+					Ids = spell.Ids,
 				}
 			end
 		end
@@ -1932,7 +1960,7 @@ local function BuildSpellGroup(parent, anchor, spells, dividerText)
 		local chk = mini:Checkbox({
 			Parent = parent,
 			LabelText = SpellLabel(spellId, spell.Name, spell.Label),
-			Tooltip = string.format(L["spell_toggle_tooltip"], spellId, file),
+			Tooltip = string.format(L["spell_toggle_tooltip"], table.concat(SpellIdList(spell), ", "), file),
 		GetValue = function()
 				return IsMergedSpellEnabled(spell)
 		end,
@@ -1953,6 +1981,11 @@ local function BuildSpellGroup(parent, anchor, spells, dividerText)
 				if link then
 					GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 					GameTooltip:SetHyperlink(link)
+					local ids = SpellIdList(spell)
+					if #ids > 0 then
+						GameTooltip:AddLine(" ")
+						GameTooltip:AddLine(string.format(L["spell_toggle_ids"], table.concat(ids, ", ")), 1, 0.82, 0, true)
+					end
 					GameTooltip:Show()
 				end
 			end
@@ -1982,8 +2015,16 @@ end
 ---@param anchor Region
 
 
+local function LocaleConsumableName(entry)
+	if not entry then return "" end
+	if L:IsChinese() then
+		return entry.zh or entry.en or ""
+	end
+	return entry.en or entry.zh or ""
+end
+
 local function ConsumableLabel(entry)
-	local name = (entry and (entry.zh or entry.en)) or ""
+	local name = LocaleConsumableName(entry)
 	local icon
 	if entry and entry.spellID and C_Spell and C_Spell.GetSpellTexture then
 		icon = C_Spell.GetSpellTexture(entry.spellID)
@@ -2021,7 +2062,7 @@ local function BuildConsumableWatchSection(parent, anchor)
 	local lastLeft, lastRight = divider, divider
 
 	for i, entry in ipairs(list) do
-		local name = entry.zh or entry.en or ""
+		local name = LocaleConsumableName(entry)
 		local col = (i - 1) % columns
 		local row = math.floor((i - 1) / columns)
 		local itemID = entry.itemID
@@ -2689,7 +2730,7 @@ function M:Init()
 			if addon.Modules.SoundModule and addon.Modules.SoundModule.DebugCastTest then
 				addon.Modules.SoundModule:DebugCastTest()
 			else
-				print("|cffff3333[PVP Sound]|r SoundModule 未加载。")
+				print("|cffff3333[PVP Sound]|r " .. L["debug_module_missing_sound"])
 			end
 			return
 		end
@@ -2698,7 +2739,7 @@ function M:Init()
 			if addon.Modules.SoundModule and addon.Modules.SoundModule.DebugSysCast then
 				addon.Modules.SoundModule:DebugSysCast(sysArg or "")
 			else
-				print("|cffff3333[PVP Sound]|r SoundModule 未加载。")
+				print("|cffff3333[PVP Sound]|r " .. L["debug_module_missing_sound"])
 			end
 			return
 		end
@@ -2711,7 +2752,7 @@ function M:Init()
 			if addon.Modules.ConsumableModule and addon.Modules.ConsumableModule.DebugTest then
 				addon.Modules.ConsumableModule:DebugTest(potionArg)
 			else
-				print("|cffff3333[PVP Sound]|r ConsumableModule 未加载。")
+				print("|cffff3333[PVP Sound]|r " .. L["debug_module_missing_consumable"])
 			end
 			return
 		end
@@ -2990,7 +3031,7 @@ function M:Init()
 					local msg = mini:TextBlock({
 						Parent = content,
 						Lines = {
-							"|cFFFF5050配置页加载失败|r",
+							"|cFFFF5050" .. L["profiles_tab_load_failed"] .. "|r",
 							tostring(err),
 						},
 					})
