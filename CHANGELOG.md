@@ -1,5 +1,12 @@
 # PVP Sound
 
+## [v3.0.10](https://github.com/vitocichen/pvp_sound/tree/v3.0.10) (2026-08-19)
+[Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.10)
+
+- 修复了插件报错
+- 修复部分残缺语音
+- 新增技能ID提示
+
 ## [v3.0.9](https://github.com/vitocichen/pvp_sound/tree/v3.0.9) (2026-08-18)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.9)
 

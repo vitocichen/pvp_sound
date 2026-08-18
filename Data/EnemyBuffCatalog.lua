@@ -27,7 +27,7 @@ addon.Data.EnemyBuffCatalog = {
 			Name = "Death Knight",
 			Spells = {
 				{ Id = 42650, File = "ArmyOfTheDead.ogg", Label = "亡者大军" }, -- Army of the Dead (enemy buff)
-				{ Id = 1233448, File = "DarkTransformation.ogg" }, -- Dark Mutation (enemy buff)
+				{ Id = 1233448, File = "DarkTransformation.ogg", Label = "黑暗突变", Ids = { [1233448] = true, [377588] = true, [1242654] = true } }, -- Dark Mutation (pet); player proxies: Ghoul Frenzy / Soul Reaper
 				{ Id = 48743, File = "DeathPact.ogg", Harmful = true }, -- Death Pact / 天灾契约 (self-debuff on the DK)
 				{ Id = 326801, File = "crimsonRune.ogg", Label = "鲜红符文" }, -- Rune of Sanguination (passive)
 				{ Id = 326808, File = "crimsonRune.ogg", Label = "鲜红符文" }, -- 8s heal proc (visible buff)
