@@ -6,6 +6,7 @@
 - 添加了更多了的法术ID
 - 药水检测功能仅在野外决斗环境生效
 - 修复了JJC/地下城中卡动作条的BUG
+- 用AI重配了夏一可部分语音
 
 ## [v3.0.10](https://github.com/vitocichen/pvp_sound/tree/v3.0.10) (2026-08-19)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.10)

@@ -20,6 +20,9 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 1299383, File = "mendingBandage.ogg", Label = "急救(41446)" }, -- 急救 (治疗绷带)
 				{ Id = 1251903, File = "necklaceShield.ogg", Label = "项链护盾" }, -- Void Stone Barrier
 				{ Id = 20572, File = "bloodFury.ogg", Label = "血性狂怒" }, -- Blood Fury
+				{ Id = 58984, File = "Shadowmeld.ogg", Label = "影遁" }, -- Shadowmeld (Night Elf)
+				{ Id = 26297, File = "Berserk.ogg", Label = "狂暴" }, -- Berserking (Troll racial; same 狂暴 clip as Druid Berserk)
+				{ Id = 59548, File = "giftOfTheNaaru.ogg", Label = "纳鲁的赐福", Ids = { [28880] = true, [59542] = true, [59543] = true, [59544] = true, [59545] = true, [59547] = true, [59548] = true, [121093] = true } }, -- Gift of the Naaru (Draenei racial)
 			},
 		},
 		{
@@ -156,6 +159,8 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 389794, File = "snowdrift.ogg" }, -- caster buff (blizzard around mage)
 				{ Id = 365362, File = "arcaneSurge.ogg", Label = "奥术涌动" }, -- Arcane Surge
 				{ Id = 210824, File = "touchOfTheMagi.ogg", Label = "大法师之触" }, -- Touch of the Magi (on the target)
+				{ Id = 414664, File = "massInvis.ogg", Label = "群体隐形", Ids = { [414664] = true, [198158] = true } }, -- Mass Invisibility
+				{ Id = 110960, File = "greaterInvisibility.ogg", Label = "强化隐形术", Ids = { [110960] = true, [110959] = true } }, -- Greater Invisibility
 			},
 		},
 		{
