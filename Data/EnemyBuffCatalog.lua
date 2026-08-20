@@ -125,7 +125,7 @@ addon.Data.EnemyBuffCatalog = {
 			Spells = {
 				{ Id = 186265, File = "Deterrence.ogg" }, -- Aspect of the Turtle (file is Xia Yike「灵龟守护」)
 				{ Id = 437461, File = "Deterrence.ogg" }, -- Aspect of the Turtle variant
-				{ Id = 53271, File = "MastersCall.ogg" },
+				{ Id = 53271, File = "MastersCall.ogg", Label = "主人的召唤", Ids = { [53271] = true, [54216] = true, [1224810] = true } },
 				{ Id = 53480, File = "roarOfSacrifice.ogg" },
 				{ Id = 186257, File = "cheetah.ogg" },
 				{ Id = 288613, File = "trueShot.ogg" },
