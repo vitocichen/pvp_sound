@@ -845,6 +845,7 @@ addon.Data.SelfCcSounds = {
 	[212337] = "Smash.ogg",
 	[353128] = "arcanosphere.ogg",
 	[356727] = "spiderSting.ogg",
+	[356723] = "scorpidVenom.ogg", -- Scorpid Venom / 巨蝎毒液
 	[357021] = "concussion.ogg",
 	[389831] = "snowdriftWinter.ogg",
 	-- Rogue offensive debuffs (on you / teammates)
