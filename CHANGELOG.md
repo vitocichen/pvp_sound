@@ -1,12 +1,13 @@
 # PVP Sound
 
-## [v3.0.11](https://github.com/vitocichen/pvp_sound/tree/v3.0.11) (2026-08-20)
+## [v3.0.11](https://github.com/vitocichen/pvp_sound/tree/v3.0.11) (2026-08-21)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.11)
 
-- 添加了更多了的法术ID
+- 添加了更多法术ID（巨蝎毒液、纳鲁的赐福等）
 - 药水检测功能仅在野外决斗环境生效
 - 修复了JJC/地下城中卡动作条的BUG
-- 用AI重配了夏一可部分语音
+- 用AI重配了夏一可部分语音（徽章、战斗大师、治疗被控等）
+- 补全英语女声「纳鲁的赐福」语音
 
 ## [v3.0.10](https://github.com/vitocichen/pvp_sound/tree/v3.0.10) (2026-08-19)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.10)
