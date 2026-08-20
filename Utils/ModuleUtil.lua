@@ -56,7 +56,7 @@ function M:IsInterruptAlertsEnabled()
 	return zone.InterruptAlert == true
 end
 
--- Consumable honesty yell: always on (no toggle).
+-- Consumable honesty yell: World only. Arena / BG / PvE never arm keyboard wait.
 function M:IsConsumableSayEnabled()
-	return true
+	return self:GetZoneKey() == "World"
 end

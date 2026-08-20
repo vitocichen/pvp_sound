@@ -1111,7 +1111,7 @@ local function BuildZonesTab(content)
 			InterruptSoundLabel
 		)
 
-		-- Consumable honesty yell: always on, no toggle.
+		-- Consumable honesty yell: World only (never arm in arena / BG / instances).
 
 		last = interruptChk
 	end
@@ -2576,6 +2576,8 @@ local function BuildChangelogTab(content)
 	local block = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v3.0.11"],
+			" ",
 			L["changelog_v3.0.10"],
 			" ",
 			L["changelog_v3.0.9"],

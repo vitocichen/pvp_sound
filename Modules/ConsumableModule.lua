@@ -30,7 +30,16 @@ local function StopHardwareWait()
 	hwFrame:Hide()
 end
 
+local function CancelPendingSay()
+	pendingText = nil
+	StopHardwareWait()
+end
+
 local function FlushPendingSay()
+	if not moduleUtil:IsConsumableSayEnabled() then
+		CancelPendingSay()
+		return
+	end
 	local text = pendingText
 	if not text then return end
 	if ChatLocked() then return end
@@ -53,6 +62,10 @@ local function EnsureHardwareWait()
 	hwFrame:Hide()
 	hwFrame:SetScript("OnKeyDown", function(self)
 		self:SetPropagateKeyboardInput(true)
+		if not moduleUtil:IsConsumableSayEnabled() then
+			CancelPendingSay()
+			return
+		end
 		FlushPendingSay()
 	end)
 end
@@ -123,6 +136,10 @@ local function AnnounceSpell(spellID)
 end
 
 function M:DebugTest(spellID)
+	if not moduleUtil:IsConsumableSayEnabled() then
+		CancelPendingSay()
+		return
+	end
 	spellID = tonumber(spellID) or 1234768
 	local info = spellWatch[spellID] or { zh = "生命药水", en = "Health Potion" }
 	QueueSay(ConsumableName(info))
@@ -142,17 +159,27 @@ function M:Init()
 	eventsFrame:RegisterUnitEvent("UNIT_AURA", "player")
 	eventsFrame:SetScript("OnEvent", function(_, event, unit, _, spellID)
 		if event == "PLAYER_ENTERING_WORLD" then
+			if not moduleUtil:IsConsumableSayEnabled() then
+				CancelPendingSay()
+			end
 			ScanPlayerAuras(false)
 			primed = true
 			return
 		end
 		if event == "UNIT_AURA" then
+			if not moduleUtil:IsConsumableSayEnabled() then
+				CancelPendingSay()
+			end
 			if primed then
 				ScanPlayerAuras(true)
 			end
 			return
 		end
 		if event == "UNIT_SPELLCAST_SUCCEEDED" and unit == "player" then
+			if not moduleUtil:IsConsumableSayEnabled() then
+				CancelPendingSay()
+				return
+			end
 			AnnounceSpell(spellID)
 		end
 	end)

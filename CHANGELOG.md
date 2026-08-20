@@ -1,5 +1,12 @@
 # PVP Sound
 
+## [v3.0.11](https://github.com/vitocichen/pvp_sound/tree/v3.0.11) (2026-08-20)
+[Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.11)
+
+- 添加了更多了的法术ID
+- 药水检测功能仅在野外决斗环境生效
+- 修复了JJC/地下城中卡动作条的BUG
+
 ## [v3.0.10](https://github.com/vitocichen/pvp_sound/tree/v3.0.10) (2026-08-19)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.10)
 
