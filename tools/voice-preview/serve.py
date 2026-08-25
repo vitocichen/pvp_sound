@@ -13,6 +13,7 @@ import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.error import URLError
+from urllib.parse import unquote
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -480,11 +481,11 @@ class Handler(SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
         if path.startswith("/media/"):
-            rel = path[len("/media/") :]
+            rel = unquote(path[len("/media/") :])
             rel = rel.replace("\\", "/")
             parts = [p for p in rel.split("/") if p and p not in (".", "..")]
-            target = MEDIA.joinpath(*parts)
-            if not target.is_file() or MEDIA not in target.resolve().parents:
+            target = self._resolve_media(parts)
+            if target is None:
                 self.send_error(404)
                 return
             ctype = "audio/ogg" if target.suffix.lower() == ".ogg" else "audio/mpeg"
@@ -492,14 +493,60 @@ class Handler(SimpleHTTPRequestHandler):
             return
         self.send_error(404)
 
+    def _resolve_media(self, parts: list[str]) -> Path | None:
+        if len(parts) < 2:
+            return None
+        pack_name, file_name = parts[0], parts[-1]
+        folder = MEDIA / pack_name
+        if not folder.is_dir():
+            wanted = pack_name.casefold()
+            folder = next((p for p in MEDIA.iterdir() if p.is_dir() and p.name.casefold() == wanted), None)
+        if folder is None or not folder.is_dir():
+            return None
+        target = folder / file_name
+        if not target.is_file():
+            wanted = file_name.casefold()
+            target = next((p for p in folder.iterdir() if p.is_file() and p.name.casefold() == wanted), None)
+            if target is None:
+                return None
+        resolved = target.resolve()
+        if MEDIA.resolve() not in resolved.parents:
+            return None
+        return resolved
+
     def _send_file(self, path: Path, content_type: str) -> None:
         data = path.read_bytes()
-        self.send_response(200)
+        total = len(data)
+        rng = self.headers.get("Range")
+        start, end = 0, total - 1
+        status = 200
+        if rng and rng.startswith("bytes=") and total:
+            spec = rng.split("=", 1)[1].split(",")[0].strip()
+            left, _, right = spec.partition("-")
+            try:
+                if left == "":
+                    start = max(total - int(right), 0)
+                else:
+                    start = int(left)
+                    if right:
+                        end = min(int(right), total - 1)
+            except ValueError:
+                start, end = 0, total - 1
+            else:
+                if start < total and start <= end:
+                    status = 206
+                else:
+                    start, end = 0, total - 1
+        chunk = data[start : end + 1]
+        self.send_response(status)
         self.send_header("Content-Type", content_type)
+        self.send_header("Accept-Ranges", "bytes")
         self.send_header("Cache-Control", "no-store")
-        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Length", str(len(chunk)))
+        if status == 206:
+            self.send_header("Content-Range", f"bytes {start}-{end}/{total}")
         self.end_headers()
-        self.wfile.write(data)
+        self.wfile.write(chunk)
 
 
 def main() -> None:
