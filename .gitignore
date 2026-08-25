@@ -1,1 +1,5 @@
 .codebuddy/
+__pycache__/
+tools/voice-preview/cache/
+Media/_gen_voltest.py
+tooltip-preview.html
