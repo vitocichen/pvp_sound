@@ -1,5 +1,12 @@
 # PVP Sound
 
+## [v3.0.12](https://github.com/vitocichen/pvp_sound/tree/v3.0.12) (2026-08-27)
+[Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.12)
+
+- 重新配了晓晓部分语音
+- 增大夏一可语音
+- 添加束缚射击和知识古树等ID
+
 ## [v3.0.11](https://github.com/vitocichen/pvp_sound/tree/v3.0.11) (2026-08-21)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.11)
 
