@@ -70,6 +70,7 @@ addon.Data.SelfCcCatalog = {
 				{ Id = 357021, File = "concussion.ogg", Name = "Consecutive Concussion", Ids = { [357021] = true } },
 				{ Id = 356727, File = "spiderSting.ogg", Name = "Spider Sting", Ids = { [356727] = true } },
 				{ Id = 356723, File = "scorpidVenom.ogg", Name = "Scorpid Venom", Label = "巨蝎毒液", Ids = { [356723] = true } },
+				{ Id = 117405, File = "bindingShot.ogg", Name = "Binding Shot", Label = "束缚射击范围提示", Ids = { [117405] = true } },
 			},
 		},
 		{

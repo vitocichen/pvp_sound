@@ -103,6 +103,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 22842, File = "FrenziedRegen.ogg" },
 				{ Id = 132158, File = "NaturesSwiftness.ogg" },
 				{ Id = 382912, File = "wellHonedInstincts.ogg" },
+				{ Id = 473909, File = "ancientOfLore.ogg", Label = "知识古树" }, -- Ancient of Lore (PvP talent)
 			},
 		},
 		{

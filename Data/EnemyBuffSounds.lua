@@ -216,6 +216,7 @@ addon.Data.EnemyBuffSounds = {
 	[381818] = "Bladestorm.ogg",
 	[381835] = "Bladestorm.ogg",
 	[382912] = "wellHonedInstincts.ogg",
+	[473909] = "ancientOfLore.ogg", -- 知识古树 / Ancient of Lore
 	[383410] = "celestialAlignment.ogg",
 	[384352] = "doomWinds.ogg",
 	[386196] = "battleStance.ogg", -- 狂暴姿态 / Berserker Stance
