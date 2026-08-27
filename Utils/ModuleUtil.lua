@@ -60,3 +60,26 @@ end
 function M:IsConsumableSayEnabled()
 	return self:GetZoneKey() == "World"
 end
+
+-- Watch nearby players (friend or foe) while spectating world duels.
+-- Only while YOU are out of combat. Uses UNIT_SPELLCAST_*/UNIT_AURA, not CLEU.
+function M:IsPlayerOutOfCombat()
+	if InCombatLockdown() then
+		return false
+	end
+	local inCombat = UnitAffectingCombat("player")
+	if issecretvalue and issecretvalue(inCombat) then
+		return false
+	end
+	return not inCombat
+end
+
+function M:IsDuelPotionWatchEnabled()
+	if self:GetZoneKey() ~= "World" then
+		return false
+	end
+	if not (db and db.DuelPotionWatch == true) then
+		return false
+	end
+	return self:IsPlayerOutOfCombat()
+end

@@ -65,6 +65,9 @@ function addon.DebugDiag()
 		tostring(db.InterruptSoundFile or "interrupted.ogg")))
 	print(string.format("  consumableSay: enabled=%s",
 		tostring(moduleUtil:IsConsumableSayEnabled())))
+	print(string.format("  duelPotionWatch: enabled=%s setting=%s",
+		tostring(moduleUtil:IsDuelPotionWatchEnabled()),
+		tostring(db.DuelPotionWatch == true)))
 	print(string.format("  cast: enabled=%s",
 		tostring(moduleUtil:IsCastAlertsEnabled())))
 	print(string.format("  voicePack=%s path=%s",

@@ -26,10 +26,10 @@ end
 
 ---Secret-safe boolean. Unknown/secret → false (safe for if/and/or).
 function M:KnownTrue(value)
-	if value == nil then
+	if issecretvalue and issecretvalue(value) then
 		return false
 	end
-	if issecretvalue(value) then
+	if value == nil then
 		return false
 	end
 	return value and true or false
@@ -37,10 +37,10 @@ end
 
 ---Public number or nil. Secret / tainted cooldown and CVar values must not be compared.
 function M:PublicNumber(value)
-	if value == nil then
+	if issecretvalue and issecretvalue(value) then
 		return nil
 	end
-	if issecretvalue and issecretvalue(value) then
+	if value == nil then
 		return nil
 	end
 	local ok, n = pcall(tonumber, value)
