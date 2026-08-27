@@ -46,7 +46,7 @@ local function BuildDefaultSelfCcSpells()
 end
 
 local dbDefaults = {
-	Version = 30,
+	Version = 31,
 	WhatsNewVersion = false,
 	VoicePack = "夏一可1.25x",
 	ExtraVoicePacks = {},
@@ -65,7 +65,9 @@ local dbDefaults = {
 	-- Enabled = enemy buff; CcEnabled = self/party debuff; HealerCcEnabled = healer-in-CC;
 	-- InterruptAlert = cast-interrupted voice; CastBar = system target-cast announce gate;
 	-- ConsumableSay = /say when you use listed PvP potions (no aura).
+	-- DuelPotionWatch = World spectator yell when anyone nearby drinks a listed potion.
 	-- TargetFocusOnly = buff monitor (false = all enemies); CcScope = self|party|partyonly for debuffs.
+	DuelPotionWatch = false,
 	Zones = {
 		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
 		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
@@ -228,8 +230,8 @@ local function MigrateV20(savedDb)
 		savedDb.Zones[key] = savedDb.Zones[key] or {}
 		if savedDb.Zones[key].HealerCcEnabled == nil then
 			savedDb.Zones[key].HealerCcEnabled = def
+			end
 		end
-	end
 	savedDb.Version = 20
 end
 
@@ -265,7 +267,7 @@ local function NormalizeSpellIdKeys(spellTable)
 		-- Keep an existing numeric entry; otherwise adopt the string-key value.
 		if spellTable[entry.id] == nil then
 			spellTable[entry.id] = entry.value and true or false
-		end
+			end
 		end
 	end
 
@@ -463,6 +465,17 @@ local function MigrateV30(savedDb)
 	savedDb.Version = 30
 end
 
+-- v31: spectator potion yell while watching world duels (friend or foe).
+local function MigrateV31(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 31) then return end
+	if savedDb.DuelPotionWatch == nil then
+		savedDb.DuelPotionWatch = false
+	else
+		savedDb.DuelPotionWatch = savedDb.DuelPotionWatch and true or false
+	end
+	savedDb.Version = 31
+end
+
 local function EnsureSysCastDefaults(savedDb)
 	savedDb.SysCast = savedDb.SysCast or {}
 	local mode = tonumber(savedDb.SysCast.PreferredMode)
@@ -472,8 +485,8 @@ local function EnsureSysCastDefaults(savedDb)
 		if mode < 0 then mode = 0 end
 		if mode > 2 then mode = 2 end
 		savedDb.SysCast.PreferredMode = mode
+		end
 	end
-end
 
 local function EnsureSpellDefaults(savedDb)
 	-- Keep legacy maps present but empty-ish; runtime uses Disabled* maps.
@@ -499,8 +512,8 @@ local function CopyDisableMap(src)
 		if value then
 			local spellId = tonumber(key) or key
 			out[spellId] = true
+			end
 		end
-	end
 	return out
 end
 
@@ -871,6 +884,7 @@ local function BuildZonesTab(content)
 			L["zones_intro_debuff"],
 			L["zones_intro_interrupt"],
 			L["zones_intro_consumable"],
+			L["zones_intro_duel_potion"],
 			L["zones_intro_healer"],
 			L["zones_intro_cast"],
 		},
@@ -894,7 +908,7 @@ local function BuildZonesTab(content)
 	---TextLine defaults to TextMaxWidth; shrink so dropdown can sit to its right.
 	local function PlaceRangeRow(anchorChk, labelText, items, getValue, setValue, getText)
 		local rangeLabel = mini:TextLine({
-			Parent = content,
+		Parent = content,
 			Text = labelText,
 		})
 		rangeLabel:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
@@ -903,7 +917,7 @@ local function BuildZonesTab(content)
 		rangeLabel:SetJustifyH("LEFT")
 
 		local rangeDropdown = mini:Dropdown({
-			Parent = content,
+		Parent = content,
 			Items = items,
 			Width = 180,
 			GetValue = getValue,
@@ -1052,18 +1066,18 @@ local function BuildZonesTab(content)
 
 		-- Row 4: system target-cast announce (gated per zone)
 		local castChk = mini:Checkbox({
-			Parent = content,
+		Parent = content,
 			LabelText = L["Enable Cast Alerts"],
 			Tooltip = L["Enable cast voice alerts in this zone."],
-			GetValue = function()
+		GetValue = function()
 				local zone = db.Zones[zoneKey]
 				return zone and zone.CastBar == true
-			end,
-			SetValue = function(value)
+		end,
+		SetValue = function(value)
 				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
 				db.Zones[zoneKey].CastBar = value and true or false
-				M:Apply()
-			end,
+			M:Apply()
+		end,
 		})
 		castChk:SetPoint("TOPLEFT", healerChk, "BOTTOMLEFT", 0, -verticalSpacing)
 
@@ -1112,8 +1126,25 @@ local function BuildZonesTab(content)
 		)
 
 		-- Consumable honesty yell: World only (never arm in arena / BG / instances).
-
-		last = interruptChk
+		-- Spectator potion watch: World only, optional.
+		if zoneKey == "World" then
+			local duelPotionChk = mini:Checkbox({
+		Parent = content,
+				LabelText = L["Enable Duel Potion Watch"],
+				Tooltip = L["Enable Duel Potion Watch Tooltip"],
+		GetValue = function()
+					return db.DuelPotionWatch == true
+		end,
+		SetValue = function(value)
+					db.DuelPotionWatch = value and true or false
+			M:Apply()
+		end,
+			})
+			duelPotionChk:SetPoint("TOPLEFT", interruptChk, "BOTTOMLEFT", 0, -verticalSpacing)
+			last = duelPotionChk
+		else
+			last = interruptChk
+		end
 	end
 end
 
@@ -1443,14 +1474,14 @@ local function BuildSysCastTab(content)
 
 	local function PlaceLabeledDropdown(anchor, labelText, items, getValue, setValue, getText, gridMode)
 		local label = mini:TextLine({
-			Parent = content,
+		Parent = content,
 			Text = labelText,
-		})
+	})
 		label:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -verticalSpacing * 1.5)
 		label:SetWidth(math.max(1, label:GetStringWidth() + 2))
 
 		local dropdown = mini:Dropdown({
-			Parent = content,
+		Parent = content,
 			Items = items,
 			Width = controlWidth,
 			GridMode = gridMode,
@@ -2043,9 +2074,23 @@ local function BuildConsumableWatchSection(parent, anchor)
 	divider:SetPoint("RIGHT", parent, "RIGHT")
 	divider:SetPoint("TOP", anchor, "BOTTOM", 0, -verticalSpacing * 2)
 
+	local watchChk = mini:Checkbox({
+		Parent = parent,
+		LabelText = L["Enable Duel Potion Watch"],
+		Tooltip = L["Enable Duel Potion Watch Tooltip"],
+		GetValue = function()
+			return db.DuelPotionWatch == true
+		end,
+		SetValue = function(value)
+			db.DuelPotionWatch = value and true or false
+			M:Apply()
+		end,
+	})
+	watchChk:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -verticalSpacing)
+
 	local columns = 2
 	local columnWidth = mini:ColumnWidth(columns, 0, 0)
-	local lastLeft, lastRight = divider, divider
+	local lastLeft, lastRight = watchChk, watchChk
 
 	for i, entry in ipairs(list) do
 		local name = LocaleConsumableName(entry)
@@ -2105,14 +2150,14 @@ local function BuildConsumableWatchSection(parent, anchor)
 
 		if col == 0 then
 			if row == 0 then
-				chk:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -verticalSpacing)
+				chk:SetPoint("TOPLEFT", watchChk, "BOTTOMLEFT", 0, -verticalSpacing)
 			else
 				chk:SetPoint("TOPLEFT", lastLeft, "BOTTOMLEFT", 0, -4)
 			end
 			lastLeft = chk
 		else
 			if row == 0 then
-				chk:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", columnWidth + horizontalSpacing, -verticalSpacing)
+				chk:SetPoint("TOPLEFT", watchChk, "BOTTOMLEFT", columnWidth + horizontalSpacing, -verticalSpacing)
 			else
 				chk:SetPoint("TOPLEFT", lastRight, "BOTTOMLEFT", 0, -4)
 			end
@@ -2179,6 +2224,7 @@ local function MigrateSettingsSnapshot(savedDb)
 	MigrateV28(savedDb)
 	MigrateV29(savedDb)
 	MigrateV30(savedDb)
+	MigrateV31(savedDb)
 end
 
 local function RefreshFrameTree(frame)
@@ -2637,6 +2683,7 @@ function M:Init()
 	MigrateV28(rawDb)
 	MigrateV29(rawDb)
 	MigrateV30(rawDb)
+	MigrateV31(rawDb)
 
 	-- Spells defaults stay empty; Disabled* sparse maps are the source of truth.
 	dbDefaults.Spells = {}
@@ -2741,6 +2788,15 @@ function M:Init()
 			DoTest()
 			return
 		end
+		local watchArg = msg:match("^potionwatch%s*(.*)$")
+		if watchArg ~= nil then
+			if addon.Modules.ConsumableModule and addon.Modules.ConsumableModule.DebugWatchTest then
+				addon.Modules.ConsumableModule:DebugWatchTest(watchArg)
+			else
+				print("|cffff3333[PVP Sound]|r " .. L["debug_module_missing_consumable"])
+			end
+			return
+		end
 		local potionArg = msg:match("^potion%s*(.*)$") or msg:match("^consumable%s*(.*)$")
 		if potionArg ~= nil then
 			if addon.Modules.ConsumableModule and addon.Modules.ConsumableModule.DebugTest then
@@ -2817,8 +2873,8 @@ function M:Init()
 		editBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
 		editBox:SetScript("OnTextChanged", function(self)
 			self:SetText(url)
-			self:HighlightText()
-		end)
+		self:HighlightText()
+	end)
 
 		local copyBtn = CreateFrame("Button", nil, popup, "UIPanelButtonTemplate")
 		copyBtn:SetSize(60, 22)
@@ -2828,9 +2884,9 @@ function M:Init()
 			editBox:SetText(url)
 			editBox:HighlightText()
 			editBox:SetFocus()
-			self:SetText(L["Copied"])
-			C_Timer.After(1.5, function() self:SetText(L["Copy"]) end)
-		end)
+		self:SetText(L["Copied"])
+		C_Timer.After(1.5, function() self:SetText(L["Copy"]) end)
+	end)
 
 		local openHint = popup:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
 		openHint:SetText(L["Donate Open Hint"])

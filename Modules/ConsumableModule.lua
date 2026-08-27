@@ -1,6 +1,7 @@
 ---@type string, Addon
 local _, addon = ...
 local moduleUtil = addon.Utils.ModuleUtil
+local units = addon.Utils.Units
 local data = addon.Data.Consumables
 local spellWatch = data.Spells
 
@@ -9,6 +10,7 @@ local M = {}
 addon.Modules.ConsumableModule = M
 
 local eventsFrame
+local watchFrame
 local hwFrame
 local primed
 local pendingText
@@ -16,12 +18,33 @@ local lastAnnounceAt = 0
 local lastAnnounceText
 local seenAura = {}
 local DEDUP = 0.8
+local WATCH_DEDUP = 1.5
+local lastWatchKey
+local lastWatchAt = 0
 
 local function ChatLocked()
 	if C_ChatInfo and C_ChatInfo.InChatMessagingLockdown then
 		return C_ChatInfo.InChatMessagingLockdown() and true or false
 	end
 	return false
+end
+
+local function PublicString(value)
+	if issecretvalue and issecretvalue(value) then
+		return nil
+	end
+	if value == nil or type(value) ~= "string" or value == "" then
+		return nil
+	end
+	return value
+end
+
+local function ConsumableName(info)
+	if not info then return "" end
+	if addon.L:IsChinese() then
+		return info.zh or info.en or ""
+	end
+	return info.en or info.zh or ""
 end
 
 local function StopHardwareWait()
@@ -52,8 +75,7 @@ local function FlushPendingSay()
 end
 
 local function EnsureHardwareWait()
-	-- Do not HookScript WorldFrame: that taints click-to-target and shows
-	-- 插件导致界面行为失效 after /reload. Potion yell waits for the next keypress.
+	-- Do not HookScript WorldFrame.
 	if hwFrame then return end
 	hwFrame = CreateFrame("Frame", nil, UIParent)
 	hwFrame:SetPoint("CENTER")
@@ -70,12 +92,33 @@ local function EnsureHardwareWait()
 	end)
 end
 
-local function ConsumableName(info)
-	if not info then return "" end
-	if addon.L:IsChinese() then
-		return info.zh or info.en or ""
+local function ArmHardwareWait()
+	EnsureHardwareWait()
+	hwFrame:Show()
+	hwFrame:EnableKeyboard(true)
+	hwFrame:SetPropagateKeyboardInput(true)
+end
+
+local function QueueWatchSay(who, buffName)
+	if not moduleUtil:IsDuelPotionWatchEnabled() then
+		return
 	end
-	return info.en or info.zh or ""
+	if not moduleUtil:IsConsumableSayEnabled() then
+		return
+	end
+	if not who or who == "" or not buffName or buffName == "" then
+		return
+	end
+	local fmt = addon.L["consumable_watch_say_format"]
+	local text = string.format(fmt, who, buffName)
+	local now = GetTime()
+	if lastAnnounceText == text and (now - lastAnnounceAt) < DEDUP then
+		return
+	end
+	lastAnnounceAt = now
+	lastAnnounceText = text
+	pendingText = text
+	ArmHardwareWait()
 end
 
 local function QueueSay(name)
@@ -90,10 +133,104 @@ local function QueueSay(name)
 	lastAnnounceAt = now
 	lastAnnounceText = text
 	pendingText = text
-	EnsureHardwareWait()
-	hwFrame:Show()
-	hwFrame:EnableKeyboard(true)
-	hwFrame:SetPropagateKeyboardInput(true)
+	ArmHardwareWait()
+end
+
+-- Other players only (duel both sides). Token checks, never combat-log flags.
+local function IsWatchUnit(unit)
+	if not unit or unit == "player" or unit == "pet" or unit == "vehicle" then
+		return false
+	end
+	if units:IsSameUnit(unit, "player") then
+		return false
+	end
+	if not units:Exists(unit) then
+		return false
+	end
+	if units:IsPetOrMinion(unit) then
+		return false
+	end
+	local isPlayer = UnitIsPlayer(unit)
+	if issecretvalue and issecretvalue(isPlayer) then
+		return true
+	end
+	return isPlayer and true or false
+end
+
+local function UnitPublicName(unit)
+	local name = UnitName(unit)
+	if issecretvalue and issecretvalue(name) then
+		return "附近玩家"
+	end
+	name = PublicString(name)
+	if not name then
+		return "附近玩家"
+	end
+	return name:match("^([^-]+)") or name
+end
+
+local function ReportWatchNamed(who, spellID)
+	who = who or "附近玩家"
+	local potion = spellWatch[spellID]
+	if not potion then
+		return
+	end
+	local key = who .. ":" .. tostring(spellID)
+	local now = GetTime()
+	if lastWatchKey == key and (now - lastWatchAt) < WATCH_DEDUP then
+		return
+	end
+	lastWatchKey = key
+	lastWatchAt = now
+	QueueWatchSay(who, ConsumableName(potion))
+end
+
+local function ReportWatchSpell(unit, spellID)
+	ReportWatchNamed(UnitPublicName(unit), spellID)
+end
+
+local function OnWatchAura(unit, updateInfo)
+	if not IsWatchUnit(unit) then
+		return
+	end
+	if updateInfo == nil or (issecretvalue and issecretvalue(updateInfo)) then
+		return
+	end
+	local added = updateInfo.addedAuras
+	if added == nil or (issecretvalue and issecretvalue(added)) or type(added) ~= "table" then
+		return
+	end
+	for i = 1, #added do
+		local aura = added[i]
+		if aura and not (issecretvalue and issecretvalue(aura)) then
+			local id = units:PublicNumber(aura.spellId)
+			if id then
+				ReportWatchSpell(unit, id)
+			end
+		end
+	end
+end
+
+local function OnWatchEvent(_, event, unit, a)
+	if event ~= "UNIT_AURA" then
+		return
+	end
+	if not moduleUtil:IsDuelPotionWatchEnabled() then
+		return
+	end
+	OnWatchAura(unit, a)
+end
+
+local function SetWatchListening(on)
+	if not watchFrame then
+		watchFrame = CreateFrame("Frame")
+		watchFrame:SetScript("OnEvent", OnWatchEvent)
+	end
+	watchFrame:UnregisterAllEvents()
+	if not on then
+		return
+	end
+	watchFrame:RegisterEvent("UNIT_AURA")
 end
 
 ---Hardcoded spellID only. Do not read cooldown start/duration (secret in combat).
@@ -108,13 +245,13 @@ local function PlayerHasAura(spellID)
 		return false
 	end
 	local ok, aura = pcall(C_UnitAuras.GetPlayerAuraBySpellID, spellID)
-	if not ok or aura == nil then
+	if not ok then
 		return false
 	end
 	if issecretvalue and issecretvalue(aura) then
 		return false
 	end
-	return true
+	return aura ~= nil
 end
 
 local function ScanPlayerAuras(announce)
@@ -128,7 +265,7 @@ local function ScanPlayerAuras(announce)
 end
 
 local function AnnounceSpell(spellID)
-	spellID = addon.Utils.Units:PublicNumber(spellID)
+	spellID = units:PublicNumber(spellID)
 	if not spellID then return end
 	local info = spellWatch[spellID]
 	if not info then return end
@@ -145,10 +282,15 @@ function M:DebugTest(spellID)
 	QueueSay(ConsumableName(info))
 	FlushPendingSay()
 	if pendingText then
-		EnsureHardwareWait()
-		hwFrame:Show()
-		hwFrame:EnableKeyboard(true)
+		ArmHardwareWait()
 	end
+end
+
+function M:DebugWatchTest()
+	print("DuelPotionWatch=" .. tostring(addon.Core.Framework:GetSavedVars().DuelPotionWatch == true)
+		.. " on=" .. tostring(moduleUtil:IsDuelPotionWatchEnabled())
+		.. " zone=" .. tostring(moduleUtil:GetZoneKey())
+		.. " ooc=" .. tostring(moduleUtil:IsPlayerOutOfCombat()))
 end
 
 function M:Init()
@@ -156,14 +298,21 @@ function M:Init()
 	eventsFrame = CreateFrame("Frame")
 	eventsFrame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 	eventsFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+	eventsFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+	eventsFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 	eventsFrame:RegisterUnitEvent("UNIT_AURA", "player")
 	eventsFrame:SetScript("OnEvent", function(_, event, unit, _, spellID)
+		if event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
+			M:Refresh()
+			return
+		end
 		if event == "PLAYER_ENTERING_WORLD" then
 			if not moduleUtil:IsConsumableSayEnabled() then
 				CancelPendingSay()
 			end
 			ScanPlayerAuras(false)
 			primed = true
+			M:Refresh()
 			return
 		end
 		if event == "UNIT_AURA" then
@@ -183,7 +332,9 @@ function M:Init()
 			AnnounceSpell(spellID)
 		end
 	end)
+	M:Refresh()
 end
 
 function M:Refresh()
+	SetWatchListening(moduleUtil:IsDuelPotionWatchEnabled() and true or false)
 end

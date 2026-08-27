@@ -20,6 +20,7 @@ local SETTINGS_KEYS = {
 	"Sound",
 	"SysCast",
 	"Zones",
+	"DuelPotionWatch",
 	"DisabledEnemySpells",
 	"DisabledSelfCcSpells",
 	"Spells",
