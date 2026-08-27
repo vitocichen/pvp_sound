@@ -46,6 +46,8 @@ addon.Data.SelfCcCatalog = {
 				{ Id = 2637, File = "hibernate.ogg", Name = "Hibernate", Ids = { [2637] = true, [84868] = true, [201431] = true, [390406] = true } },
 				{ Id = 81261, File = "SolarBeam.ogg", Name = "Solar Beam", Ids = { [81261] = true, [129889] = true, [1264226] = true } },
 				{ Id = 102359, File = "massEntanglement.ogg", Name = "Mass Entanglement", Ids = { [102359] = true, [424497] = true } },
+				{ Id = 209749, File = "faerieSwarm.ogg", Name = "Faerie Swarm", Label = "精灵虫群", Ids = { [209749] = true } },
+				{ Id = 127797, File = "UrsolsVortex.ogg", Name = "Ursol's Vortex", Label = "乌索尔旋风", Ids = { [127797] = true } },
 				{ Id = 163505, File = "rakeStun.ogg", Name = "Rake", Ids = { [163505] = true } },
 				{ Id = 274837, File = "FeralFrenzy.ogg", Name = "Feral Frenzy", Label = "野性狂乱", DefaultOff = true, Ids = { [222509] = true, [274837] = true, [274838] = true, [412269] = true, [412271] = true, [412279] = true } },
 			},

@@ -217,6 +217,7 @@ L:SetDefaultStrings({
 	["Changelog"] = "Changelog",
 	["PVP Sound - What's New?"] = "PVP Sound - What's New?",
 	["changelog_v3.0.5"] = "|cFFFFD100v3.0.5|r — Interrupt alert now plays only when you land the kick (no more false positives from cancelled casts); fixed Adaptation spell ID; added some spells (Death Pact, Necklace Shield, Crimson Rune, Vanish).",
+	["changelog_v3.0.13"] = "|cFFFFD100v3.0.13|r — Added Druid Faerie Swarm (209749) and Ursol's Vortex (127797) to self/teammate debuff alerts.",
 	["changelog_v3.0.12"] = "|cFFFFD100v3.0.12|r — Re-recorded some Xiaoxiao lines, boosted Xia Yike volume, and added Binding Shot, Ancient of Lore, and other spell IDs.",
 	["changelog_v3.0.11"] = "|cFFFFD100v3.0.11|r — Added more spell IDs (Scorpid Venom, Gift of the Naaru, etc.); potion detection only in open-world duels; fixed action-bar lock in arena/dungeons; re-recorded some Xia Yike lines; added English Gift of the Naaru.",
 	["changelog_v3.0.10"] = "|cFFFFD100v3.0.10|r — Fixed addon errors, restored some incomplete voice lines, and added spell ID hints.",
