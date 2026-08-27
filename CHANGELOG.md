@@ -1,5 +1,10 @@
 # PVP Sound
 
+## [v3.0.13](https://github.com/vitocichen/pvp_sound/tree/v3.0.13) (2026-08-28)
+[Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.13)
+
+- 友方减益新增德鲁伊精灵虫群（209749）、乌索尔旋风（127797）
+
 ## [v3.0.12](https://github.com/vitocichen/pvp_sound/tree/v3.0.12) (2026-08-27)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.12)
 
