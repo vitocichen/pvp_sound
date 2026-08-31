@@ -201,6 +201,36 @@ function M:Path(fileName)
 	return CustomFolderPath(pack) .. fileName:gsub("%.mp3$", ".ogg"):gsub("%.MP3$", ".ogg")
 end
 
+---Same as Path, but nil when the clip is missing (in-game file ID probe).
+---@param fileName string
+---@return string?
+function M:TryPath(fileName)
+	if not fileName or fileName == "" then return nil end
+	local pack = self:GetSelectedPack()
+	if IsShippedPack(pack) then
+		local found = TryResolveClip(PackFolderPath(pack), fileName)
+		if found then
+			return found
+		end
+		if not GetFileIDFromPath then
+			return ResolveClip(PackFolderPath(pack), fileName)
+		end
+		return nil
+	end
+	local custom = TryResolveClip(CustomFolderPath(pack), fileName)
+	if custom then
+		return custom
+	end
+	local legacy = TryResolveClip(PackFolderPath(pack), fileName)
+	if legacy then
+		return legacy
+	end
+	if not GetFileIDFromPath then
+		return CustomFolderPath(pack) .. fileName:gsub("%.mp3$", ".ogg"):gsub("%.MP3$", ".ogg")
+	end
+	return nil
+end
+
 ---Legacy path used before multi-pack layout (Media\Voice_zhCN).
 ---@return string
 function M:LegacyPath()
