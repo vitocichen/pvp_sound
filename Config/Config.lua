@@ -84,7 +84,7 @@ local dbDefaults = {
 	Profiles = {},
 }
 
-local M = addon.ConfigModern
+local M = addon.Config
 
 function M:Apply()
 	addon:Refresh()

@@ -7,27 +7,14 @@ function addon.DebugDiag()
 	local auraSounds = addon.Core.AuraSounds
 	local units = addon.Utils.Units
 	local db = addon.Core.Framework:GetSavedVars()
-	local modern = addon.Core.Compat:UseAddAuraSound()
 
 	print("|cff33ff99=== PVP Sound diag ===|r")
-	print(string.format("  engine=%s AddAuraSound=%s",
-		modern and "modern(12.1+)" or "legacy(PrivateAura+TTS)",
+	print(string.format("  engine=AddAuraSound AddAuraSound=%s",
 		tostring(auraSounds and auraSounds:IsAvailable())))
 
 	local zoneKey = moduleUtil:GetZoneKey()
 	local zone = moduleUtil:GetZoneConfig()
 	print(string.format("  zone=%s", tostring(zoneKey)))
-
-	if not modern then
-		print(string.format("  master Enabled=%s ImportantEnabled=%s CCEnabled=%s CastBar=%s",
-			tostring(zone and zone.Enabled),
-			tostring(zone and zone.ImportantEnabled),
-			tostring(zone and zone.CCEnabled),
-			tostring(zone and zone.CastBar)))
-		print("  legacy engine = TTS + nameplate buffList (v2.0.3 path)")
-		print("|cff33ff99=== end (legacy) ===|r")
-		return
-	end
 
 	local voicePack = addon.Core.VoicePack
 	local auraMod = addon.Modules.AuraSoundModule

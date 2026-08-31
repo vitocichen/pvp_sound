@@ -9,10 +9,6 @@ local db
 -- Bump when there's a change worth popping a "What's New" dialog.
 local WHATS_NEW_VERSION = "3.0.13"
 
-local function UseModern()
-	return addon.Core.Compat:UseAddAuraSound()
-end
-
 local function ShowWhatsNew()
 	if not db then return end
 	local version = WHATS_NEW_VERSION
@@ -40,21 +36,15 @@ local function OnEvent(_, event)
 end
 
 local function OnAddonLoaded()
-	local modern = UseModern()
-	addon.Config = modern and addon.ConfigModern or addon.ConfigLegacy
 	addon.Config:Init()
 
 	scheduler:Init()
 	addon.Utils.ModuleUtil:Init()
 
-	if modern then
-		addon.Modules.AuraSoundModule:Init()
-		addon.Modules.SoundModule:Init()
-		if addon.Modules.TrinketModule then
-			addon.Modules.TrinketModule:Init()
-		end
-	else
-		addon.Modules.SoundModuleLegacy:Init()
+	addon.Modules.AuraSoundModule:Init()
+	addon.Modules.SoundModule:Init()
+	if addon.Modules.TrinketModule then
+		addon.Modules.TrinketModule:Init()
 	end
 	if addon.Modules.ConsumableModule then
 		addon.Modules.ConsumableModule:Init()
@@ -68,20 +58,14 @@ local function OnAddonLoaded()
 end
 
 function addon:Refresh()
-	if UseModern() then
-		if addon.Modules.SoundModule and addon.Modules.SoundModule.Refresh then
-			addon.Modules.SoundModule:Refresh()
-		end
-		if addon.Modules.AuraSoundModule and addon.Modules.AuraSoundModule.Refresh then
-			addon.Modules.AuraSoundModule:Refresh("addon:Refresh")
-		end
-		if addon.Modules.TrinketModule and addon.Modules.TrinketModule.Refresh then
-			addon.Modules.TrinketModule:Refresh()
-		end
-	else
-		if addon.Modules.SoundModuleLegacy and addon.Modules.SoundModuleLegacy.Refresh then
-			addon.Modules.SoundModuleLegacy:Refresh()
-		end
+	if addon.Modules.SoundModule and addon.Modules.SoundModule.Refresh then
+		addon.Modules.SoundModule:Refresh()
+	end
+	if addon.Modules.AuraSoundModule and addon.Modules.AuraSoundModule.Refresh then
+		addon.Modules.AuraSoundModule:Refresh("addon:Refresh")
+	end
+	if addon.Modules.TrinketModule and addon.Modules.TrinketModule.Refresh then
+		addon.Modules.TrinketModule:Refresh()
 	end
 	if addon.Modules.ConsumableModule and addon.Modules.ConsumableModule.Refresh then
 		addon.Modules.ConsumableModule:Refresh()

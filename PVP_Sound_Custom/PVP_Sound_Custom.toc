@@ -1,4 +1,4 @@
-## Interface: 120100, 120007
+## Interface: 120100
 ## Title: PVP Sound Custom Voice
 ## Title-zhCN: PVP Sound 自定义语音（请勿删除）
 ## Notes: DIY voice packs for PVP Sound. Keep this folder when updating PVP Sound.
