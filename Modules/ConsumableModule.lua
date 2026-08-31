@@ -110,7 +110,7 @@ local function QueueWatchSay(who, buffName)
 		return
 	end
 	local fmt = addon.L["consumable_watch_say_format"]
-	local text = string.format(fmt, who, buffName)
+	local text = string.format(fmt, who, date("%H:%M:%S"), buffName)
 	local now = GetTime()
 	if lastAnnounceText == text and (now - lastAnnounceAt) < DEDUP then
 		return
@@ -126,7 +126,7 @@ local function QueueSay(name)
 	if not moduleUtil:IsConsumableSayEnabled() then return end
 	local now = GetTime()
 	local fmt = addon.L["consumable_say_format"]
-	local text = string.format(fmt, name)
+	local text = string.format(fmt, date("%H:%M:%S"), name)
 	if lastAnnounceText == text and (now - lastAnnounceAt) < DEDUP then
 		return
 	end

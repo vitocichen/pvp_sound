@@ -141,6 +141,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 360952, File = "coordinatedAssault.ogg", Label = "协同进攻" },
 				{ Id = 1250646, File = "soulHuntStrike.ogg", Label = "狩魂一击" }, -- Soul Hunt Strike
 				{ Id = 19574, File = "bestialWrath.ogg", Label = "狂野怒火" }, -- Bestial Wrath
+				{ Id = 248519, File = "Interlope.ogg", Label = "干涉" }, -- Interlope
 			},
 		},
 		{

@@ -262,6 +262,7 @@ addon.Data.EnemyBuffSounds = {
 	[1289616] = "pony.ogg",
 	[1289617] = "pony.ogg",
 	[19574] = "bestialWrath.ogg", -- 狂野怒火 / Bestial Wrath (Hunter)
+	[248519] = "Interlope.ogg", -- 干涉 / Interlope (Hunter)
 	[1249625] = "peakOfSerenity.ogg", -- 乾元之巅 / Peak of Serenity (Monk)
 	[20572] = "bloodFury.ogg", -- 血性狂怒 / Blood Fury (General)
 	[58984] = "Shadowmeld.ogg", -- 影遁 / Shadowmeld (General)

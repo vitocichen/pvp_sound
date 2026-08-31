@@ -1,5 +1,12 @@
 # PVP Sound
 
+## [v3.0.14](https://github.com/vitocichen/pvp_sound/tree/v3.0.14) (2026-08-31)
+[Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.14)
+
+- 添加猎人误导（干涉）
+- JJC徽章根据职业适配播放
+- 新增野外插旗判官功能
+
 ## [v3.0.13](https://github.com/vitocichen/pvp_sound/tree/v3.0.13) (2026-08-28)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.13)
 

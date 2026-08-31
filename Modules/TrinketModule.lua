@@ -29,6 +29,24 @@ local HEALER_SPEC_IDS = {
 	[1468] = true, -- Preservation Evoker
 }
 
+-- Addon-owned strings only. Do not concatenate UnitClass()'s classFile — it is
+-- secret on 12.1 and kills the rest of PlayTrinket (no PlaySoundFile, no later prints).
+local SPEC_TO_CLASS = {
+	[71] = "WARRIOR", [72] = "WARRIOR", [73] = "WARRIOR",
+	[65] = "PALADIN", [66] = "PALADIN", [70] = "PALADIN",
+	[253] = "HUNTER", [254] = "HUNTER", [255] = "HUNTER",
+	[259] = "ROGUE", [260] = "ROGUE", [261] = "ROGUE",
+	[256] = "PRIEST", [257] = "PRIEST", [258] = "PRIEST",
+	[250] = "DEATHKNIGHT", [251] = "DEATHKNIGHT", [252] = "DEATHKNIGHT",
+	[262] = "SHAMAN", [263] = "SHAMAN", [264] = "SHAMAN",
+	[62] = "MAGE", [63] = "MAGE", [64] = "MAGE",
+	[265] = "WARLOCK", [266] = "WARLOCK", [267] = "WARLOCK",
+	[268] = "MONK", [269] = "MONK", [270] = "MONK",
+	[102] = "DRUID", [103] = "DRUID", [104] = "DRUID", [105] = "DRUID",
+	[577] = "DEMONHUNTER", [581] = "DEMONHUNTER", [1480] = "DEMONHUNTER",
+	[1467] = "EVOKER", [1468] = "EVOKER", [1473] = "EVOKER",
+}
+
 local hooked = {}
 local cdActive = {}
 local lastPlay = 0
@@ -59,13 +77,6 @@ local function TrinketChecked()
 	return true
 end
 
-local function ShouldPlay()
-	if not InArena() then return false end
-	if InPrepRoom() then return false end
-	if not moduleUtil:IsEnabled() then return false end
-	return TrinketChecked()
-end
-
 ---@param index number
 ---@return number?
 local function ArenaSpecID(index)
@@ -77,48 +88,42 @@ local function ArenaSpecID(index)
 	return specID
 end
 
----@param specID number
+---@param specID number?
 ---@return string?
-local function ArenaClassFile(specID)
-	if not GetSpecializationInfoByID then return nil end
-	local ok, _, _, _, _, _, classFile = pcall(GetSpecializationInfoByID, specID)
-	if not ok or type(classFile) ~= "string" or classFile == "" then return nil end
-	if issecretvalue and issecretvalue(classFile) then return nil end
-	return classFile
+local function ClassFileFromSpec(specID)
+	if not specID then return nil end
+	return SPEC_TO_CLASS[specID]
 end
 
-local function PlayPath(path)
-	if not path then return false end
-	local ok = pcall(PlaySoundFile, path, Channel())
-	return ok and true or false
-end
-
----Prefer TryPath so a missing class/healer clip falls through to generic 徽章.
+---Play a pack clip. Filename must be an addon-owned literal (not UnitClass).
 local function PlayNamed(fileName)
-	if voicePack.TryPath then
-		return PlayPath(voicePack:TryPath(fileName))
-	end
-	return PlayPath(voicePack:Path(fileName))
+	local path = voicePack:Path(fileName)
+	if not path then return false end
+	local ok, willPlay = pcall(PlaySoundFile, path, Channel())
+	if not ok then return false end
+	if willPlay == false then return false end
+	return true
 end
 
 ---@param index number
 local function PlayTrinket(index)
 	local now = GetTime()
-	if now - lastPlay < DEDUP then return end
-
-	local played = false
-	local specID = ArenaSpecID(index)
-	if specID then
-		if HEALER_SPEC_IDS[specID] then
-			played = PlayNamed(HEALER_TRINKET_FILE)
-		else
-			local classFile = ArenaClassFile(specID)
-			if classFile then
-				played = PlayNamed("trinket" .. classFile .. ".ogg")
-			end
-		end
+	if now - lastPlay < DEDUP then
+		return
 	end
-	if not played then
+
+	local specID = ArenaSpecID(index)
+	local healer = specID and HEALER_SPEC_IDS[specID] and true or false
+	local classFile = ClassFileFromSpec(specID)
+	local chosen = TRINKET_FILE
+	if healer then
+		chosen = HEALER_TRINKET_FILE
+	elseif classFile then
+		chosen = "trinket" .. classFile .. ".ogg"
+	end
+
+	local played = PlayNamed(chosen)
+	if not played and chosen ~= TRINKET_FILE then
 		played = PlayNamed(TRINKET_FILE)
 	end
 	if played then
@@ -133,11 +138,17 @@ local function OnCooldownSet(index, cooldown)
 		cdActive[index] = false
 		return
 	end
-	if cdActive[index] then return end
-	cdActive[index] = true
-	if ShouldPlay() then
-		PlayTrinket(index)
+	-- Prep often shows the Cd frame; latching here skipped the real trinket later.
+	if InPrepRoom() then
+		cdActive[index] = false
+		return
 	end
+	if cdActive[index] then return end
+
+	local should = InArena() and moduleUtil:IsEnabled() and TrinketChecked()
+	if not should then return end
+	cdActive[index] = true
+	pcall(PlayTrinket, index)
 end
 
 local function HookCooldown(cooldown, index)
@@ -185,7 +196,7 @@ function M:Init()
 		eventsFrame:RegisterEvent("PVP_MATCH_COMPLETE")
 	end
 	eventsFrame:SetScript("OnEvent", function(_, event)
-		if event == "PLAYER_ENTERING_WORLD" or event == "PVP_MATCH_COMPLETE" then
+		if event == "PLAYER_ENTERING_WORLD" or event == "PVP_MATCH_COMPLETE" or event == "PVP_MATCH_ACTIVE" then
 			M:Reset()
 		end
 		M:InstallHooks()

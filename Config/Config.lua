@@ -46,7 +46,7 @@ local function BuildDefaultSelfCcSpells()
 end
 
 local dbDefaults = {
-	Version = 31,
+	Version = 32,
 	WhatsNewVersion = false,
 	VoicePack = "夏一可1.25x",
 	ExtraVoicePacks = {},
@@ -67,7 +67,7 @@ local dbDefaults = {
 	-- ConsumableSay = /say when you use listed PvP potions (no aura).
 	-- DuelPotionWatch = World spectator yell when anyone nearby drinks a listed potion.
 	-- TargetFocusOnly = buff monitor (false = all enemies); CcScope = self|party|partyonly for debuffs.
-	DuelPotionWatch = false,
+	DuelPotionWatch = true,
 	Zones = {
 		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
 		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
@@ -469,11 +469,18 @@ end
 local function MigrateV31(savedDb)
 	if not savedDb or (savedDb.Version and savedDb.Version >= 31) then return end
 	if savedDb.DuelPotionWatch == nil then
-		savedDb.DuelPotionWatch = false
+		savedDb.DuelPotionWatch = true
 	else
 		savedDb.DuelPotionWatch = savedDb.DuelPotionWatch and true or false
 	end
 	savedDb.Version = 31
+end
+
+-- v32: flag-duel judge on by default.
+local function MigrateV32(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 32) then return end
+	savedDb.DuelPotionWatch = true
+	savedDb.Version = 32
 end
 
 local function EnsureSysCastDefaults(savedDb)
@@ -884,7 +891,6 @@ local function BuildZonesTab(content)
 			L["zones_intro_debuff"],
 			L["zones_intro_interrupt"],
 			L["zones_intro_consumable"],
-			L["zones_intro_duel_potion"],
 			L["zones_intro_healer"],
 			L["zones_intro_cast"],
 		},
@@ -1446,9 +1452,6 @@ local function BuildSysCastTab(content)
 		Parent = content,
 		Lines = {
 			L["syscast_intro_1"],
-			L["syscast_intro_2"],
-			L["syscast_intro_3"],
-			L["syscast_intro_4"],
 		},
 	})
 	intro:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
@@ -2225,6 +2228,7 @@ local function MigrateSettingsSnapshot(savedDb)
 	MigrateV29(savedDb)
 	MigrateV30(savedDb)
 	MigrateV31(savedDb)
+	MigrateV32(savedDb)
 end
 
 local function RefreshFrameTree(frame)
@@ -2622,6 +2626,8 @@ local function BuildChangelogTab(content)
 	local block = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v3.0.14"],
+			" ",
 			L["changelog_v3.0.13"],
 			" ",
 			L["changelog_v3.0.12"],
@@ -2684,6 +2690,7 @@ function M:Init()
 	MigrateV29(rawDb)
 	MigrateV30(rawDb)
 	MigrateV31(rawDb)
+	MigrateV32(rawDb)
 
 	-- Spells defaults stay empty; Disabled* sparse maps are the source of truth.
 	dbDefaults.Spells = {}
