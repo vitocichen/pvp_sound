@@ -2626,6 +2626,8 @@ local function BuildChangelogTab(content)
 	local block = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v3.0.15"],
+			" ",
 			L["changelog_v3.0.14"],
 			" ",
 			L["changelog_v3.0.13"],
@@ -2903,7 +2905,7 @@ function M:Init()
 	end
 
 	local donateURL = "https://vitocichen.github.io/DK-jiangshili/"
-	local feedbackURL = "https://discord.com/channels/1538829151497355274/1538873466168672387"
+	local feedbackURL = "https://discord.gg/mhN2nYmv7"
 	local donatePopup, donateEditBox = MakeLinkPopup(
 		"PVPSoundDonatePopup",
 		L["Donate Popup Title"],

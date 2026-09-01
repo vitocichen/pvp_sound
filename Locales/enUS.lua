@@ -218,6 +218,7 @@ L:SetDefaultStrings({
 	["Changelog"] = "Changelog",
 	["PVP Sound - What's New?"] = "PVP Sound - What's New?",
 	["changelog_v3.0.5"] = "|cFFFFD100v3.0.5|r — Interrupt alert now plays only when you land the kick (no more false positives from cancelled casts); fixed Adaptation spell ID; added some spells (Death Pact, Necklace Shield, Crimson Rune, Vanish).",
+	["changelog_v3.0.15"] = "|cFFFFD100v3.0.15|r — Added a Discord community link. Feedback on addon issues is welcome. Added Shaman Burrow buff tracking.",
 	["changelog_v3.0.14"] = "|cFFFFD100v3.0.14|r — Added Hunter Misdirection (Interlope); arena trinket now plays by class; added open-world Flag Judge.",
 	["changelog_v3.0.13"] = "|cFFFFD100v3.0.13|r — Added Druid Faerie Swarm (209749) and Ursol's Vortex (127797) to self/teammate debuff alerts.",
 	["changelog_v3.0.12"] = "|cFFFFD100v3.0.12|r — Re-recorded some Xiaoxiao lines, boosted Xia Yike volume, and added Binding Shot, Ancient of Lore, and other spell IDs.",

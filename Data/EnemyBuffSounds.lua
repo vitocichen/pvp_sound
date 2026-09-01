@@ -276,6 +276,7 @@ addon.Data.EnemyBuffSounds = {
 	[59548] = "giftOfTheNaaru.ogg",
 	[121093] = "giftOfTheNaaru.ogg",
 	[191634] = "stormkeeper.ogg", -- 风暴守护者 / Stormkeeper (Shaman)
+	[409293] = "burrow.ogg", -- 掘地三尺 / Burrow (Shaman)
 	[1246968] = "mindCurtain.ogg", -- 心灵帷幕 / Mind Curtain (Priest)
 	[8611] = "phaseShift.ogg", -- 相位变换 / Phase Shift (Priest)
 	[408558] = "phaseShift.ogg", -- 相位变换 (PvP talent)

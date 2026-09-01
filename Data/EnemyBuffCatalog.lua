@@ -299,6 +299,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 443454, File = "NaturesSwiftness.ogg" }, -- Ancestral Swiftness
 				-- GLA lists cast 204336; the aura on the shaman/team is 8178 (MiniAuras Important).
 				{ Id = 8178, File = "Grounding.ogg" },
+				{ Id = 409293, File = "burrow.ogg", Label = "掘地三尺" }, -- Burrow
 				{ Id = 191634, File = "stormkeeper.ogg", Label = "风暴守护者" }, -- Stormkeeper
 				{ Id = 466772, File = "devastatingWind.ogg", Label = "毁灭之风" }, -- Devastating Wind
 			},

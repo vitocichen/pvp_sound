@@ -1,5 +1,11 @@
 # PVP Sound
 
+## [v3.0.15](https://github.com/vitocichen/pvp_sound/tree/v3.0.15) (2026-09-01)
+[Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.15)
+
+- 添加了discord交流网站，欢迎反馈插件问题
+- 新增萨满[掘地三尺]buff监控
+
 ## [v3.0.14](https://github.com/vitocichen/pvp_sound/tree/v3.0.14) (2026-08-31)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.14)
 
