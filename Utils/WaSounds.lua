@@ -24,6 +24,8 @@ M.BUILTIN = {
 	"AntiMagicShellDown.ogg",
 	"Evasiondown.ogg",
 	"alterTimeDown.ogg",
+	"mortalStrike.ogg",
+	"mortalStrikeDown.ogg",
 }
 
 local builtinSet = {}
