@@ -36,6 +36,7 @@ Data\VoicePackManifest.lua
 Core\VoicePack.lua
 Core\Profiles.lua
 Core\AuraSounds.lua
+Core\PackMeta.lua
 
 Modules\AuraSoundModule.lua
 Modules\TrinketModule.lua
