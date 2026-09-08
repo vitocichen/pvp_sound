@@ -44,6 +44,7 @@ local SETTINGS_KEYS = {
 	"SysCast",
 	"Zones",
 	"DuelPotionWatch",
+	"CustomAuras",
 	"DisabledEnemySpells",
 	"DisabledSelfCcSpells",
 	"Spells",

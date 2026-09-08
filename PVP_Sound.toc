@@ -21,6 +21,7 @@ Utils\Scheduler.lua
 Utils\Units.lua
 Utils\SpellCache.lua
 Utils\ModuleUtil.lua
+Utils\WaSounds.lua
 
 Data\EnemyBuffSounds.lua
 Data\EnemyBuffCatalog.lua

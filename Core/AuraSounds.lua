@@ -11,13 +11,30 @@ local infoScratch = { unitToken = nil, spellID = nil, soundFileName = nil, outpu
 local idListPool = {}
 local signatureScratch = {}
 
----@param info table
+---@param kind string|nil added | removed | stacks
 ---@return number?
-local function AddOne(info)
+function M:ResolveTrigger(kind)
+	local e = Enum and Enum.UnitAuraSoundTrigger
+	if not e then
+		return nil
+	end
+	if kind == "removed" then
+		return e.Removed
+	end
+	if kind == "stacks" then
+		return e.ApplicationCountChanged or e.ApplicationsChanged or e.StackCountChanged
+	end
+	return e.Added
+end
+
+---@param info table
+---@param trigger number|nil
+---@return number?
+local function AddOne(info, trigger)
 	if not C_UnitAuras or not C_UnitAuras.AddAuraSound then
 		return nil
 	end
-	local trigger = Enum and Enum.UnitAuraSoundTrigger and Enum.UnitAuraSoundTrigger.Added
+	trigger = trigger or (Enum and Enum.UnitAuraSoundTrigger and Enum.UnitAuraSoundTrigger.Added)
 	if trigger == nil then
 		return nil
 	end
@@ -84,6 +101,32 @@ function M:RegisterSet(ids, unitToken, spellIds, soundFile, channel)
 		end
 	end
 
+	return ids
+end
+
+---One spell on one unit, with Added / Removed / stack-change trigger.
+---@param ids number[]?
+---@param unitToken string
+---@param spellID number
+---@param soundFile string full path
+---@param channel string
+---@param triggerKind string|nil
+---@return number[] ids
+function M:RegisterOne(ids, unitToken, spellID, soundFile, channel, triggerKind)
+	ids = ids or table.remove(idListPool) or {}
+	local trigger = self:ResolveTrigger(triggerKind)
+	if not trigger or not spellID or not soundFile or soundFile == "" then
+		return ids
+	end
+	local info = infoScratch
+	info.unitToken = unitToken
+	info.spellID = spellID
+	info.soundFileName = soundFile
+	info.outputChannel = channel or "Master"
+	local handle = AddOne(info, trigger)
+	if handle then
+		ids[#ids + 1] = handle
+	end
 	return ids
 end
 

@@ -4,6 +4,7 @@ local moduleUtil = addon.Utils.ModuleUtil
 local units = addon.Utils.Units
 local auraSounds = addon.Core.AuraSounds
 local voicePack = addon.Core.VoicePack
+local waSounds = addon.Utils.WaSounds
 local L = addon.L
 
 local enemyBuffSounds = addon.Data.EnemyBuffSounds
@@ -29,6 +30,9 @@ local selfCcGeneration = 0
 -- healer-in-CC: one shared alert clip on each healer unit (MiniAuras HealerCC)
 local healerCcByToken = {}
 local healerCcSignature = nil
+
+local customByToken = {}
+local customSignature = nil
 
 local DEFAULT_CHANNEL = "Master"
 local eventsFrame
@@ -182,7 +186,7 @@ local function IsTargetFocusOnly()
 	return zone.TargetFocusOnly ~= false
 end
 
-local function GetEnemyWatchTokens()
+local function CollectEnemyTokens(targetFocusOnly, nameplateSourceMap)
 	-- One registration per unit GUID. Otherwise target/focus + arenaN / nameplate
 	-- for the same enemy would AddAuraSound twice and double-play.
 	local tokens = {}
@@ -199,7 +203,6 @@ local function GetEnemyWatchTokens()
 	end
 
 	local _, instanceType = IsInInstance()
-	local targetFocusOnly = IsTargetFocusOnly()
 
 	AddToken("target")
 	AddToken("focus")
@@ -217,7 +220,7 @@ local function GetEnemyWatchTokens()
 		-- Combat: do not index Compact nameplate frames (GetNamePlates).
 		-- NAME_PLATE_UNIT_ADDED still registers new plates.
 		if InCombatLockdown() then
-			for token in pairs(enemyByToken) do
+			for token in pairs(nameplateSourceMap or {}) do
 				if type(token) == "string" and token:find("^nameplate") then
 					AddToken(token)
 				end
@@ -233,6 +236,14 @@ local function GetEnemyWatchTokens()
 	end
 
 	return tokens
+end
+
+local function GetEnemyWatchTokens()
+	return CollectEnemyTokens(IsTargetFocusOnly(), enemyByToken)
+end
+
+local function GetCustomEnemyWatchTokens(targetFocusOnly)
+	return CollectEnemyTokens(targetFocusOnly and true or false, customByToken)
 end
 
 local function ClearMap(map)
@@ -325,6 +336,220 @@ local function RefreshSelfCc(basePath, channel, active)
 		end
 	elseif not wantActive then
 		ClearMap(selfCcByToken)
+	end
+end
+
+local function UnregisterCustomToken(unitToken)
+	local ids = customByToken[unitToken]
+	if not ids then
+		return
+	end
+	auraSounds:RemoveSet(ids)
+	customByToken[unitToken] = nil
+end
+
+local function GetCustomPartyTokens()
+	local tokens = {}
+	for _, unit in ipairs(units:FriendlyUnits()) do
+		if not units:IsPetOrMinion(unit) and not units:IsSameUnit(unit, "player") then
+			tokens[#tokens + 1] = unit
+		end
+	end
+	return tokens
+end
+
+local function IsPartyUnitToken(unitToken)
+	if type(unitToken) ~= "string" then
+		return false
+	end
+	return unitToken:match("^party%d+$") or unitToken:match("^raid%d+$")
+end
+
+local function RuleZoneOn(rule)
+	if not rule then
+		return false
+	end
+	local key = moduleUtil:GetZoneKey()
+	local z = rule.zones
+	if type(z) ~= "table" then
+		return true
+	end
+	return z[key] ~= false
+end
+
+local function RuleAppliesToToken(rule, unitToken)
+	if not rule or not unitToken then
+		return false
+	end
+	if not RuleZoneOn(rule) then
+		return false
+	end
+	local unit = rule.unit
+	if unit == "self" then
+		return unitToken == "player"
+	end
+	if unit == "partyonly" then
+		return IsPartyUnitToken(unitToken) and UnitExistsSafe(unitToken)
+	end
+	if unit == "group" then
+		if unitToken == "player" then
+			return true
+		end
+		return IsPartyUnitToken(unitToken) and UnitExistsSafe(unitToken)
+	end
+	if unitToken == "player" or not ShouldWatchToken(unitToken) then
+		return false
+	end
+	if rule.enemyScope == "targetfocus" then
+		return unitToken == "target" or unitToken == "focus"
+	end
+	return true
+end
+
+local function CustomWantsNameplates()
+	local list = db and db.CustomAuras
+	if type(list) ~= "table" then
+		return false
+	end
+	for i = 1, #list do
+		local r = list[i]
+		if r and r.enabled ~= false and r.unit == "enemy" and r.enemyScope ~= "targetfocus" and RuleZoneOn(r) then
+			local spellID = tonumber(r.spellID) or 0
+			if spellID > 0 and type(r.file) == "string" and r.file ~= "" then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+local function CustomGuidAlreadyWatched(guid)
+	if not guid or (issecretvalue and issecretvalue(guid)) then
+		return false
+	end
+	for token in pairs(customByToken) do
+		local g = UnitGUID(token)
+		if g and not (issecretvalue and issecretvalue(g)) and g == guid then
+			return true
+		end
+	end
+	return false
+end
+
+local function RegisterCustomToken(unitToken, channel)
+	if customByToken[unitToken] then
+		return
+	end
+	if unitToken ~= "player" and not UnitExistsSafe(unitToken) then
+		return
+	end
+	local list = db and db.CustomAuras
+	if type(list) ~= "table" then
+		return
+	end
+	local ids
+	for i = 1, #list do
+		local rule = list[i]
+		if rule and rule.enabled ~= false then
+			local spellID = tonumber(rule.spellID)
+			local file = type(rule.file) == "string" and rule.file or ""
+			if spellID and spellID > 0 and file ~= "" and RuleAppliesToToken(rule, unitToken) then
+				local path = waSounds and waSounds.Resolve and waSounds:Resolve(file)
+				if path then
+					ids = auraSounds:RegisterOne(ids, unitToken, spellID, path, channel, rule.trigger)
+				end
+			end
+		end
+	end
+	if ids and #ids > 0 then
+		customByToken[unitToken] = ids
+	elseif ids then
+		auraSounds:RemoveSet(ids)
+	end
+end
+
+local function RefreshCustomAuras(channel)
+	local list = db and db.CustomAuras
+	local any = false
+	local fp = {}
+	if type(list) == "table" then
+		for i = 1, #list do
+			local r = list[i]
+			if r and r.enabled ~= false then
+				local spellID = tonumber(r.spellID) or 0
+				local file = type(r.file) == "string" and r.file or ""
+				if spellID > 0 and file ~= "" and RuleZoneOn(r) then
+					any = true
+					local z = r.zones
+					fp[#fp + 1] = tostring(spellID)
+						.. ":" .. tostring(r.unit)
+						.. ":" .. tostring(r.trigger)
+						.. ":" .. file
+						.. ":" .. tostring(r.enemyScope)
+						.. ":" .. tostring(z and z.World)
+						.. tostring(z and z.Arena)
+						.. tostring(z and z.BattleGrounds)
+						.. tostring(z and z.PvE)
+				end
+			end
+		end
+	end
+	local sig = auraSounds:Signature(
+		any,
+		channel,
+		table.concat(fp, "|"),
+		IsInGroup() and true or false,
+		IsInRaid() and true or false,
+		moduleUtil:GetZoneKey()
+	)
+
+	local want = {}
+	if any then
+		for i = 1, #list do
+			local r = list[i]
+			if r and r.enabled ~= false and RuleZoneOn(r) and (tonumber(r.spellID) or 0) > 0 and type(r.file) == "string" and r.file ~= "" then
+				if r.unit == "self" then
+					want.player = true
+				elseif r.unit == "partyonly" then
+					local tokens = GetCustomPartyTokens()
+					for j = 1, #tokens do
+						want[tokens[j]] = true
+					end
+				elseif r.unit == "group" then
+					want.player = true
+					local tokens = GetCustomPartyTokens()
+					for j = 1, #tokens do
+						want[tokens[j]] = true
+					end
+				else
+					local tokens = GetCustomEnemyWatchTokens(r.enemyScope == "targetfocus")
+					for j = 1, #tokens do
+						if ShouldWatchToken(tokens[j]) then
+							want[tokens[j]] = true
+						end
+					end
+				end
+			end
+		end
+	end
+
+	if sig ~= customSignature then
+		ClearMap(customByToken)
+		customSignature = sig
+	else
+		for token in pairs(customByToken) do
+			if not want[token] or (token ~= "player" and not UnitExistsSafe(token)) then
+				UnregisterCustomToken(token)
+			end
+		end
+	end
+
+	if any then
+		for token in pairs(want) do
+			RegisterCustomToken(token, channel)
+		end
+	else
+		ClearMap(customByToken)
 	end
 end
 
@@ -451,6 +676,8 @@ function M:Refresh(reason)
 	-- --- healer-in-CC (other healers only; MiniAuras-style) ---
 	local healerActive = HealerCcZoneEnabled()
 	RefreshHealerCc(basePath, channel, healerActive)
+
+	RefreshCustomAuras(channel)
 end
 
 function M:ClearAll()
@@ -460,6 +687,8 @@ function M:ClearAll()
 	selfCcSignature = nil
 	ClearMap(healerCcByToken)
 	healerCcSignature = nil
+	ClearMap(customByToken)
+	customSignature = nil
 end
 
 ---@return table<string, number>
@@ -664,31 +893,39 @@ function M:Init()
 	eventsFrame:RegisterUnitEvent("UNIT_FACTION", "target", "focus", "arena1", "arena2", "arena3")
 	eventsFrame:SetScript("OnEvent", function(_, event, arg1)
 		if event == "NAME_PLATE_UNIT_ADDED" then
-			if (not IsTargetFocusOnly()) and units:IsEnemyPlayer(arg1) then
-				local basePath = voicePack:GetBasePath()
-				if BuffZoneEnabled() and basePath then
-					-- Skip if this enemy is already watched as target/focus (different token, same GUID).
-					local guid = UnitGUID(arg1)
-					local already = false
-					if guid and not issecretvalue(guid) then
-						for token in pairs(enemyByToken) do
-							local g = UnitGUID(token)
-							if g and not issecretvalue(g) and g == guid then
-								already = true
-								break
+			if units:IsEnemyPlayer(arg1) then
+				if not IsTargetFocusOnly() then
+					local basePath = voicePack:GetBasePath()
+					if BuffZoneEnabled() and basePath then
+						-- Skip if this enemy is already watched as target/focus (different token, same GUID).
+						local guid = UnitGUID(arg1)
+						local already = false
+						if guid and not issecretvalue(guid) then
+							for token in pairs(enemyByToken) do
+								local g = UnitGUID(token)
+								if g and not issecretvalue(g) and g == guid then
+									already = true
+									break
+								end
 							end
 						end
+						if not already then
+							RebuildEnabledEnemySounds()
+							RegisterEnemyToken(arg1, basePath, Channel())
+						end
 					end
-					if not already then
-						RebuildEnabledEnemySounds()
-						RegisterEnemyToken(arg1, basePath, Channel())
-					end
+				end
+				if CustomWantsNameplates() and not CustomGuidAlreadyWatched(UnitGUID(arg1)) then
+					RegisterCustomToken(arg1, Channel())
 				end
 			end
 		elseif event == "NAME_PLATE_UNIT_REMOVED" then
 			if arg1 and enemyByToken[arg1] then
 				auraSounds:RemoveSet(enemyByToken[arg1])
 				enemyByToken[arg1] = nil
+			end
+			if arg1 then
+				UnregisterCustomToken(arg1)
 			end
 		else
 			M:Refresh(event)

@@ -1,0 +1,4 @@
+把自定义 WA 音效（.ogg 或 .mp3）放在本文件夹。
+然后 /reload，在 /ps → WA自定义 → 音效下拉框里选择。
+
+请把整个 PVP_Sound_Custom 复制到 Interface\AddOns\（和 PVP_Sound 并列），更新主插件时这里不会被覆盖。

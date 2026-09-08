@@ -496,14 +496,18 @@ function M:Divider(options)
 end
 
 function M:Dropdown(options)
-	if not options or not options.Parent or not options.GetValue or not options.SetValue or not options.Items then
+	if not options or not options.Parent or not options.GetValue or not options.SetValue then
+		error("Dropdown - invalid options.")
+	end
+	if not options.Items and not options.GetItems then
 		error("Dropdown - invalid options.")
 	end
 
 	if MenuUtil and MenuUtil.CreateRadioMenu then
 		local dd = CreateFrame("DropdownButton", nil, options.Parent, "WowStyle1DropdownTemplate")
 		dd:SetupMenu(function(_, rootDescription)
-			for _, value in ipairs(options.Items) do
+			local items = options.GetItems and options.GetItems() or options.Items or {}
+			for _, value in ipairs(items) do
 				local text = options.GetText and options.GetText(value) or tostring(value)
 				rootDescription:CreateRadio(text, function(x)
 					return x == options.GetValue()
@@ -512,7 +516,7 @@ function M:Dropdown(options)
 				end, value)
 			end
 
-			local count = #options.Items
+			local count = #items
 			if options.GridMode and count > 10 then
 				local columns
 				if count > 36 then columns = 4

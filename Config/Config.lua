@@ -46,7 +46,7 @@ local function BuildDefaultSelfCcSpells()
 end
 
 local dbDefaults = {
-	Version = 32,
+	Version = 34,
 	WhatsNewVersion = false,
 	VoicePack = "夏一可1.25x",
 	ExtraVoicePacks = {},
@@ -84,6 +84,8 @@ local dbDefaults = {
 	-- Named config snapshots (multi-profile). Not wiped by settings CleanTable.
 	ActiveProfileName = "",
 	Profiles = {},
+	-- User-defined AddAuraSound rules (WA-style): unit + trigger + ogg.
+	CustomAuras = {},
 }
 
 local M = addon.Config
@@ -483,6 +485,31 @@ local function MigrateV32(savedDb)
 	savedDb.Version = 32
 end
 
+-- v33: user-defined aura sound rules (WA-style).
+local function MigrateV33(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 33) then return end
+	savedDb.CustomAuras = savedDb.CustomAuras or {}
+	savedDb.Version = 33
+end
+
+local function DefaultWaExampleRules()
+	return {
+		-- 操控时间 buff 结束（110909）；语音用夏一可1.25x 的 Down 片段。
+		{ enabled = true, spellID = 110909, unit = "enemy", trigger = "removed", file = "alterTimeDown.ogg", enemyScope = "all", zones = { World = true, Arena = true, BattleGrounds = true, PvE = true } },
+		{ enabled = true, spellID = 48707, unit = "enemy", trigger = "removed", file = "AntiMagicShellDown.ogg", enemyScope = "all", zones = { World = true, Arena = true, BattleGrounds = true, PvE = true } },
+		{ enabled = true, spellID = 5277, unit = "enemy", trigger = "removed", file = "Evasiondown.ogg", enemyScope = "all", zones = { World = true, Arena = true, BattleGrounds = true, PvE = true } },
+	}
+end
+
+-- v34: seed three example WA rules when the list is still empty.
+local function MigrateV34(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 34) then return end
+	if type(savedDb.CustomAuras) ~= "table" or #savedDb.CustomAuras == 0 then
+		savedDb.CustomAuras = DefaultWaExampleRules()
+	end
+	savedDb.Version = 34
+end
+
 local function EnsureSysCastDefaults(savedDb)
 	savedDb.SysCast = savedDb.SysCast or {}
 	local mode = tonumber(savedDb.SysCast.PreferredMode)
@@ -494,6 +521,69 @@ local function EnsureSysCastDefaults(savedDb)
 		savedDb.SysCast.PreferredMode = mode
 		end
 	end
+
+local function EnsureCustomAuras(savedDb)
+	if type(savedDb) ~= "table" then
+		return
+	end
+	local src = savedDb.CustomAuras
+	local out = {}
+	local function AddRule(r)
+		if type(r) ~= "table" then
+			return
+		end
+		local unit = r.unit
+		if unit == "party" then
+			unit = "partyonly"
+		end
+		if unit ~= "self" and unit ~= "partyonly" and unit ~= "group" and unit ~= "enemy" then
+			unit = "enemy"
+		end
+		local trigger = r.trigger
+		if trigger ~= "added" and trigger ~= "removed" and trigger ~= "stacks" then
+			trigger = "added"
+		end
+		local file = r.file
+		if type(file) ~= "string" or file == "" then
+			file = "PS_Ping.ogg"
+		end
+		local enemyScope = r.enemyScope
+		if enemyScope ~= "targetfocus" then
+			enemyScope = "all"
+		end
+		local z = r.zones
+		if type(z) ~= "table" then
+			z = {}
+		end
+		out[#out + 1] = {
+			enabled = r.enabled ~= false,
+			spellID = tonumber(r.spellID) or 0,
+			unit = unit,
+			trigger = trigger,
+			file = file,
+			enemyScope = enemyScope,
+			zones = {
+				World = z.World ~= false,
+				Arena = z.Arena ~= false,
+				BattleGrounds = z.BattleGrounds ~= false,
+				PvE = z.PvE ~= false,
+			},
+		}
+	end
+	if type(src) == "table" then
+		local max = 0
+		for k, v in pairs(src) do
+			local n = tonumber(k)
+			if n and n >= 1 and n == math.floor(n) and type(v) == "table" and n > max then
+				max = n
+			end
+		end
+		for i = 1, max do
+			AddRule(src[i] or src[tostring(i)])
+		end
+	end
+	savedDb.CustomAuras = out
+end
 
 local function EnsureSpellDefaults(savedDb)
 	-- Keep legacy maps present but empty-ish; runtime uses Disabled* maps.
@@ -2229,6 +2319,8 @@ local function MigrateSettingsSnapshot(savedDb)
 	MigrateV30(savedDb)
 	MigrateV31(savedDb)
 	MigrateV32(savedDb)
+	MigrateV33(savedDb)
+	MigrateV34(savedDb)
 end
 
 local function RefreshFrameTree(frame)
@@ -2252,6 +2344,7 @@ local function AfterSettingsMutated(notifyMsg)
 	EnsureSelfCcDefaults(db)
 	EnsureZoneDefaults(db)
 	EnsureSysCastDefaults(db)
+	EnsureCustomAuras(db)
 	voicePack:Init()
 	if addon.Modules.AuraSoundModule and addon.Modules.AuraSoundModule.InitDb then
 		addon.Modules.AuraSoundModule:InitDb()
@@ -2286,13 +2379,23 @@ local function ApplySettingsSnapshot(snap, notifyMsg)
 	-- not wipe DefaultOff seeding (e.g. Feral Frenzy) or other sparse-map migrations.
 	local keepDisabledEnemy = CopyDisableMap(copy.DisabledEnemySpells)
 	local keepDisabledSelfCc = CopyDisableMap(copy.DisabledSelfCcSpells)
+	local keepCustomAuras = nil
+	if type(copy.CustomAuras) == "table" then
+		keepCustomAuras = profiles:DeepCopy(copy.CustomAuras)
+	end
 	-- Fill missing keys from defaults without wiping Profiles.
 	mini:CopyTable(dbDefaults, copy)
 	copy.DisabledEnemySpells = keepDisabledEnemy
 	copy.DisabledSelfCcSpells = keepDisabledSelfCc
+	if keepCustomAuras then
+		copy.CustomAuras = keepCustomAuras
+	end
 	profiles:ApplySettings(db, copy)
 	db.DisabledEnemySpells = CopyDisableMap(keepDisabledEnemy)
 	db.DisabledSelfCcSpells = CopyDisableMap(keepDisabledSelfCc)
+	if keepCustomAuras then
+		db.CustomAuras = keepCustomAuras
+	end
 	db.Spells = {}
 	db.SelfCcSpells = {}
 	for spellId in pairs(db.DisabledEnemySpells) do
@@ -2410,6 +2513,7 @@ local function BuildProfilesTab(content)
 			mini:Notify(L["profiles_need_name"])
 			return
 		end
+		EnsureCustomAuras(db)
 		if profiles:Save(db, name) then
 			selectedName = name
 			nameScratch = name
@@ -2554,6 +2658,7 @@ local function BuildProfilesTab(content)
 	exportBtn:SetPoint("TOPLEFT", exportFrame, "BOTTOMLEFT", 0, -verticalSpacing)
 	exportBtn:SetText(L["profiles_export"])
 	exportBtn:SetScript("OnClick", function()
+		EnsureCustomAuras(db)
 		local snap = profiles:CaptureSettings(db)
 		local name = (selectedName ~= "" and selectedName) or (nameScratch ~= "" and nameScratch) or "profile"
 		local text = profiles:Export(snap, name)
@@ -2620,6 +2725,508 @@ local function BuildProfilesTab(content)
 				RefreshProfileDropdown()
 			end)
 	end)
+end
+
+local QUESTION_MARK_ICON = "Interface\\Icons\\INV_Misc_QuestionMark"
+
+local function SpellDisplayName(spellID)
+	if not spellID or spellID <= 0 then
+		return L["wa_unset"]
+	end
+	if C_Spell and C_Spell.GetSpellName then
+		local ok, name = pcall(C_Spell.GetSpellName, spellID)
+		if ok and type(name) == "string" and name ~= "" then
+			if issecretvalue and issecretvalue(name) then
+				return L["wa_unset"]
+			end
+			return name
+		end
+	end
+	return L["wa_unset"]
+end
+
+local function SpellDisplayIcon(spellID)
+	if spellID and spellID > 0 and C_Spell and C_Spell.GetSpellTexture then
+		local ok, icon = pcall(C_Spell.GetSpellTexture, spellID)
+		if ok and icon and icon ~= "" then
+			if not (issecretvalue and issecretvalue(icon)) then
+				return icon
+			end
+		end
+	end
+	return QUESTION_MARK_ICON
+end
+
+local function BuildCustomWaTab(content)
+	EnsureCustomAuras(db)
+	local unitItems = { "self", "partyonly", "group", "enemy" }
+	local triggerItems = { "added", "removed", "stacks" }
+	local selectedIndex = nil
+	local iconCells = {}
+	local UpdateEnemyScopeShown
+
+	local title = mini:TextLine({
+		Parent = content,
+		Text = "|cFFFFD100" .. L["wa_tab_title"] .. "|r",
+	})
+	title:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+
+	local intro = mini:TextBlock({
+		Parent = content,
+		Lines = {
+			L["wa_tab_intro_1"],
+			L["wa_tab_intro_2"],
+			L["wa_tab_intro_3"],
+			L["wa_tab_intro_4"],
+			L["wa_tab_intro_5"],
+		},
+	})
+	intro:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -verticalSpacing)
+
+	local addBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	addBtn:SetSize(200, 32)
+	addBtn:SetPoint("TOPLEFT", intro, "BOTTOMLEFT", 0, -verticalSpacing)
+	addBtn:SetText(L["wa_add_rule"])
+
+	local listHost = CreateFrame("Frame", nil, content)
+	listHost:SetPoint("TOPLEFT", addBtn, "BOTTOMLEFT", 0, -verticalSpacing)
+	listHost:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+	listHost:SetHeight(1)
+
+	local editor = CreateFrame("Frame", nil, content, "BackdropTemplate")
+	editor:SetPoint("LEFT", content, "LEFT", 0, 0)
+	editor:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+	editor:SetHeight(196)
+	editor:SetBackdrop({
+		bgFile = "Interface\\Buttons\\WHITE8X8",
+		edgeFile = "Interface\\Buttons\\WHITE8X8",
+		edgeSize = 1,
+	})
+	editor:SetBackdropColor(0.08, 0.08, 0.08, 0.7)
+	editor:SetBackdropBorderColor(0.9, 0.75, 0.2, 0.55)
+
+	local editorHint = mini:TextLine({
+		Parent = content,
+		Text = L["wa_click_to_edit"],
+	})
+
+	local function SelectedRule()
+		return db.CustomAuras and selectedIndex and db.CustomAuras[selectedIndex]
+	end
+
+	local function PlaceEditor()
+		editor:ClearAllPoints()
+		editor:SetPoint("LEFT", content, "LEFT", 0, 0)
+		editor:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+		editor:SetPoint("TOP", listHost, "BOTTOM", 0, -verticalSpacing * 2)
+		editorHint:ClearAllPoints()
+		editorHint:SetPoint("TOPLEFT", listHost, "BOTTOMLEFT", 0, -verticalSpacing * 2)
+		local has = SelectedRule() ~= nil
+		editor:SetShown(has)
+		editorHint:SetShown(not has)
+	end
+
+	local function RefreshEditor()
+		PlaceEditor()
+		if editor.MiniRefresh then
+			editor:MiniRefresh()
+		end
+		if UpdateEnemyScopeShown then
+			UpdateEnemyScopeShown()
+		end
+	end
+
+	local function PaintCells()
+		for i = 1, #iconCells do
+			local cell = iconCells[i]
+			if selectedIndex == i then
+				cell:SetBackdropBorderColor(0.95, 0.8, 0.2, 1)
+				cell:SetBackdropColor(0.18, 0.16, 0.08, 0.85)
+			else
+				cell:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.7)
+				cell:SetBackdropColor(0.08, 0.08, 0.08, 0.55)
+			end
+		end
+	end
+
+	local enableChk = mini:Checkbox({
+		Parent = editor,
+		LabelText = L["wa_enabled"],
+		GetValue = function()
+			local r = SelectedRule()
+			return r and r.enabled ~= false
+		end,
+		SetValue = function(value)
+			local r = SelectedRule()
+			if r then
+				r.enabled = value and true or false
+				M:Apply()
+				if iconCells[selectedIndex] and iconCells[selectedIndex].EnableChk then
+					iconCells[selectedIndex].EnableChk:SetChecked(value and true or false)
+				end
+			end
+		end,
+	})
+	enableChk:SetPoint("TOPLEFT", editor, "TOPLEFT", 8, -8)
+
+	local idLabel = mini:TextLine({ Parent = editor, Text = L["wa_spell_id"] })
+	idLabel:SetPoint("LEFT", enableChk, "RIGHT", 16, 0)
+
+	local idBox = mini:EditBox({
+		Parent = editor,
+		Width = 90,
+		GetValue = function()
+			local r = SelectedRule()
+			local id = r and tonumber(r.spellID)
+			if not id or id <= 0 then
+				return ""
+			end
+			return tostring(id)
+		end,
+		SetValue = function(value)
+			local r = SelectedRule()
+			if not r then
+				return
+			end
+			r.spellID = tonumber(value) or 0
+			M:Apply()
+		end,
+	})
+	idBox:SetPoint("LEFT", idLabel, "RIGHT", 8, 0)
+
+	local nameFs = editor:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	nameFs:SetPoint("LEFT", idBox, "RIGHT", 10, 0)
+	nameFs:SetText("")
+
+	local delBtn = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
+	delBtn:SetSize(64, 22)
+	delBtn:SetPoint("TOPRIGHT", editor, "TOPRIGHT", -10, -8)
+	delBtn:SetText(L["wa_delete"])
+
+	local unitLabel = mini:TextLine({ Parent = editor, Text = L["wa_unit"] })
+	unitLabel:SetPoint("TOPLEFT", editor, "TOPLEFT", 12, -44)
+
+	local unitDd = mini:Dropdown({
+		Parent = editor,
+		Items = unitItems,
+		GetValue = function()
+			local r = SelectedRule()
+			return (r and r.unit) or "enemy"
+		end,
+		SetValue = function(value)
+			local r = SelectedRule()
+			if r then
+				r.unit = value
+				M:Apply()
+				UpdateEnemyScopeShown()
+			end
+		end,
+		GetText = function(value)
+			return L["wa_unit_" .. tostring(value)] or tostring(value)
+		end,
+	})
+	unitDd:SetPoint("LEFT", unitLabel, "RIGHT", 8, 4)
+	unitDd:SetWidth(130)
+
+	local trigLabel = mini:TextLine({ Parent = editor, Text = L["wa_trigger"] })
+	trigLabel:SetPoint("LEFT", unitDd, "RIGHT", 16, -4)
+
+	local trigDd = mini:Dropdown({
+		Parent = editor,
+		Items = triggerItems,
+		GetValue = function()
+			local r = SelectedRule()
+			return (r and r.trigger) or "added"
+		end,
+		SetValue = function(value)
+			local r = SelectedRule()
+			if r then
+				r.trigger = value
+				M:Apply()
+			end
+		end,
+		GetText = function(value)
+			return L["wa_trigger_" .. tostring(value)] or tostring(value)
+		end,
+	})
+	trigDd:SetPoint("LEFT", trigLabel, "RIGHT", 8, 4)
+	trigDd:SetWidth(120)
+
+	local fileLabel = mini:TextLine({ Parent = editor, Text = L["wa_sound_file"] })
+	fileLabel:SetPoint("TOPLEFT", editor, "TOPLEFT", 12, -80)
+
+	local fileDd = mini:Dropdown({
+		Parent = editor,
+		GetItems = function()
+			local sounds = addon.Utils.WaSounds
+			local current = SelectedRule() and SelectedRule().file
+			if sounds and sounds.ListForDropdown then
+				return sounds:ListForDropdown(current)
+			end
+			return sounds and sounds.BUILTIN or { "PS_Ping.ogg" }
+		end,
+		GridMode = true,
+		GetValue = function()
+			local r = SelectedRule()
+			if r and type(r.file) == "string" and r.file ~= "" then
+				return r.file
+			end
+			return "PS_Ping.ogg"
+		end,
+		SetValue = function(value)
+			local r = SelectedRule()
+			if r then
+				r.file = value or "PS_Ping.ogg"
+				M:Apply()
+			end
+		end,
+		GetText = function(value)
+			return tostring(value or "")
+		end,
+	})
+	fileDd:SetPoint("LEFT", fileLabel, "RIGHT", 8, 4)
+	fileDd:SetWidth(240)
+
+	local testBtn = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
+	testBtn:SetSize(56, 22)
+	testBtn:SetPoint("LEFT", fileDd, "RIGHT", 8, -4)
+	testBtn:SetText(L["Test"])
+	testBtn:SetScript("OnClick", function()
+		local r = SelectedRule()
+		local file = r and r.file
+		if type(file) ~= "string" or file == "" then
+			return
+		end
+		local sounds = addon.Utils.WaSounds
+		local path = sounds and sounds.Resolve and sounds:Resolve(file)
+		if path then
+			pcall(PlaySoundFile, path, (db.Sound and db.Sound.Channel) or "Master")
+		end
+	end)
+
+	local zoneLabel = mini:TextLine({ Parent = editor, Text = L["wa_zones"] })
+	zoneLabel:SetPoint("TOPLEFT", editor, "TOPLEFT", 12, -112)
+
+	local zoneKeys = {
+		{ Key = "World", Label = L["World"] },
+		{ Key = "Arena", Label = L["Arena"] },
+		{ Key = "BattleGrounds", Label = L["Battlegrounds"] },
+		{ Key = "PvE", Label = L["PvE"] },
+	}
+	local prevZone
+	for i = 1, #zoneKeys do
+		local key = zoneKeys[i].Key
+		local chk = mini:Checkbox({
+			Parent = editor,
+			LabelText = zoneKeys[i].Label,
+			GetValue = function()
+				local r = SelectedRule()
+				if not r then
+					return true
+				end
+				r.zones = r.zones or {}
+				return r.zones[key] ~= false
+			end,
+			SetValue = function(value)
+				local r = SelectedRule()
+				if r then
+					r.zones = r.zones or {}
+					r.zones[key] = value and true or false
+					M:Apply()
+				end
+			end,
+		})
+		if i == 1 then
+			chk:SetPoint("LEFT", zoneLabel, "RIGHT", 8, 0)
+		else
+			chk:SetPoint("LEFT", prevZone, "RIGHT", 12, 0)
+		end
+		prevZone = chk
+	end
+
+	local enemyScopeItems = { "all", "targetfocus" }
+	local enemyScopeLabel = mini:TextLine({ Parent = editor, Text = L["wa_enemy_scope"] })
+	enemyScopeLabel:SetPoint("TOPLEFT", editor, "TOPLEFT", 12, -144)
+
+	local enemyScopeDd = mini:Dropdown({
+		Parent = editor,
+		Items = enemyScopeItems,
+		GetValue = function()
+			local r = SelectedRule()
+			return (r and r.enemyScope) or "all"
+		end,
+		SetValue = function(value)
+			local r = SelectedRule()
+			if r then
+				r.enemyScope = value == "targetfocus" and "targetfocus" or "all"
+				M:Apply()
+			end
+		end,
+		GetText = function(value)
+			return L["wa_enemy_scope_" .. tostring(value)] or tostring(value)
+		end,
+	})
+	enemyScopeDd:SetPoint("LEFT", enemyScopeLabel, "RIGHT", 8, 4)
+	enemyScopeDd:SetWidth(150)
+
+	UpdateEnemyScopeShown = function()
+		local r = SelectedRule()
+		local show = r ~= nil and r.unit == "enemy"
+		enemyScopeLabel:SetShown(show)
+		enemyScopeDd:SetShown(show)
+	end
+
+	idBox:HookScript("OnTextChanged", function()
+		local r = SelectedRule()
+		nameFs:SetText(SpellDisplayName(r and tonumber(r.spellID)))
+		local cell = selectedIndex and iconCells[selectedIndex]
+		if cell and cell.Icon and cell.Name then
+			cell.Icon:SetTexture(SpellDisplayIcon(r and tonumber(r.spellID)))
+			cell.Name:SetText(SpellDisplayName(r and tonumber(r.spellID)))
+		end
+	end)
+
+	local function SelectRule(index)
+		if not db.CustomAuras or not db.CustomAuras[index] then
+			selectedIndex = nil
+		else
+			selectedIndex = index
+		end
+		PaintCells()
+		RefreshEditor()
+		nameFs:SetText(SpellDisplayName(SelectedRule() and tonumber(SelectedRule().spellID)))
+	end
+
+	local function RebuildWaList()
+		EnsureCustomAuras(db)
+		wipe(iconCells)
+		local kids = { listHost:GetChildren() }
+		for i = 1, #kids do
+			kids[i]:Hide()
+			kids[i]:SetParent(nil)
+		end
+		local list = db.CustomAuras
+		local columns = 2
+		local columnWidth = mini:ColumnWidth(columns, 0, 0)
+		local cellH = 48
+		local lastLeft, lastRight
+		for i = 1, #list do
+			local index = i
+			local rule = list[i]
+			local col = (i - 1) % columns
+			local cell = CreateFrame("Button", nil, listHost, "BackdropTemplate")
+			cell:SetSize(columnWidth - 8, cellH)
+			cell:SetBackdrop({
+				bgFile = "Interface\\Buttons\\WHITE8X8",
+				edgeFile = "Interface\\Buttons\\WHITE8X8",
+				edgeSize = 1,
+			})
+			cell:RegisterForClicks("LeftButtonUp")
+			cell:SetScript("OnClick", function()
+				SelectRule(index)
+			end)
+
+			local chk = mini:Checkbox({
+				Parent = cell,
+				LabelText = " ",
+				GetValue = function()
+					return list[index] and list[index].enabled ~= false
+				end,
+				SetValue = function(value)
+					if list[index] then
+						list[index].enabled = value and true or false
+						M:Apply()
+					end
+				end,
+			})
+			chk:SetPoint("LEFT", cell, "LEFT", 2, 0)
+			cell.EnableChk = chk
+
+			local icon = cell:CreateTexture(nil, "ARTWORK")
+			icon:SetSize(36, 36)
+			icon:SetPoint("LEFT", chk, "RIGHT", 2, 0)
+			icon:SetTexture(SpellDisplayIcon(rule and tonumber(rule.spellID)))
+			cell.Icon = icon
+
+			local iconHit = CreateFrame("Button", nil, cell)
+			iconHit:SetAllPoints(icon)
+			iconHit:SetScript("OnClick", function()
+				SelectRule(index)
+			end)
+
+			local name = cell:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+			name:SetPoint("LEFT", icon, "RIGHT", 8, 0)
+			name:SetPoint("RIGHT", cell, "RIGHT", -6, 0)
+			name:SetJustifyH("LEFT")
+			name:SetText(SpellDisplayName(rule and tonumber(rule.spellID)))
+			cell.Name = name
+
+			if col == 0 then
+				if lastLeft then
+					cell:SetPoint("TOPLEFT", lastLeft, "BOTTOMLEFT", 0, -6)
+				else
+					cell:SetPoint("TOPLEFT", listHost, "TOPLEFT", 0, 0)
+				end
+				lastLeft = cell
+			else
+				if lastRight then
+					cell:SetPoint("TOPLEFT", lastRight, "BOTTOMLEFT", 0, -6)
+				else
+					cell:SetPoint("TOPLEFT", listHost, "TOPLEFT", columnWidth, 0)
+				end
+				lastRight = cell
+			end
+			iconCells[i] = cell
+		end
+		local rows = math.ceil(#list / columns)
+		listHost:SetHeight(math.max(1, rows * (cellH + 6)))
+		if selectedIndex and not list[selectedIndex] then
+			selectedIndex = nil
+		end
+		PaintCells()
+		RefreshEditor()
+		nameFs:SetText(SpellDisplayName(SelectedRule() and tonumber(SelectedRule().spellID)))
+	end
+
+	delBtn:SetScript("OnClick", function()
+		if not selectedIndex or not db.CustomAuras[selectedIndex] then
+			return
+		end
+		table.remove(db.CustomAuras, selectedIndex)
+		selectedIndex = nil
+		M:Apply()
+		RebuildWaList()
+	end)
+
+	addBtn:SetScript("OnClick", function()
+		EnsureCustomAuras(db)
+		db.CustomAuras[#db.CustomAuras + 1] = {
+			enabled = true,
+			spellID = 0,
+			unit = "enemy",
+			trigger = "added",
+			file = "PS_Ping.ogg",
+			enemyScope = "all",
+			zones = { World = true, Arena = true, BattleGrounds = true, PvE = true },
+		}
+		selectedIndex = #db.CustomAuras
+		M:Apply()
+		RebuildWaList()
+		SelectRule(selectedIndex)
+	end)
+
+	RebuildWaList()
+
+	content.MiniRefresh = function()
+		EnsureCustomAuras(db)
+		if selectedIndex and (not db.CustomAuras or not db.CustomAuras[selectedIndex]) then
+			selectedIndex = nil
+		end
+		RebuildWaList()
+		if editor.MiniRefresh then
+			editor:MiniRefresh()
+		end
+	end
 end
 
 local function BuildChangelogTab(content)
@@ -2700,6 +3307,8 @@ function M:Init()
 	MigrateV30(rawDb)
 	MigrateV31(rawDb)
 	MigrateV32(rawDb)
+	MigrateV33(rawDb)
+	MigrateV34(rawDb)
 
 	-- Spells defaults stay empty; Disabled* sparse maps are the source of truth.
 	dbDefaults.Spells = {}
@@ -2711,6 +3320,7 @@ function M:Init()
 	EnsureSelfCcDefaults(db)
 	EnsureZoneDefaults(db)
 	EnsureSysCastDefaults(db)
+	EnsureCustomAuras(db)
 	-- Free-form / sparse tables must be copied out before CleanTable (empty {} template wipes them).
 	local savedExtraPacks = {}
 	if type(db.ExtraVoicePacks) == "table" then
@@ -2737,6 +3347,12 @@ function M:Init()
 	local savedVoicePack = db.VoicePack
 	local savedHealerCcSound = db.HealerCcSoundFile
 	local savedInterruptSound = db.InterruptSoundFile
+	local savedCustomAuras = {}
+	if type(db.CustomAuras) == "table" then
+		for i = 1, #db.CustomAuras do
+			savedCustomAuras[i] = db.CustomAuras[i]
+		end
+	end
 	mini:CleanTable(db, dbDefaults, true, true)
 	db.ExtraVoicePacks = savedExtraPacks
 	db.Profiles = savedProfiles
@@ -2766,10 +3382,12 @@ function M:Init()
 	if type(savedInterruptSound) == "string" and savedInterruptSound ~= "" then
 		db.InterruptSoundFile = savedInterruptSound
 	end
+	db.CustomAuras = savedCustomAuras
 	EnsureSpellDefaults(db)
 	EnsureSelfCcDefaults(db)
 	EnsureZoneDefaults(db)
 	EnsureSysCastDefaults(db)
+	EnsureCustomAuras(db)
 	voicePack:Init()
 
 	local scroll = CreateFrame("ScrollFrame", nil, nil, "UIPanelScrollFrameTemplate")
@@ -3088,6 +3706,11 @@ function M:Init()
 			Build = function(content) BuildClassSpellsTab(content) end,
 		},
 		{
+			Key = "CustomWa",
+			Title = L["WA Custom"],
+			Build = function(content) BuildCustomWaTab(content) end,
+		},
+		{
 			Key = "Profiles",
 			Title = L["Profiles"],
 			Build = function(content)
@@ -3104,12 +3727,12 @@ function M:Init()
 					msg:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
 				end
 			end,
-			},
-			{
-				Key = "Changelog",
-				Title = L["Changelog"],
-				Build = function(content) BuildChangelogTab(content) end,
-			},
+		},
+		{
+			Key = "Changelog",
+			Title = L["Changelog"],
+			Build = function(content) BuildChangelogTab(content) end,
+		},
 	}
 
 	M.TabController = mini:CreateTabs({
