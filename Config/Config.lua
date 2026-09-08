@@ -8,6 +8,7 @@ local catalog = addon.Data.EnemyBuffCatalog
 local selfCcCatalog = addon.Data.SelfCcCatalog
 local voicePack = addon.Core.VoicePack
 local profiles = addon.Core.Profiles
+local spellSearch = addon.Utils.SpellSearch
 
 ---@type Db
 local db
@@ -46,7 +47,7 @@ local function BuildDefaultSelfCcSpells()
 end
 
 local dbDefaults = {
-	Version = 34,
+	Version = 36,
 	WhatsNewVersion = false,
 	VoicePack = "夏一可1.25x",
 	ExtraVoicePacks = {},
@@ -86,6 +87,7 @@ local dbDefaults = {
 	Profiles = {},
 	-- User-defined AddAuraSound rules (WA-style): unit + trigger + ogg.
 	CustomAuras = {},
+	WaSoundFiles = {},
 }
 
 local M = addon.Config
@@ -494,8 +496,8 @@ end
 
 local function DefaultWaExampleRules()
 	return {
-		-- 操控时间 buff 结束（110909）；语音用夏一可1.25x 的 Down 片段。
-		{ enabled = true, spellID = 110909, unit = "enemy", trigger = "removed", file = "alterTimeDown.ogg", enemyScope = "all", zones = { World = true, Arena = true, BattleGrounds = true, PvE = true } },
+		-- 操控时间光环 342246；语音用 Down 片段。
+		{ enabled = true, spellID = 342246, unit = "enemy", trigger = "removed", file = "alterTimeDown.ogg", enemyScope = "all", zones = { World = true, Arena = true, BattleGrounds = true, PvE = true } },
 		{ enabled = true, spellID = 48707, unit = "enemy", trigger = "removed", file = "AntiMagicShellDown.ogg", enemyScope = "all", zones = { World = true, Arena = true, BattleGrounds = true, PvE = true } },
 		{ enabled = true, spellID = 5277, unit = "enemy", trigger = "removed", file = "Evasiondown.ogg", enemyScope = "all", zones = { World = true, Arena = true, BattleGrounds = true, PvE = true } },
 	}
@@ -508,6 +510,42 @@ local function MigrateV34(savedDb)
 		savedDb.CustomAuras = DefaultWaExampleRules()
 	end
 	savedDb.Version = 34
+end
+
+-- v35: Alter Time WA example / seeded rule uses aura 342245.
+local function MigrateV35(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 35) then return end
+	local list = savedDb.CustomAuras
+	if type(list) == "table" then
+		for i = 1, #list do
+			local r = list[i]
+			if type(r) == "table" and r.file == "alterTimeDown.ogg" then
+				local id = tonumber(r.spellID)
+				if id == 110909 or id == 342246 then
+					r.spellID = 342245
+				end
+			end
+		end
+	end
+	savedDb.Version = 35
+end
+
+-- v36: Alter Time WA example uses the aura 342246 (not cast 342245).
+local function MigrateV36(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 36) then return end
+	local list = savedDb.CustomAuras
+	if type(list) == "table" then
+		for i = 1, #list do
+			local r = list[i]
+			if type(r) == "table" and r.file == "alterTimeDown.ogg" then
+				local id = tonumber(r.spellID)
+				if id == 342245 or id == 110909 then
+					r.spellID = 342246
+				end
+			end
+		end
+	end
+	savedDb.Version = 36
 end
 
 local function EnsureSysCastDefaults(savedDb)
@@ -2321,6 +2359,8 @@ local function MigrateSettingsSnapshot(savedDb)
 	MigrateV32(savedDb)
 	MigrateV33(savedDb)
 	MigrateV34(savedDb)
+	MigrateV35(savedDb)
+	MigrateV36(savedDb)
 end
 
 local function RefreshFrameTree(frame)
@@ -2733,16 +2773,213 @@ local function SpellDisplayName(spellID)
 	if not spellID or spellID <= 0 then
 		return L["wa_unset"]
 	end
+	local name
 	if C_Spell and C_Spell.GetSpellName then
-		local ok, name = pcall(C_Spell.GetSpellName, spellID)
-		if ok and type(name) == "string" and name ~= "" then
-			if issecretvalue and issecretvalue(name) then
-				return L["wa_unset"]
+		local ok, got = pcall(C_Spell.GetSpellName, spellID)
+		if ok and type(got) == "string" and got ~= "" then
+			if not (issecretvalue and issecretvalue(got)) then
+				name = got
 			end
-			return name
 		end
 	end
-	return L["wa_unset"]
+	if name then
+		return string.format("%s (%d)", name, spellID)
+	end
+	return string.format("%s (%d)", L["wa_unset"], spellID)
+end
+
+---MiniAuras-style name/id box with icon suggestions under it.
+local function CreateWaSpellPicker(parent, hooks)
+	local box = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
+	box:SetAutoFocus(false)
+	box:SetSize(180, 22)
+	box:SetFontObject("GameFontWhite")
+	box:SetJustifyH("LEFT")
+
+	local placeholder = box:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+	placeholder:SetPoint("LEFT", box, "LEFT", 6, 0)
+	placeholder:SetText(L["wa_spell_search"])
+
+	local function UpdatePlaceholder()
+		placeholder:SetShown((box:GetText() or "") == "" and not box:HasFocus())
+	end
+
+	local popup = CreateFrame("Frame", nil, UIParent, "BackdropTemplate")
+	popup:SetFrameStrata("TOOLTIP")
+	popup:SetFrameLevel(200)
+	popup:SetWidth(280)
+	popup:SetBackdrop({
+		bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+		edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+		tile = true,
+		tileSize = 16,
+		edgeSize = 12,
+		insets = { left = 3, right = 3, top = 3, bottom = 3 },
+	})
+	popup:SetBackdropColor(0, 0, 0, 0.95)
+	popup:Hide()
+	popup:EnableMouse(true)
+
+	local suggestionRows = {}
+	local highlighted = 0
+	local shownRows = 0
+	local ROW_H = 24
+
+	local function HidePopup()
+		popup:Hide()
+		highlighted = 0
+	end
+
+	local function ApplyHighlight()
+		for i = 1, shownRows do
+			if suggestionRows[i].Selected then
+				suggestionRows[i].Selected:SetShown(i == highlighted)
+			end
+		end
+	end
+
+	local function AcceptId(spellId)
+		HidePopup()
+		box:ClearFocus()
+		if hooks.SetId then
+			hooks.SetId(spellId)
+		end
+		local id = tonumber(spellId)
+		box:SetText((id and id > 0) and tostring(id) or "")
+		UpdatePlaceholder()
+	end
+
+	local function ShowSuggestions()
+		if not spellSearch or not spellSearch.Search then
+			HidePopup()
+			return
+		end
+		local found = spellSearch:Search(box:GetText(), 8)
+		local y = -6
+		for index, entry in ipairs(found) do
+			local row = suggestionRows[index]
+			if not row then
+				row = CreateFrame("Button", nil, popup)
+				row:SetSize(268, ROW_H)
+				row.Icon = row:CreateTexture(nil, "ARTWORK")
+				row.Icon:SetSize(18, 18)
+				row.Icon:SetPoint("LEFT", row, "LEFT", 8, 0)
+				row.Text = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+				row.Text:SetPoint("LEFT", row.Icon, "RIGHT", 6, 0)
+				row.Text:SetJustifyH("LEFT")
+				local hover = row:CreateTexture(nil, "HIGHLIGHT")
+				hover:SetAllPoints()
+				hover:SetColorTexture(1, 1, 1, 0.08)
+				row.Selected = row:CreateTexture(nil, "ARTWORK")
+				row.Selected:SetAllPoints()
+				row.Selected:SetColorTexture(1, 0.82, 0, 0.2)
+				row.Selected:Hide()
+				suggestionRows[index] = row
+			end
+			row.SpellId = entry.Id
+			if C_Spell and C_Spell.GetSpellTexture then
+				local ok, icon = pcall(C_Spell.GetSpellTexture, entry.Id)
+				if ok and icon then
+					row.Icon:SetTexture(icon)
+				end
+			end
+			row.Text:SetText(string.format("%s (%d)", entry.Name, entry.Id))
+			row:SetPoint("TOPLEFT", popup, "TOPLEFT", 0, y)
+			row:SetScript("OnClick", function()
+				AcceptId(entry.Id)
+			end)
+			row:Show()
+			y = y - ROW_H
+		end
+		for i = #found + 1, #suggestionRows do
+			suggestionRows[i]:Hide()
+		end
+		shownRows = #found
+		if shownRows == 0 then
+			HidePopup()
+			return
+		end
+		highlighted = 0
+		ApplyHighlight()
+		popup:ClearAllPoints()
+		popup:SetPoint("TOPLEFT", box, "BOTTOMLEFT", -6, -2)
+		popup:SetHeight(-y + 6)
+		popup:Show()
+	end
+
+	box:SetScript("OnTextChanged", function(_, userInput)
+		UpdatePlaceholder()
+		if userInput then
+			ShowSuggestions()
+		end
+	end)
+	box:SetScript("OnEditFocusGained", function()
+		UpdatePlaceholder()
+		if (box:GetText() or "") ~= "" then
+			ShowSuggestions()
+		end
+	end)
+	box:SetScript("OnArrowPressed", function(_, key)
+		if shownRows == 0 then
+			return
+		end
+		if key == "DOWN" then
+			highlighted = highlighted == 0 and 1 or (highlighted % shownRows + 1)
+		elseif key == "UP" then
+			highlighted = highlighted == 0 and shownRows or (highlighted - 2) % shownRows + 1
+		else
+			return
+		end
+		ApplyHighlight()
+	end)
+	box:SetScript("OnEnterPressed", function()
+		local row = highlighted > 0 and suggestionRows[highlighted]
+		local spellId = row and row.SpellId
+		if not spellId and spellSearch then
+			local found = spellSearch:Search(box:GetText(), 1)
+			spellId = found[1] and found[1].Id
+		end
+		if spellId then
+			AcceptId(spellId)
+		else
+			local typed = tonumber(box:GetText())
+			if typed then
+				AcceptId(typed)
+			end
+		end
+	end)
+	box:SetScript("OnEscapePressed", function()
+		HidePopup()
+		box:ClearFocus()
+		if hooks.GetId then
+			local id = hooks.GetId()
+			box:SetText((id and id > 0) and tostring(id) or "")
+		end
+		UpdatePlaceholder()
+	end)
+	box:SetScript("OnEditFocusLost", function()
+		UpdatePlaceholder()
+		if popup:IsMouseOver() then
+			return
+		end
+		HidePopup()
+		if hooks.GetId then
+			local id = hooks.GetId()
+			box:SetText((id and id > 0) and tostring(id) or "")
+		end
+	end)
+
+	function box.MiniRefresh()
+		HidePopup()
+		if hooks.GetId then
+			local id = hooks.GetId()
+			box:SetText((id and id > 0) and tostring(id) or "")
+		end
+		UpdatePlaceholder()
+	end
+
+	box.HideSuggestions = HidePopup
+	return box
 end
 
 local function SpellDisplayIcon(spellID)
@@ -2764,39 +3001,80 @@ local function BuildCustomWaTab(content)
 	local selectedIndex = nil
 	local iconCells = {}
 	local UpdateEnemyScopeShown
+	local UpdateSoundSourceShown
+	local idBox
+	local fileNameBox
+	local EDITOR_H = 400
+	local LABEL_COL = 78
+
+	local function EditorLabel(parent, text)
+		local fs = parent:CreateFontString(nil, "ARTWORK", "GameFontWhite")
+		fs:SetJustifyH("LEFT")
+		fs:SetText(text or "")
+		local w = fs:GetStringWidth() or 40
+		if fs.GetUnboundedStringWidth then
+			w = fs:GetUnboundedStringWidth() or w
+		end
+		fs:SetWidth(math.ceil(w) + 2)
+		return fs
+	end
+
+	-- Tab body is taller than the settings viewport; scroll inside the visible hole
+	-- so the rule editor is not clipped at the canvas bottom.
+	local waScroll = CreateFrame("ScrollFrame", nil, content, "UIPanelScrollFrameTemplate")
+	waScroll:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+	waScroll:SetPoint("RIGHT", content, "RIGHT", -22, 0)
+	waScroll:EnableMouseWheel(true)
+	waScroll:SetScript("OnMouseWheel", function(self, delta)
+		if idBox and idBox.HideSuggestions then
+			idBox:HideSuggestions()
+		end
+		local step = 36
+		local current = self:GetVerticalScroll()
+		local max = self:GetVerticalScrollRange()
+		if delta > 0 then
+			self:SetVerticalScroll(math.max(current - step, 0))
+		else
+			self:SetVerticalScroll(math.min(current + step, max))
+		end
+	end)
+
+	local inner = CreateFrame("Frame", nil, waScroll)
+	inner:SetPoint("TOPLEFT")
+	inner:SetWidth(460)
+	waScroll:SetScrollChild(inner)
 
 	local title = mini:TextLine({
-		Parent = content,
+		Parent = inner,
 		Text = "|cFFFFD100" .. L["wa_tab_title"] .. "|r",
 	})
-	title:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
+	title:SetPoint("TOPLEFT", inner, "TOPLEFT", 0, 0)
 
 	local intro = mini:TextBlock({
-		Parent = content,
+		Parent = inner,
 		Lines = {
 			L["wa_tab_intro_1"],
 			L["wa_tab_intro_2"],
 			L["wa_tab_intro_3"],
-			L["wa_tab_intro_4"],
 			L["wa_tab_intro_5"],
 		},
 	})
 	intro:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -verticalSpacing)
 
-	local addBtn = CreateFrame("Button", nil, content, "UIPanelButtonTemplate")
+	local addBtn = CreateFrame("Button", nil, inner, "UIPanelButtonTemplate")
 	addBtn:SetSize(200, 32)
 	addBtn:SetPoint("TOPLEFT", intro, "BOTTOMLEFT", 0, -verticalSpacing)
 	addBtn:SetText(L["wa_add_rule"])
 
-	local listHost = CreateFrame("Frame", nil, content)
+	local listHost = CreateFrame("Frame", nil, inner)
 	listHost:SetPoint("TOPLEFT", addBtn, "BOTTOMLEFT", 0, -verticalSpacing)
-	listHost:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+	listHost:SetPoint("RIGHT", inner, "RIGHT", 0, 0)
 	listHost:SetHeight(1)
 
-	local editor = CreateFrame("Frame", nil, content, "BackdropTemplate")
-	editor:SetPoint("LEFT", content, "LEFT", 0, 0)
-	editor:SetPoint("RIGHT", content, "RIGHT", 0, 0)
-	editor:SetHeight(196)
+	local editor = CreateFrame("Frame", nil, inner, "BackdropTemplate")
+	editor:SetPoint("LEFT", inner, "LEFT", 0, 0)
+	editor:SetPoint("RIGHT", inner, "RIGHT", 0, 0)
+	editor:SetHeight(EDITOR_H)
 	editor:SetBackdrop({
 		bgFile = "Interface\\Buttons\\WHITE8X8",
 		edgeFile = "Interface\\Buttons\\WHITE8X8",
@@ -2806,7 +3084,7 @@ local function BuildCustomWaTab(content)
 	editor:SetBackdropBorderColor(0.9, 0.75, 0.2, 0.55)
 
 	local editorHint = mini:TextLine({
-		Parent = content,
+		Parent = inner,
 		Text = L["wa_click_to_edit"],
 	})
 
@@ -2814,10 +3092,44 @@ local function BuildCustomWaTab(content)
 		return db.CustomAuras and selectedIndex and db.CustomAuras[selectedIndex]
 	end
 
+	local function FitWaViewport()
+		local viewH
+		local viewport = M.SettingsScroll
+		if viewport and content:GetTop() and viewport:GetTop() and viewport:GetBottom() then
+			local iTop = math.min(content:GetTop(), viewport:GetTop())
+			local iBot = math.max(content:GetBottom() or 0, viewport:GetBottom())
+			viewH = iTop - iBot - 4
+		end
+		if not viewH or viewH < 180 then
+			local _, canvasH = mini:SettingsSize()
+			viewH = math.max(220, (canvasH or 600) - 230)
+		end
+		if viewport and viewport:GetHeight() and viewport:GetHeight() > 0 then
+			viewH = math.min(viewH, viewport:GetHeight())
+		end
+		if math.abs((waScroll:GetHeight() or 0) - viewH) > 1 then
+			waScroll:SetHeight(viewH)
+		end
+		local w = waScroll:GetWidth()
+		if w and w > 40 and math.abs((inner:GetWidth() or 0) - w) > 1 then
+			inner:SetWidth(w)
+		end
+	end
+
+	local function UpdateWaInnerHeight()
+		local titleH = (title.GetStringHeight and title:GetStringHeight()) or 18
+		local introH = intro:GetHeight() or 80
+		local listH = listHost:GetHeight() or 1
+		local extra = editor:IsShown() and EDITOR_H or 24
+		local h = titleH + verticalSpacing + introH + verticalSpacing + 32 + verticalSpacing
+			+ listH + verticalSpacing * 2 + extra + 28
+		inner:SetHeight(math.max(h, 1))
+	end
+
 	local function PlaceEditor()
 		editor:ClearAllPoints()
-		editor:SetPoint("LEFT", content, "LEFT", 0, 0)
-		editor:SetPoint("RIGHT", content, "RIGHT", 0, 0)
+		editor:SetPoint("LEFT", inner, "LEFT", 0, 0)
+		editor:SetPoint("RIGHT", inner, "RIGHT", 0, 0)
 		editor:SetPoint("TOP", listHost, "BOTTOM", 0, -verticalSpacing * 2)
 		editorHint:ClearAllPoints()
 		editorHint:SetPoint("TOPLEFT", listHost, "BOTTOMLEFT", 0, -verticalSpacing * 2)
@@ -2828,8 +3140,28 @@ local function BuildCustomWaTab(content)
 
 	local function RefreshEditor()
 		PlaceEditor()
+		FitWaViewport()
+		UpdateWaInnerHeight()
+		if editor:IsShown() then
+			C_Timer.After(0, function()
+				if waScroll:IsShown() then
+					waScroll:SetVerticalScroll(waScroll:GetVerticalScrollRange())
+				end
+			end)
+		end
 		if editor.MiniRefresh then
 			editor:MiniRefresh()
+		end
+		if fileNameBox then
+			local r = SelectedRule()
+			fileNameBox:SetText((r and r.file) or "")
+			fileNameBox:SetCursorPosition(0)
+			if fileNameBox.PaintConfirm then
+				fileNameBox:PaintConfirm()
+			end
+		end
+		if UpdateSoundSourceShown then
+			UpdateSoundSourceShown()
 		end
 		if UpdateEnemyScopeShown then
 			UpdateEnemyScopeShown()
@@ -2867,43 +3199,53 @@ local function BuildCustomWaTab(content)
 			end
 		end,
 	})
-	enableChk:SetPoint("TOPLEFT", editor, "TOPLEFT", 8, -8)
+	enableChk:SetPoint("TOPLEFT", editor, "TOPLEFT", 8, -10)
 
-	local idLabel = mini:TextLine({ Parent = editor, Text = L["wa_spell_id"] })
-	idLabel:SetPoint("LEFT", enableChk, "RIGHT", 16, 0)
+	local idLabel = EditorLabel(editor, L["wa_spell_id"])
+	idLabel:SetPoint("LEFT", enableChk.Text or enableChk, "RIGHT", 18, 0)
 
-	local idBox = mini:EditBox({
-		Parent = editor,
-		Width = 90,
-		GetValue = function()
+	local nameFs
+	local function RefreshSpellCaption()
+		local r = SelectedRule()
+		local id = r and tonumber(r.spellID)
+		nameFs:SetText(SpellDisplayName(id))
+		local cell = selectedIndex and iconCells[selectedIndex]
+		if cell and cell.Icon and cell.Name then
+			cell.Icon:SetTexture(SpellDisplayIcon(id))
+			cell.Name:SetText(SpellDisplayName(id))
+		end
+	end
+
+	idBox = CreateWaSpellPicker(editor, {
+		GetId = function()
 			local r = SelectedRule()
-			local id = r and tonumber(r.spellID)
-			if not id or id <= 0 then
-				return ""
-			end
-			return tostring(id)
+			return r and tonumber(r.spellID) or 0
 		end,
-		SetValue = function(value)
+		SetId = function(spellId)
 			local r = SelectedRule()
 			if not r then
 				return
 			end
-			r.spellID = tonumber(value) or 0
+			r.spellID = tonumber(spellId) or 0
 			M:Apply()
+			RefreshSpellCaption()
 		end,
 	})
-	idBox:SetPoint("LEFT", idLabel, "RIGHT", 8, 0)
-
-	local nameFs = editor:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-	nameFs:SetPoint("LEFT", idBox, "RIGHT", 10, 0)
-	nameFs:SetText("")
+	idBox:SetPoint("LEFT", idLabel, "RIGHT", 10, 0)
 
 	local delBtn = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
 	delBtn:SetSize(64, 22)
-	delBtn:SetPoint("TOPRIGHT", editor, "TOPRIGHT", -10, -8)
+	delBtn:SetPoint("TOPRIGHT", editor, "TOPRIGHT", -8, -8)
 	delBtn:SetText(L["wa_delete"])
 
-	local unitLabel = mini:TextLine({ Parent = editor, Text = L["wa_unit"] })
+	nameFs = editor:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	nameFs:SetPoint("LEFT", idBox, "RIGHT", 8, 0)
+	nameFs:SetPoint("RIGHT", delBtn, "LEFT", -8, 0)
+	nameFs:SetJustifyH("LEFT")
+	nameFs:SetWordWrap(false)
+	nameFs:SetText("")
+
+	local unitLabel = EditorLabel(editor, L["wa_unit"])
 	unitLabel:SetPoint("TOPLEFT", editor, "TOPLEFT", 12, -44)
 
 	local unitDd = mini:Dropdown({
@@ -2925,11 +3267,11 @@ local function BuildCustomWaTab(content)
 			return L["wa_unit_" .. tostring(value)] or tostring(value)
 		end,
 	})
-	unitDd:SetPoint("LEFT", unitLabel, "RIGHT", 8, 4)
-	unitDd:SetWidth(130)
+	unitDd:SetPoint("TOPLEFT", editor, "TOPLEFT", 12 + LABEL_COL, -40)
+	unitDd:SetWidth(170)
 
-	local trigLabel = mini:TextLine({ Parent = editor, Text = L["wa_trigger"] })
-	trigLabel:SetPoint("LEFT", unitDd, "RIGHT", 16, -4)
+	local trigLabel = EditorLabel(editor, L["wa_trigger"])
+	trigLabel:SetPoint("TOPLEFT", editor, "TOPLEFT", 12, -80)
 
 	local trigDd = mini:Dropdown({
 		Parent = editor,
@@ -2949,21 +3291,75 @@ local function BuildCustomWaTab(content)
 			return L["wa_trigger_" .. tostring(value)] or tostring(value)
 		end,
 	})
-	trigDd:SetPoint("LEFT", trigLabel, "RIGHT", 8, 4)
-	trigDd:SetWidth(120)
+	trigDd:SetPoint("TOPLEFT", editor, "TOPLEFT", 12 + LABEL_COL, -76)
+	trigDd:SetWidth(170)
 
-	local fileLabel = mini:TextLine({ Parent = editor, Text = L["wa_sound_file"] })
-	fileLabel:SetPoint("TOPLEFT", editor, "TOPLEFT", 12, -80)
+	local function RuleSoundIsCustom(r)
+		if not r then
+			return false
+		end
+		if r.soundSource == "custom" then
+			return true
+		end
+		if r.soundSource == "builtin" then
+			return false
+		end
+		local sounds = addon.Utils.WaSounds
+		return type(r.file) == "string" and r.file ~= "" and sounds and not sounds:IsBuiltin(r.file)
+	end
 
-	local fileDd = mini:Dropdown({
+	local fileLabel = EditorLabel(editor, L["wa_sound_file"])
+	fileLabel:SetPoint("TOPLEFT", editor, "TOPLEFT", 12, -116)
+
+	local fileDd
+	local testBtn
+	local fileNameHint
+
+	local sourceDd = mini:Dropdown({
+		Parent = editor,
+		Items = { "builtin", "custom" },
+		GetValue = function()
+			return RuleSoundIsCustom(SelectedRule()) and "custom" or "builtin"
+		end,
+		SetValue = function(value)
+			local r = SelectedRule()
+			if not r then
+				return
+			end
+			local sounds = addon.Utils.WaSounds
+			local custom = value == "custom"
+			r.soundSource = custom and "custom" or "builtin"
+			if custom then
+				if sounds and sounds.IsBuiltin and sounds:IsBuiltin(r.file) then
+					r.file = ""
+				end
+			elseif not (sounds and sounds.IsBuiltin and sounds:IsBuiltin(r.file)) then
+				r.file = (sounds and sounds.DEFAULT_FILE) or "PS_Ping.ogg"
+			end
+			if fileNameBox then
+				fileNameBox:SetText(r.file or "")
+				fileNameBox:SetCursorPosition(0)
+			end
+			if fileDd and fileDd.MiniRefresh then
+				fileDd:MiniRefresh()
+			end
+			if UpdateSoundSourceShown then
+				UpdateSoundSourceShown()
+			end
+			M:Apply()
+		end,
+		GetText = function(value)
+			return L["wa_sound_source_" .. tostring(value)] or tostring(value)
+		end,
+	})
+	sourceDd:SetPoint("TOPLEFT", editor, "TOPLEFT", 12 + LABEL_COL, -112)
+	sourceDd:SetWidth(78)
+
+	fileDd = mini:Dropdown({
 		Parent = editor,
 		GetItems = function()
 			local sounds = addon.Utils.WaSounds
-			local current = SelectedRule() and SelectedRule().file
-			if sounds and sounds.ListForDropdown then
-				return sounds:ListForDropdown(current)
-			end
-			return sounds and sounds.BUILTIN or { "PS_Ping.ogg" }
+			return (sounds and sounds.BUILTIN) or { "PS_Ping.ogg" }
 		end,
 		GridMode = true,
 		GetValue = function()
@@ -2976,6 +3372,7 @@ local function BuildCustomWaTab(content)
 		SetValue = function(value)
 			local r = SelectedRule()
 			if r then
+				r.soundSource = "builtin"
 				r.file = value or "PS_Ping.ogg"
 				M:Apply()
 			end
@@ -2984,28 +3381,112 @@ local function BuildCustomWaTab(content)
 			return tostring(value or "")
 		end,
 	})
-	fileDd:SetPoint("LEFT", fileLabel, "RIGHT", 8, 4)
-	fileDd:SetWidth(240)
+	fileDd:SetPoint("LEFT", sourceDd, "RIGHT", 8, 0)
+	fileDd:SetWidth(150)
 
-	local testBtn = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
+	local function NormalizeCustomFile(value)
+		value = (value or ""):match("^%s*(.-)%s*$") or ""
+		if value == "" then
+			return ""
+		end
+		if not value:lower():match("%.ogg$") and not value:lower():match("%.mp3$") then
+			value = value .. ".ogg"
+		end
+		return value
+	end
+
+	fileNameBox = CreateFrame("EditBox", nil, editor, "InputBoxTemplate")
+	fileNameBox:SetSize(130, 20)
+	fileNameBox:SetAutoFocus(false)
+	fileNameBox:SetFontObject("GameFontWhite")
+	fileNameBox:SetJustifyH("LEFT")
+	fileNameBox:SetPoint("LEFT", sourceDd, "RIGHT", 8, 0)
+
+	function fileNameBox.PaintConfirm(self)
+		local r = SelectedRule()
+		local typed = NormalizeCustomFile(self:GetText())
+		if r and r.file ~= "" and typed == r.file then
+			self:SetTextColor(1, 0.82, 0)
+		else
+			self:SetTextColor(1, 1, 1)
+		end
+	end
+
+	local function CommitCustomFile()
+		local r = SelectedRule()
+		if not r then
+			return nil
+		end
+		local value = NormalizeCustomFile(fileNameBox:GetText())
+		if value == "" then
+			fileNameBox:PaintConfirm()
+			return nil
+		end
+		r.soundSource = "custom"
+		r.file = value
+		fileNameBox:SetText(value)
+		fileNameBox:PaintConfirm()
+		M:Apply()
+		return value
+	end
+
+	fileNameBox:SetScript("OnTextChanged", function(self)
+		self:PaintConfirm()
+	end)
+	fileNameBox:SetScript("OnEnterPressed", function(self)
+		CommitCustomFile()
+		self:ClearFocus()
+	end)
+	fileNameBox:SetScript("OnEscapePressed", function(self)
+		local r = SelectedRule()
+		self:SetText((r and r.file) or "")
+		self:PaintConfirm()
+		self:ClearFocus()
+	end)
+
+	local confirmBtn = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
+	confirmBtn:SetSize(48, 22)
+	confirmBtn:SetPoint("LEFT", fileNameBox, "RIGHT", 6, 0)
+	confirmBtn:SetText(L["wa_sound_confirm"])
+	confirmBtn:SetScript("OnClick", function()
+		CommitCustomFile()
+		fileNameBox:ClearFocus()
+	end)
+
+	testBtn = CreateFrame("Button", nil, editor, "UIPanelButtonTemplate")
 	testBtn:SetSize(56, 22)
-	testBtn:SetPoint("LEFT", fileDd, "RIGHT", 8, -4)
+	testBtn:SetPoint("LEFT", fileDd, "RIGHT", 8, 0)
 	testBtn:SetText(L["Test"])
 	testBtn:SetScript("OnClick", function()
 		local r = SelectedRule()
-		local file = r and r.file
+		local file
+		if RuleSoundIsCustom(r) then
+			file = CommitCustomFile()
+		else
+			file = r and r.file
+		end
 		if type(file) ~= "string" or file == "" then
+			print("|cffff3333[PVP Sound]|r " .. (L["wa_unset"] or "未选择音效"))
 			return
 		end
 		local sounds = addon.Utils.WaSounds
 		local path = sounds and sounds.Resolve and sounds:Resolve(file)
-		if path then
-			pcall(PlaySoundFile, path, (db.Sound and db.Sound.Channel) or "Master")
+		if not path then
+			print("|cffff3333[PVP Sound]|r " .. file)
+			return
 		end
+		pcall(PlaySoundFile, path, (db.Sound and db.Sound.Channel) or "Master")
 	end)
 
-	local zoneLabel = mini:TextLine({ Parent = editor, Text = L["wa_zones"] })
-	zoneLabel:SetPoint("TOPLEFT", editor, "TOPLEFT", 12, -112)
+	fileNameHint = editor:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+	fileNameHint:SetJustifyH("LEFT")
+	fileNameHint:SetWordWrap(true)
+	fileNameHint:SetTextColor(1, 0.82, 0)
+	fileNameHint:SetPoint("TOPLEFT", fileLabel, "BOTTOMLEFT", 0, -10)
+	fileNameHint:SetPoint("RIGHT", editor, "RIGHT", -12, 0)
+	fileNameHint:SetText(L["wa_sound_custom_hint"])
+
+	local zoneLabel = EditorLabel(editor, L["wa_zones"])
 
 	local zoneKeys = {
 		{ Key = "World", Label = L["World"] },
@@ -3013,7 +3494,7 @@ local function BuildCustomWaTab(content)
 		{ Key = "BattleGrounds", Label = L["Battlegrounds"] },
 		{ Key = "PvE", Label = L["PvE"] },
 	}
-	local prevZone
+	local zoneChks = {}
 	for i = 1, #zoneKeys do
 		local key = zoneKeys[i].Key
 		local chk = mini:Checkbox({
@@ -3037,16 +3518,16 @@ local function BuildCustomWaTab(content)
 			end,
 		})
 		if i == 1 then
-			chk:SetPoint("LEFT", zoneLabel, "RIGHT", 8, 0)
+			chk:SetPoint("TOPLEFT", zoneLabel, "BOTTOMLEFT", 0, -8)
 		else
-			chk:SetPoint("LEFT", prevZone, "RIGHT", 12, 0)
+			chk:SetPoint("LEFT", zoneChks[i - 1].Text or zoneChks[i - 1], "RIGHT", 14, 0)
 		end
-		prevZone = chk
+		zoneChks[i] = chk
 	end
 
 	local enemyScopeItems = { "all", "targetfocus" }
-	local enemyScopeLabel = mini:TextLine({ Parent = editor, Text = L["wa_enemy_scope"] })
-	enemyScopeLabel:SetPoint("TOPLEFT", editor, "TOPLEFT", 12, -144)
+	local enemyScopeLabel = EditorLabel(editor, L["wa_enemy_scope"])
+	enemyScopeLabel:SetPoint("TOPLEFT", zoneChks[1], "BOTTOMLEFT", 0, -28)
 
 	local enemyScopeDd = mini:Dropdown({
 		Parent = editor,
@@ -3066,8 +3547,35 @@ local function BuildCustomWaTab(content)
 			return L["wa_enemy_scope_" .. tostring(value)] or tostring(value)
 		end,
 	})
-	enemyScopeDd:SetPoint("LEFT", enemyScopeLabel, "RIGHT", 8, 4)
-	enemyScopeDd:SetWidth(150)
+	enemyScopeDd:SetPoint("LEFT", editor, "LEFT", 12 + LABEL_COL, 0)
+	enemyScopeDd:SetPoint("TOP", enemyScopeLabel, "TOP", 0, 4)
+	enemyScopeDd:SetWidth(170)
+
+	local function PlaceZoneBlock()
+		zoneLabel:ClearAllPoints()
+		if fileNameHint:IsShown() then
+			zoneLabel:SetPoint("TOPLEFT", fileNameHint, "BOTTOMLEFT", 0, -28)
+		else
+			zoneLabel:SetPoint("TOPLEFT", fileLabel, "BOTTOMLEFT", 0, -28)
+		end
+	end
+
+	UpdateSoundSourceShown = function()
+		local custom = RuleSoundIsCustom(SelectedRule())
+		fileDd:SetShown(not custom)
+		fileNameBox:SetShown(custom)
+		confirmBtn:SetShown(custom)
+		fileNameHint:SetShown(custom)
+		testBtn:ClearAllPoints()
+		if custom then
+			testBtn:SetPoint("LEFT", confirmBtn, "RIGHT", 6, 0)
+			fileNameBox:PaintConfirm()
+		else
+			testBtn:SetPoint("LEFT", fileDd, "RIGHT", 8, 0)
+		end
+		PlaceZoneBlock()
+	end
+	UpdateSoundSourceShown()
 
 	UpdateEnemyScopeShown = function()
 		local r = SelectedRule()
@@ -3077,13 +3585,7 @@ local function BuildCustomWaTab(content)
 	end
 
 	idBox:HookScript("OnTextChanged", function()
-		local r = SelectedRule()
-		nameFs:SetText(SpellDisplayName(r and tonumber(r.spellID)))
-		local cell = selectedIndex and iconCells[selectedIndex]
-		if cell and cell.Icon and cell.Name then
-			cell.Icon:SetTexture(SpellDisplayIcon(r and tonumber(r.spellID)))
-			cell.Name:SetText(SpellDisplayName(r and tonumber(r.spellID)))
-		end
+		RefreshSpellCaption()
 	end)
 
 	local function SelectRule(index)
@@ -3158,6 +3660,7 @@ local function BuildCustomWaTab(content)
 			name:SetPoint("LEFT", icon, "RIGHT", 8, 0)
 			name:SetPoint("RIGHT", cell, "RIGHT", -6, 0)
 			name:SetJustifyH("LEFT")
+			name:SetWordWrap(false)
 			name:SetText(SpellDisplayName(rule and tonumber(rule.spellID)))
 			cell.Name = name
 
@@ -3217,12 +3720,26 @@ local function BuildCustomWaTab(content)
 
 	RebuildWaList()
 
+	waScroll:SetScript("OnSizeChanged", function()
+		local w = waScroll:GetWidth()
+		if w and w > 40 then
+			inner:SetWidth(w)
+		end
+		UpdateWaInnerHeight()
+	end)
+	content:HookScript("OnShow", function()
+		FitWaViewport()
+		UpdateWaInnerHeight()
+	end)
+
 	content.MiniRefresh = function()
 		EnsureCustomAuras(db)
 		if selectedIndex and (not db.CustomAuras or not db.CustomAuras[selectedIndex]) then
 			selectedIndex = nil
 		end
 		RebuildWaList()
+		FitWaViewport()
+		UpdateWaInnerHeight()
 		if editor.MiniRefresh then
 			editor:MiniRefresh()
 		end
@@ -3233,6 +3750,8 @@ local function BuildChangelogTab(content)
 	local block = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v3.1.0"],
+			" ",
 			L["changelog_v3.0.15"],
 			" ",
 			L["changelog_v3.0.14"],
@@ -3309,6 +3828,8 @@ function M:Init()
 	MigrateV32(rawDb)
 	MigrateV33(rawDb)
 	MigrateV34(rawDb)
+	MigrateV35(rawDb)
+	MigrateV36(rawDb)
 
 	-- Spells defaults stay empty; Disabled* sparse maps are the source of truth.
 	dbDefaults.Spells = {}
@@ -3353,6 +3874,12 @@ function M:Init()
 			savedCustomAuras[i] = db.CustomAuras[i]
 		end
 	end
+	local savedWaSoundFiles = {}
+	if type(db.WaSoundFiles) == "table" then
+		for i = 1, #db.WaSoundFiles do
+			savedWaSoundFiles[i] = db.WaSoundFiles[i]
+		end
+	end
 	mini:CleanTable(db, dbDefaults, true, true)
 	db.ExtraVoicePacks = savedExtraPacks
 	db.Profiles = savedProfiles
@@ -3383,6 +3910,7 @@ function M:Init()
 		db.InterruptSoundFile = savedInterruptSound
 	end
 	db.CustomAuras = savedCustomAuras
+	db.WaSoundFiles = savedWaSoundFiles
 	EnsureSpellDefaults(db)
 	EnsureSelfCcDefaults(db)
 	EnsureZoneDefaults(db)
@@ -3392,6 +3920,7 @@ function M:Init()
 
 	local scroll = CreateFrame("ScrollFrame", nil, nil, "UIPanelScrollFrameTemplate")
 	scroll.name = addonName
+	M.SettingsScroll = scroll
 
 	local category = mini:AddCategory(scroll)
 	if not category then return end
@@ -3681,7 +4210,7 @@ function M:Init()
 	local tabs = {
 			{
 				Key = "Home",
-				Title = addonName,
+				Title = L["tab_home"],
 				Build = function(content) BuildHomeTab(content) end,
 			},
 			{
@@ -3697,17 +4226,17 @@ function M:Init()
 		},
 		{
 			Key = "GeneralSpells",
-			Title = L["General Spells"],
+			Title = L["tab_general"],
 			Build = function(content) BuildGeneralSpellsTab(content) end,
 		},
 		{
 			Key = "ClassSpells",
-			Title = L["Class Spells"],
+			Title = L["tab_class"],
 			Build = function(content) BuildClassSpellsTab(content) end,
 		},
 		{
 			Key = "CustomWa",
-			Title = L["WA Custom"],
+			Title = L["tab_wa"],
 			Build = function(content) BuildCustomWaTab(content) end,
 		},
 		{
@@ -3730,7 +4259,7 @@ function M:Init()
 		},
 		{
 			Key = "Changelog",
-			Title = L["Changelog"],
+			Title = L["tab_changelog"],
 			Build = function(content) BuildChangelogTab(content) end,
 		},
 	}

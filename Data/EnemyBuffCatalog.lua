@@ -156,6 +156,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 87024, File = "cauterize.ogg" },
 				{ Id = 190319, File = "combustion.ogg" },
 				{ Id = 110909, File = "alterTime.ogg" },
+				{ Id = 342245, File = "alterTime.ogg", Label = "操控时间" }, -- Alter Time (aura)
 				{ Id = 342246, File = "alterTime.ogg" },
 				{ Id = 108978, File = "alterTime.ogg" },
 				{ Id = 389794, File = "snowdrift.ogg" }, -- caster buff (blizzard around mage)
@@ -231,6 +232,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 6940, File = "Sacrifice.ogg", Label = "牺牲祝福" }, -- Blessing of Sacrifice
 				{ Id = 1260251, File = "ExecutionSentence.ogg", Label = "处决宣判", Harmful = true },
 				{ Id = 260251, File = "ExecutionSentence.ogg", Harmful = true },
+				{ Id = 1049296, File = "shiningRevelation.ogg", Label = "闪耀揭示" },
 			},
 		},
 		{

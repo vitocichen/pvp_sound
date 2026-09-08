@@ -1,5 +1,11 @@
 # PVP Sound
 
+## [v3.1.0](https://github.com/vitocichen/pvp_sound/tree/v3.1.0) (2026-09-08)
+[Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.1.0)
+
+- 重大更新：支持 WA 音效自定义，可任意添加 buff/debuff 语音监控
+- 添加了部分缺失的 BUFF
+
 ## [v3.0.15](https://github.com/vitocichen/pvp_sound/tree/v3.0.15) (2026-09-01)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.0.15)
 

@@ -587,8 +587,15 @@ function M:Checkbox(options)
 	end
 
 	local checkbox = CreateFrame("CheckButton", nil, options.Parent, "UICheckButtonTemplate")
-	checkbox.Text:SetText(" " .. options.LabelText)
-	checkbox.Text:SetFontObject("GameFontNormal")
+	checkbox:SetSize(26, 26)
+	local labelText = options.LabelText or ""
+	if checkbox.Text then
+		checkbox.Text:ClearAllPoints()
+		checkbox.Text:SetPoint("LEFT", checkbox, "RIGHT", 4, 0)
+		checkbox.Text:SetJustifyH("LEFT")
+		checkbox.Text:SetFontObject("GameFontNormal")
+		checkbox.Text:SetText(labelText)
+	end
 	checkbox:SetChecked(options.GetValue() and true or false)
 	-- Fully own OnClick: do not store GetChecked() (can be secret on 12.1 and dropped on logout).
 	-- SetChecked from the intended value, not a re-read: GetCVar "0" is truthy if mishandled.
