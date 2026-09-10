@@ -56,6 +56,17 @@ function M:IsInterruptAlertsEnabled()
 	return zone.InterruptAlert == true
 end
 
+-- Enemy kick-name voice: World / Arena / Battlegrounds only. Never PvE.
+function M:IsEnemyKickAlertsEnabled()
+	local key = self:GetZoneKey()
+	if key ~= "World" and key ~= "Arena" and key ~= "BattleGrounds" then
+		return false
+	end
+	local zone = self:GetZoneConfig()
+	if not zone then return false end
+	return zone.EnemyKickAlert == true
+end
+
 -- Consumable honesty yell: World only. Arena / BG / PvE never arm keyboard wait.
 function M:IsConsumableSayEnabled()
 	return self:GetZoneKey() == "World"

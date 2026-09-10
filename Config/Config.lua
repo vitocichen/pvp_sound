@@ -47,7 +47,7 @@ local function BuildDefaultSelfCcSpells()
 end
 
 local dbDefaults = {
-	Version = 37,
+	Version = 38,
 	WhatsNewVersion = false,
 	VoicePack = "夏一可1.25x",
 	ExtraVoicePacks = {},
@@ -64,16 +64,17 @@ local dbDefaults = {
 		PreferredMode = 1,
 	},
 	-- Enabled = enemy buff; CcEnabled = self/party debuff; HealerCcEnabled = healer-in-CC;
-	-- InterruptAlert = cast-interrupted voice; CastBar = system target-cast announce gate;
+	-- InterruptAlert = our kick landed; EnemyKickAlert = enemy kick name (not PvE);
+	-- CastBar = system target-cast announce gate;
 	-- ConsumableSay = /say when you use listed PvP potions (no aura).
 	-- DuelPotionWatch = World spectator yell when anyone nearby drinks a listed potion.
 	-- TargetFocusOnly = buff monitor (false = all enemies); CcScope = self|party|partyonly for debuffs.
 	DuelPotionWatch = true,
 	Zones = {
-		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
-		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
-		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
-		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, EnemyKickAlert = true, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, EnemyKickAlert = true, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, EnemyKickAlert = true, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, EnemyKickAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
 	},
 	-- Sparse disable maps: key=spellId, value=true means unchecked/disabled.
 	-- Missing key = enabled (default on). Avoids huge Spells={all true} SavedVariables issues.
@@ -556,6 +557,21 @@ local function MigrateV37(savedDb)
 	savedDb.Version = 37
 end
 
+-- v38: per-zone EnemyKickAlert (World / Arena / BG). PvE stays off.
+local function MigrateV38(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 38) then return end
+	savedDb.Zones = savedDb.Zones or {}
+	for _, key in ipairs({ "World", "Arena", "BattleGrounds" }) do
+		savedDb.Zones[key] = savedDb.Zones[key] or {}
+		if savedDb.Zones[key].EnemyKickAlert == nil then
+			savedDb.Zones[key].EnemyKickAlert = true
+		end
+	end
+	savedDb.Zones.PvE = savedDb.Zones.PvE or {}
+	savedDb.Zones.PvE.EnemyKickAlert = false
+	savedDb.Version = 38
+end
+
 local function EnsureSysCastDefaults(savedDb)
 	savedDb.SysCast = savedDb.SysCast or {}
 	local mode = tonumber(savedDb.SysCast.PreferredMode)
@@ -668,10 +684,10 @@ end
 local function EnsureZoneDefaults(savedDb)
 	savedDb.Zones = savedDb.Zones or {}
 	local defaults = {
-		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
-		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
-		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
-		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		World = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, EnemyKickAlert = true, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		Arena = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, EnemyKickAlert = true, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		BattleGrounds = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, EnemyKickAlert = true, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
+		PvE = { Enabled = true, TargetFocusOnly = false, CcEnabled = true, CcScope = "party", HealerCcEnabled = true, InterruptAlert = false, EnemyKickAlert = false, CastBar = true, CastBarTargetOnly = true, ConsumableSay = true },
 	}
 	for key, def in pairs(defaults) do
 		savedDb.Zones[key] = savedDb.Zones[key] or {}
@@ -703,6 +719,13 @@ local function EnsureZoneDefaults(savedDb)
 			zone.InterruptAlert = def.InterruptAlert
 		else
 			zone.InterruptAlert = zone.InterruptAlert and true or false
+		end
+		if key == "PvE" then
+			zone.EnemyKickAlert = false
+		elseif zone.EnemyKickAlert == nil then
+			zone.EnemyKickAlert = def.EnemyKickAlert
+		else
+			zone.EnemyKickAlert = zone.EnemyKickAlert and true or false
 		end
 		if zone.CastBar == nil then
 			zone.CastBar = def.CastBar
@@ -1033,6 +1056,7 @@ local function BuildZonesTab(content)
 			L["zones_intro_buff"],
 			L["zones_intro_debuff"],
 			L["zones_intro_interrupt"],
+			L["zones_intro_enemy_kick"],
 			L["zones_intro_consumable"],
 			L["zones_intro_healer"],
 			L["zones_intro_cast"],
@@ -1239,7 +1263,7 @@ local function BuildZonesTab(content)
 		castHint:SetWidth(180)
 		castHint:SetWordWrap(true)
 
-		-- Row 5: interrupt alert (UNIT_SPELLCAST_INTERRUPTED) + shared sound picker
+		-- Row 5: our kick landed + shared sound picker
 		local interruptChk = mini:Checkbox({
 		Parent = content,
 			LabelText = L["Enable Interrupt Alerts"],
@@ -1274,6 +1298,27 @@ local function BuildZonesTab(content)
 			InterruptSoundLabel
 		)
 
+		local lastInterruptRow = interruptChk
+		-- Enemy kick-name: Arena / World / BG only. PvE has no control and stays off.
+		if zoneKey ~= "PvE" then
+			local enemyKickChk = mini:Checkbox({
+				Parent = content,
+				LabelText = L["Enable Enemy Kick Alerts"],
+				Tooltip = L["Enable enemy kick voice alerts in this zone."],
+				GetValue = function()
+					local zone = db.Zones[zoneKey]
+					return zone and zone.EnemyKickAlert == true
+				end,
+				SetValue = function(value)
+					db.Zones[zoneKey] = db.Zones[zoneKey] or {}
+					db.Zones[zoneKey].EnemyKickAlert = value and true or false
+					M:Apply()
+				end,
+			})
+			enemyKickChk:SetPoint("TOPLEFT", interruptChk, "BOTTOMLEFT", 0, -verticalSpacing)
+			lastInterruptRow = enemyKickChk
+		end
+
 		-- Consumable honesty yell: World only (never arm in arena / BG / instances).
 		-- Spectator potion watch: World only, optional.
 		if zoneKey == "World" then
@@ -1289,10 +1334,10 @@ local function BuildZonesTab(content)
 			M:Apply()
 		end,
 			})
-			duelPotionChk:SetPoint("TOPLEFT", interruptChk, "BOTTOMLEFT", 0, -verticalSpacing)
+			duelPotionChk:SetPoint("TOPLEFT", lastInterruptRow, "BOTTOMLEFT", 0, -verticalSpacing)
 			last = duelPotionChk
 		else
-			last = interruptChk
+			last = lastInterruptRow
 		end
 	end
 end
@@ -2497,6 +2542,7 @@ local function MigrateSettingsSnapshot(savedDb)
 	MigrateV35(savedDb)
 	MigrateV36(savedDb)
 	MigrateV37(savedDb)
+	MigrateV38(savedDb)
 end
 
 local function RefreshFrameTree(frame)
@@ -3890,6 +3936,8 @@ local function BuildChangelogTab(content)
 	local block = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v3.1.1"],
+			" ",
 			L["changelog_v3.1.0"],
 			" ",
 			L["changelog_v3.0.15"],
@@ -3971,6 +4019,7 @@ function M:Init()
 	MigrateV35(rawDb)
 	MigrateV36(rawDb)
 	MigrateV37(rawDb)
+	MigrateV38(rawDb)
 
 	-- Spells defaults stay empty; Disabled* sparse maps are the source of truth.
 	dbDefaults.Spells = {}
@@ -4213,7 +4262,7 @@ function M:Init()
 	end
 
 	local donateURL = "https://vitocichen.github.io/DK-jiangshili/"
-	local feedbackURL = "https://discord.gg/mhN2nYmv7"
+	local feedbackURL = "https://discord.gg/RAsV9fHuqM"
 	local donatePopup, donateEditBox = MakeLinkPopup(
 		"PVPSoundDonatePopup",
 		L["Donate Popup Title"],

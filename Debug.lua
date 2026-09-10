@@ -50,6 +50,8 @@ function addon.DebugDiag()
 	print(string.format("  interrupt: enabled=%s sound=%s",
 		tostring(moduleUtil:IsInterruptAlertsEnabled()),
 		tostring(db.InterruptSoundFile or "interrupted.ogg")))
+	print(string.format("  enemyKick: enabled=%s",
+		tostring(moduleUtil:IsEnemyKickAlertsEnabled())))
 	print(string.format("  consumableSay: enabled=%s",
 		tostring(moduleUtil:IsConsumableSayEnabled())))
 	print(string.format("  duelPotionWatch: enabled=%s setting=%s",

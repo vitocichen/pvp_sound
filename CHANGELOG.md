@@ -1,5 +1,10 @@
 # PVP Sound
 
+## [v3.1.1](https://github.com/vitocichen/pvp_sound/tree/v3.1.1) (2026-09-10)
+[Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.1.1)
+
+- 支持敌方打断技能播放，仅在敌方成功打断我方时生效
+
 ## [v3.1.0](https://github.com/vitocichen/pvp_sound/tree/v3.1.0) (2026-09-08)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.1.0)
 

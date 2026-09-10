@@ -7,7 +7,7 @@ local eventsFrame
 local db
 
 -- Bump when there's a change worth popping a "What's New" dialog.
-local WHATS_NEW_VERSION = "3.1.0"
+local WHATS_NEW_VERSION = "3.1.1"
 
 local function ShowWhatsNew()
 	if not db then return end

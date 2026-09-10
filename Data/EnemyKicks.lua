@@ -189,18 +189,24 @@ function M:ResolveKick(class, opponentSpecIds)
 		end
 	end
 
+	-- No confirmed spec, or mixed specs (Balance Solar Beam vs Feral Skull Bash):
+	-- only guess when every kick-capable spec of this class uses the same spell.
+	-- Druid must not fall back to Skull Bash when the kicker is (or might be) Balance.
 	if ambiguous or not match then
-		local counts = {}
+		local firstId
+		local same = true
 		for _, kick in ipairs(kicks) do
-			counts[kick.SpellId] = (counts[kick.SpellId] or 0) + 1
-		end
-		match = kicks[1]
-		for _, kick in ipairs(kicks) do
-			local better = counts[kick.SpellId] > counts[match.SpellId]
-				or (counts[kick.SpellId] == counts[match.SpellId] and kick.KickCd < match.KickCd)
-			if better then
-				match = kick
+			if not firstId then
+				firstId = kick.SpellId
+			elseif kick.SpellId ~= firstId then
+				same = false
+				break
 			end
+		end
+		if same then
+			match = kicks[1]
+		else
+			return nil, nil
 		end
 	end
 

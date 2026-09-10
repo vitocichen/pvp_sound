@@ -1,11 +1,14 @@
 ---@type string, Addon
 local _, addon = ...
 local units = addon.Utils.Units
+local moduleUtil = addon.Utils.ModuleUtil
 local voicePack = addon.Core.VoicePack
 local kickData = addon.Data.EnemyKicks
 
--- Arena-only: when our team’s cast is cut, play the interrupter’s interrupt clip.
--- Same detection as MiniCC EnemyKickTracker (interruptedBy on player/party1/party2).
+-- World / arena / battlegrounds (zone EnemyKickAlert): when our team’s cast is cut,
+-- play the interrupter’s interrupt clip. PvE never. Same detection as MiniCC
+-- EnemyKickTracker (interruptedBy on player/party1/party2).
+-- Arena specs: GetArenaOpponentSpec. World/BG specs: inspect the kicker if found.
 -- No generic interrupted.ogg; unknown/secret class → silence.
 ---@class EnemyKickModule
 local M = {}
@@ -48,6 +51,154 @@ end
 local function IsArena()
 	local inInstance, instanceType = IsInInstance()
 	return inInstance and instanceType == "arena"
+end
+
+local function IsOpenWorld()
+	local inInstance = IsInInstance()
+	return not inInstance
+end
+
+local function IsBattleground()
+	local inInstance, instanceType = IsInInstance()
+	return inInstance and instanceType == "pvp"
+end
+
+local function PublicText(value)
+	if value == nil then
+		return nil
+	end
+	if issecretvalue and issecretvalue(value) then
+		return nil
+	end
+	return tostring(value)
+end
+
+local function FindUnitForGuid(guid)
+	if guid == nil then
+		return nil
+	end
+	if issecretvalue and issecretvalue(guid) then
+		return nil
+	end
+	local tokens = { "target", "focus", "mouseover", "pet", "arena1", "arena2", "arena3" }
+	for i = 1, 40 do
+		tokens[#tokens + 1] = "nameplate" .. i
+	end
+	for i = 1, #tokens do
+		local unit = tokens[i]
+		if UnitExists(unit) then
+			local ok, other = pcall(UnitGUID, unit)
+			if ok and PublicText(other) and other == guid then
+				return unit
+			end
+		end
+	end
+	return nil
+end
+
+local lastInspectAt = 0
+
+local function LocalizedSpecName(specId)
+	local getter = GetSpecializationInfoByID
+	if C_SpecializationInfo and C_SpecializationInfo.GetSpecializationInfoByID then
+		getter = C_SpecializationInfo.GetSpecializationInfoByID
+	end
+	if not getter then
+		return nil
+	end
+	local ok, _, specName = pcall(getter, specId)
+	if ok then
+		return PublicText(specName)
+	end
+	return nil
+end
+
+-- Mouseover tooltip is live (updates after talent swap). Inspect cache is not.
+local function SpecIdFromTooltip(unit, class)
+	if not unit or not class then
+		return nil
+	end
+	if not (C_TooltipInfo and C_TooltipInfo.GetUnit) then
+		return nil
+	end
+	local ok, data = pcall(C_TooltipInfo.GetUnit, unit)
+	if not ok or not data or not data.lines then
+		return nil
+	end
+	local names = {}
+	for specId, info in pairs(kickData.SpecData) do
+		if info.Class == class then
+			local specName = LocalizedSpecName(specId)
+			if specName then
+				names[#names + 1] = { specId = specId, name = specName }
+			end
+		end
+	end
+	table.sort(names, function(a, b)
+		return #a.name > #b.name
+	end)
+	for i = 1, #data.lines do
+		local text = data.lines[i] and PublicText(data.lines[i].leftText)
+		if text then
+			for n = 1, #names do
+				if text:find(names[n].name, 1, true) then
+					return names[n].specId
+				end
+			end
+		end
+	end
+	return nil
+end
+
+local function InspectSpecId(unit)
+	if not unit or not GetInspectSpecialization then
+		return nil
+	end
+	local ok, specId = pcall(GetInspectSpecialization, unit)
+	if not ok then
+		return nil
+	end
+	specId = units:PublicNumber(specId)
+	if specId and specId > 0 then
+		return specId
+	end
+	return nil
+end
+
+local function RequestInspectRefresh(unit)
+	if not unit or not NotifyInspect then
+		return
+	end
+	local now = GetTime()
+	if now - lastInspectAt < 1.5 then
+		return
+	end
+	if CanInspect then
+		local ok, can = pcall(CanInspect, unit)
+		if ok and can == false then
+			return
+		end
+	end
+	lastInspectAt = now
+	pcall(NotifyInspect, unit)
+end
+
+---World: tooltip first (current spec), inspect only if tooltip has no spec line.
+---Inspect stays on the old talent loadout until NotifyInspect / rematch.
+local function CollectKickerSpecIds(interruptedBy, class)
+	local specs = {}
+	local unit = FindUnitForGuid(interruptedBy)
+	if not unit then
+		return specs
+	end
+	local fromTooltip = SpecIdFromTooltip(unit, class)
+	local fromInspect = InspectSpecId(unit)
+	local specId = fromTooltip or fromInspect
+	if specId then
+		specs[#specs + 1] = specId
+	end
+	RequestInspectRefresh(unit)
+	return specs
 end
 
 local function InPrepRoom()
@@ -133,15 +284,50 @@ local function UpdateOpponents()
 	end
 end
 
-local function OnKicked(class)
-	if not IsArena() or InPrepRoom() then
+-- Pets inherit the owner's class (DK ghoul → DEATHKNIGHT) but do not have Mind Freeze.
+-- Warlock Spell Lock *is* the pet kick — still announce those.
+local function IsNonPlayerKicker(interruptedBy)
+	local text = PublicText(interruptedBy)
+	if text then
+		local guidType = text:match("^([%a]+)%-")
+		if guidType and guidType ~= "Player" then
+			return true
+		end
+	end
+	local unit = FindUnitForGuid(interruptedBy)
+	if not unit then
+		return false
+	end
+	if units:IsPetOrMinion(unit) then
+		return true
+	end
+	local ok, isPlayer = pcall(UnitIsPlayer, unit)
+	if ok and isPlayer == false then
+		return true
+	end
+	return false
+end
+
+local function OnKicked(class, interruptedBy)
+	if InPrepRoom() then
+		return
+	end
+	if not moduleUtil:IsEnemyKickAlertsEnabled() then
 		return
 	end
 	class = PublicClass(class)
 	if not class then
 		return
 	end
-	local spellId, file = kickData:ResolveKick(class, opponentSpecIds)
+	-- DK (and other non-warlock) pets: skip. Warlock pet: Spell Lock, keep announcing.
+	if IsNonPlayerKicker(interruptedBy) and class ~= "WARLOCK" then
+		return
+	end
+	local specIds = opponentSpecIds
+	if not IsArena() then
+		specIds = CollectKickerSpecIds(interruptedBy, class)
+	end
+	local spellId, file = kickData:ResolveKick(class, specIds)
 	if not spellId or not file then
 		return
 	end
@@ -166,8 +352,8 @@ local function OnUnitEvent(unit, _, event, ...)
 		return
 	end
 	kickedByUnits[unit] = true
-	-- GUID is secret in instances: only pass it into the two FromGUID helpers.
-	OnKicked(select(2, UnitClassFromGUID(kickedBy)))
+	-- GUID is secret in instances: only pass it into FromGUID / unit match helpers.
+	OnKicked(select(2, UnitClassFromGUID(kickedBy)), kickedBy)
 end
 
 local function EnableWatch()
@@ -213,7 +399,7 @@ local function DisableWatch()
 	watching = false
 end
 
-local probeWanted = true
+local probeWanted = false
 local probeWatching = false
 local probeFrame
 local probePending = false
@@ -247,26 +433,29 @@ local function SetProbeEnabled(enabled)
 end
 
 function M:Refresh()
-	-- Arena: MiniCC-style voice. Open world: detect + chat print only (no clip).
+	if not moduleUtil:IsEnemyKickAlertsEnabled() then
+		DisableWatch()
+		wipe(opponentSpecIds)
+		SetProbeEnabled(false)
+		return
+	end
 	if IsArena() then
 		SetProbeEnabled(false)
 		UpdateOpponents()
 		EnableWatch()
+	elseif IsOpenWorld() then
+		wipe(opponentSpecIds)
+		EnableWatch()
+		SetProbeEnabled(probeWanted)
+	elseif IsBattleground() then
+		wipe(opponentSpecIds)
+		EnableWatch()
+		SetProbeEnabled(false)
 	else
 		DisableWatch()
 		wipe(opponentSpecIds)
-		SetProbeEnabled(probeWanted)
+		SetProbeEnabled(false)
 	end
-end
-
-local function PublicText(value)
-	if value == nil then
-		return nil
-	end
-	if issecretvalue and issecretvalue(value) then
-		return nil
-	end
-	return tostring(value)
 end
 
 local function Describe(value)
@@ -298,29 +487,6 @@ local function SpecName(specId)
 	return tostring(specId)
 end
 
-local function FindUnitForGuid(guid)
-	if guid == nil then
-		return nil
-	end
-	if issecretvalue and issecretvalue(guid) then
-		return nil
-	end
-	local tokens = { "target", "focus", "mouseover", "pet", "arena1", "arena2", "arena3" }
-	for i = 1, 40 do
-		tokens[#tokens + 1] = "nameplate" .. i
-	end
-	for i = 1, #tokens do
-		local unit = tokens[i]
-		if UnitExists(unit) then
-			local ok, other = pcall(UnitGUID, unit)
-			if ok and PublicText(other) and other == guid then
-				return unit
-			end
-		end
-	end
-	return nil
-end
-
 local function ZoneLabel()
 	local inInstance, instanceType = IsInInstance()
 	if not inInstance then
@@ -343,6 +509,16 @@ local function PrintKickProbe(event, interruptedBy)
 		name = UnitNameFromGUID(interruptedBy)
 		className, classFile, classId = UnitClassFromGUID(interruptedBy)
 	end
+	local petKicker = IsNonPlayerKicker(interruptedBy)
+	local kickerLabel = "玩家"
+	if petKicker then
+		if PublicClass(classFile) == "WARLOCK" then
+			kickerLabel = "术士宠物（仍播法术封锁）"
+		else
+			kickerLabel = "宠物/非玩家（不播打断语音）"
+		end
+	end
+	print("  kicker=" .. kickerLabel)
 	print("  name=" .. Describe(name))
 	print("  class=" .. Describe(classFile)
 		.. "  className=" .. Describe(className)
@@ -383,7 +559,11 @@ local function PrintKickProbe(event, interruptedBy)
 			end
 		end
 	end
-	print("  spec inspect=" .. (SpecName(specFromInspect) or Describe(specFromInspect)))
+	local specFromTooltipParse = unit and SpecIdFromTooltip(unit, PublicClass(classFile)) or nil
+	print("  spec inspect=" .. (SpecName(specFromInspect) or Describe(specFromInspect))
+		.. "  (切天赋后可能仍是旧的)")
+	print("  spec tooltipParse=" .. (SpecName(specFromTooltipParse) or "无")
+		.. "  (播报用这个，没有才用 inspect)")
 	print("  spec arenaAPI=" .. (SpecName(specFromArena) or Describe(specFromArena)))
 	print("  tooltip=" .. Describe(specFromTooltip))
 end
@@ -412,11 +592,13 @@ end
 function M:DebugProbeToggle()
 	probeWanted = not probeWanted
 	if IsArena() then
-		print("|cff33ff99[PVP Sound]|r JJC 只播语音。野外打印现在是："
+		print("|cff33ff99[PVP Sound]|r JJC 播语音。野外探测打印现在是："
 			.. (probeWanted and "开（出本后生效）" or "关"))
 		return
 	end
-	SetProbeEnabled(probeWanted)
+	if IsOpenWorld() then
+		SetProbeEnabled(probeWanted)
+	end
 	print("|cff33ff99[PVP Sound]|r 野外打断探测已"
 		.. (probeWanted and "开：被踢会打印 interruptedBy / 职业 / 专精。" or "关。"))
 end
