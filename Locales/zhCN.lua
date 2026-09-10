@@ -61,7 +61,6 @@ L:SetStrings({
 	["pack_english_female"] = "英语女声",
 	["debug_module_missing_sound"] = "SoundModule 未加载。",
 	["debug_module_missing_consumable"] = "ConsumableModule 未加载。",
-	["debug_module_missing_kick"] = "EnemyKickModule 未加载。",
 	["profiles_tab_load_failed"] = "配置页加载失败",
 	["debug_no_spell_map"] = "spellID=%d 无语音映射",
 	["debug_voice_file_missing"] = "语音文件缺失：请确认 Media\\语音包文件夹 完整",

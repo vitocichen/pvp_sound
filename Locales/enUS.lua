@@ -57,7 +57,6 @@ L:SetDefaultStrings({
 	["pack_english_female"] = "English Female",
 	["debug_module_missing_sound"] = "SoundModule is not loaded.",
 	["debug_module_missing_consumable"] = "ConsumableModule is not loaded.",
-	["debug_module_missing_kick"] = "EnemyKickModule is not loaded.",
 	["profiles_tab_load_failed"] = "Failed to load the Profiles tab",
 	["debug_no_spell_map"] = "spellID=%d has no voice mapping",
 	["debug_voice_file_missing"] = "Voice file missing: check that the Media voice-pack folder is complete",

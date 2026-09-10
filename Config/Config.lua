@@ -4125,14 +4125,6 @@ function M:Init()
 	SLASH_PVPSOUND2 = "/ps"
 	SlashCmdList.PVPSOUND = function(msg)
 		msg = msg and msg:lower():match("^%s*(.-)%s*$") or ""
-		if msg == "kickdebug" or msg == "kickdbg" then
-			if addon.Modules.EnemyKickModule and addon.Modules.EnemyKickModule.DebugProbeToggle then
-				addon.Modules.EnemyKickModule:DebugProbeToggle()
-			else
-				print("|cffff3333[PVP Sound]|r " .. L["debug_module_missing_kick"])
-			end
-			return
-		end
 		if msg == "casttest" or msg == "cast" then
 			if addon.Modules.SoundModule and addon.Modules.SoundModule.DebugCastTest then
 				addon.Modules.SoundModule:DebugCastTest()

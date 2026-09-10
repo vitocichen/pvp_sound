@@ -399,208 +399,22 @@ local function DisableWatch()
 	watching = false
 end
 
-local probeWanted = false
-local probeWatching = false
-local probeFrame
-local probePending = false
-local OnProbeEvent
-
-local function SetProbeEnabled(enabled)
-	if enabled then
-		if probeWatching then
-			return
-		end
-		probeFrame = probeFrame or CreateFrame("Frame")
-		probePending = false
-		for e = 1, #START_EVENTS do
-			probeFrame:RegisterUnitEvent(START_EVENTS[e], "player")
-		end
-		for e = 1, #STOP_EVENTS do
-			probeFrame:RegisterUnitEvent(STOP_EVENTS[e], "player")
-		end
-		probeFrame:SetScript("OnEvent", OnProbeEvent)
-		probeWatching = true
-	else
-		if not probeWatching then
-			return
-		end
-		if probeFrame then
-			probeFrame:UnregisterAllEvents()
-			probeFrame:SetScript("OnEvent", nil)
-		end
-		probeWatching = false
-	end
-end
-
 function M:Refresh()
 	if not moduleUtil:IsEnemyKickAlertsEnabled() then
 		DisableWatch()
 		wipe(opponentSpecIds)
-		SetProbeEnabled(false)
 		return
 	end
 	if IsArena() then
-		SetProbeEnabled(false)
 		UpdateOpponents()
 		EnableWatch()
-	elseif IsOpenWorld() then
+	elseif IsOpenWorld() or IsBattleground() then
 		wipe(opponentSpecIds)
 		EnableWatch()
-		SetProbeEnabled(probeWanted)
-	elseif IsBattleground() then
-		wipe(opponentSpecIds)
-		EnableWatch()
-		SetProbeEnabled(false)
 	else
 		DisableWatch()
 		wipe(opponentSpecIds)
-		SetProbeEnabled(false)
 	end
-end
-
-local function Describe(value)
-	if value == nil then
-		return "nil"
-	end
-	if issecretvalue and issecretvalue(value) then
-		return "SECRET"
-	end
-	return tostring(value)
-end
-
-local function SpecName(specId)
-	specId = units:PublicNumber(specId)
-	if not specId or specId <= 0 then
-		return nil
-	end
-	local getter = GetSpecializationInfoByID
-	if C_SpecializationInfo and C_SpecializationInfo.GetSpecializationInfoByID then
-		getter = C_SpecializationInfo.GetSpecializationInfoByID
-	end
-	if not getter then
-		return tostring(specId)
-	end
-	local ok, _, specName = pcall(getter, specId)
-	if ok and PublicText(specName) then
-		return specId .. " " .. tostring(specName)
-	end
-	return tostring(specId)
-end
-
-local function ZoneLabel()
-	local inInstance, instanceType = IsInInstance()
-	if not inInstance then
-		return "open-world"
-	end
-	return tostring(instanceType)
-end
-
-
-local function PrintKickProbe(event, interruptedBy)
-	local inInstance, instanceType = IsInInstance()
-	print("|cff33ff99[PVP Sound 打断探测]|r")
-	print("  event=" .. tostring(event) .. "  zone=" .. ZoneLabel()
-		.. "  instance=" .. tostring(inInstance) .. "/" .. tostring(instanceType))
-	print("  interruptedBy=" .. Describe(interruptedBy)
-		.. (interruptedBy and " (有值)" or " (空，多半是自己停)"))
-
-	local name, className, classFile, classId
-	if interruptedBy then
-		name = UnitNameFromGUID(interruptedBy)
-		className, classFile, classId = UnitClassFromGUID(interruptedBy)
-	end
-	local petKicker = IsNonPlayerKicker(interruptedBy)
-	local kickerLabel = "玩家"
-	if petKicker then
-		if PublicClass(classFile) == "WARLOCK" then
-			kickerLabel = "术士宠物（仍播法术封锁）"
-		else
-			kickerLabel = "宠物/非玩家（不播打断语音）"
-		end
-	end
-	print("  kicker=" .. kickerLabel)
-	print("  name=" .. Describe(name))
-	print("  class=" .. Describe(classFile)
-		.. "  className=" .. Describe(className)
-		.. "  classId=" .. Describe(classId))
-
-	local guidText = PublicText(interruptedBy)
-	local unit = guidText and FindUnitForGuid(guidText) or nil
-	print("  unit=" .. (unit or "未匹配到 target/姓名板（GUID 对不上或是 SECRET）"))
-
-	local specFromInspect, specFromArena, specFromTooltip
-	if unit then
-		if GetInspectSpecialization then
-			local ok, specId = pcall(GetInspectSpecialization, unit)
-			if ok then
-				specFromInspect = specId
-			end
-		end
-		local arenaIndex = unit:match("^arena(%d+)$")
-		if arenaIndex and GetArenaOpponentSpec then
-			local ok, specId = pcall(GetArenaOpponentSpec, tonumber(arenaIndex))
-			if ok then
-				specFromArena = specId
-			end
-		end
-		if C_TooltipInfo and C_TooltipInfo.GetUnit then
-			local ok, data = pcall(C_TooltipInfo.GetUnit, unit)
-			if ok and data and data.lines then
-				local tips = {}
-				for _, line in ipairs(data.lines) do
-					local text = line and PublicText(line.leftText)
-					if text and text ~= "" then
-						tips[#tips + 1] = text
-					end
-				end
-				if #tips > 0 then
-					specFromTooltip = table.concat(tips, " | ")
-				end
-			end
-		end
-	end
-	local specFromTooltipParse = unit and SpecIdFromTooltip(unit, PublicClass(classFile)) or nil
-	print("  spec inspect=" .. (SpecName(specFromInspect) or Describe(specFromInspect))
-		.. "  (切天赋后可能仍是旧的)")
-	print("  spec tooltipParse=" .. (SpecName(specFromTooltipParse) or "无")
-		.. "  (播报用这个，没有才用 inspect)")
-	print("  spec arenaAPI=" .. (SpecName(specFromArena) or Describe(specFromArena)))
-	print("  tooltip=" .. Describe(specFromTooltip))
-end
-
-function OnProbeEvent(_, event, ...)
-	if IsArena() then
-		return
-	end
-	if event == "UNIT_SPELLCAST_START"
-		or event == "UNIT_SPELLCAST_CHANNEL_START"
-		or event == "UNIT_SPELLCAST_EMPOWER_START" then
-		probePending = false
-		return
-	end
-	if probePending then
-		return
-	end
-	local interruptedBy = GetInterrupter(event, ...)
-	if not interruptedBy then
-		return
-	end
-	probePending = true
-	PrintKickProbe(event, interruptedBy)
-end
-
-function M:DebugProbeToggle()
-	probeWanted = not probeWanted
-	if IsArena() then
-		print("|cff33ff99[PVP Sound]|r JJC 播语音。野外探测打印现在是："
-			.. (probeWanted and "开（出本后生效）" or "关"))
-		return
-	end
-	if IsOpenWorld() then
-		SetProbeEnabled(probeWanted)
-	end
-	print("|cff33ff99[PVP Sound]|r 野外打断探测已"
-		.. (probeWanted and "开：被踢会打印 interruptedBy / 职业 / 专精。" or "关。"))
 end
 
 function M:Init()
