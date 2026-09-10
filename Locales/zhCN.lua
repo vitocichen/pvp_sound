@@ -61,6 +61,7 @@ L:SetStrings({
 	["pack_english_female"] = "英语女声",
 	["debug_module_missing_sound"] = "SoundModule 未加载。",
 	["debug_module_missing_consumable"] = "ConsumableModule 未加载。",
+	["debug_module_missing_kick"] = "EnemyKickModule 未加载。",
 	["profiles_tab_load_failed"] = "配置页加载失败",
 	["debug_no_spell_map"] = "spellID=%d 无语音映射",
 	["debug_voice_file_missing"] = "语音文件缺失：请确认 Media\\语音包文件夹 完整",
@@ -182,6 +183,8 @@ L:SetStrings({
 	["spell_group_buffs"] = "敌方buff增益效果监控",
 	["spell_group_debuffs"] = "我方debuff减益效果监控",
 	["spell_group_debuffs_general"] = "我方debuff减益效果监控",
+	["spell_group_kicks"] = "打断技能",
+	["spell_group_kicks_tooltip"] = "仅竞技场生效。队友读条被掐时，按对面职业/专精播放对应打断技能语音。认不出职业时不播。勾选时试听。",
 	["spell_group_consumables"] = "药水检测（仅野外喊话，JJC/战场/副本关闭）",
 	["consumable_watch_locked_tooltip"] = "药水诚实喊话仅在野外开启；竞技场、战场、副本关闭，避免锁动作条。",
 

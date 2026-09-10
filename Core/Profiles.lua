@@ -47,6 +47,7 @@ local SETTINGS_KEYS = {
 	"CustomAuras",
 	"DisabledEnemySpells",
 	"DisabledSelfCcSpells",
+	"DisabledEnemyKickSpells",
 	"Spells",
 	"SelfCcSpells",
 }

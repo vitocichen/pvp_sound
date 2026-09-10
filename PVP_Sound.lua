@@ -56,6 +56,9 @@ local function OnAddonLoaded()
 	if addon.Modules.ConsumableModule then
 		addon.Modules.ConsumableModule:Init()
 	end
+	if addon.Modules.EnemyKickModule then
+		addon.Modules.EnemyKickModule:Init()
+	end
 
 	db = mini:GetSavedVars()
 
@@ -76,6 +79,9 @@ function addon:Refresh()
 	end
 	if addon.Modules.ConsumableModule and addon.Modules.ConsumableModule.Refresh then
 		addon.Modules.ConsumableModule:Refresh()
+	end
+	if addon.Modules.EnemyKickModule and addon.Modules.EnemyKickModule.Refresh then
+		addon.Modules.EnemyKickModule:Refresh()
 	end
 end
 

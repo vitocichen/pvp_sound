@@ -57,6 +57,7 @@ L:SetDefaultStrings({
 	["pack_english_female"] = "English Female",
 	["debug_module_missing_sound"] = "SoundModule is not loaded.",
 	["debug_module_missing_consumable"] = "ConsumableModule is not loaded.",
+	["debug_module_missing_kick"] = "EnemyKickModule is not loaded.",
 	["profiles_tab_load_failed"] = "Failed to load the Profiles tab",
 	["debug_no_spell_map"] = "spellID=%d has no voice mapping",
 	["debug_voice_file_missing"] = "Voice file missing: check that the Media voice-pack folder is complete",
@@ -178,6 +179,8 @@ L:SetDefaultStrings({
 	["spell_group_buffs"] = "Enemy buff monitoring",
 	["spell_group_debuffs"] = "Friendly debuff monitoring",
 	["spell_group_debuffs_general"] = "Friendly debuff monitoring",
+	["spell_group_kicks"] = "Interrupts",
+	["spell_group_kicks_tooltip"] = "Arena only. When a teammate's cast is interrupted, plays that opponent's kick clip by class/spec. Unknown class plays nothing. Checking a box previews the clip.",
 	["spell_group_consumables"] = "Potion detect (World yell only; off in arena / BG / instances)",
 	["consumable_watch_locked_tooltip"] = "Potion honesty yell is World-only so arena, battlegrounds, and instances never arm the key wait.",
 

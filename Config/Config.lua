@@ -47,7 +47,7 @@ local function BuildDefaultSelfCcSpells()
 end
 
 local dbDefaults = {
-	Version = 36,
+	Version = 37,
 	WhatsNewVersion = false,
 	VoicePack = "夏一可1.25x",
 	ExtraVoicePacks = {},
@@ -79,6 +79,7 @@ local dbDefaults = {
 	-- Missing key = enabled (default on). Avoids huge Spells={all true} SavedVariables issues.
 	DisabledEnemySpells = {},
 	DisabledSelfCcSpells = {},
+	DisabledEnemyKickSpells = {},
 	-- Legacy full maps kept for migration / old readers; no longer the source of truth.
 	Spells = {},
 	SelfCcSpells = {},
@@ -548,6 +549,13 @@ local function MigrateV36(savedDb)
 	savedDb.Version = 36
 end
 
+-- v37: arena enemy-interrupt clips (MiniCC EnemyKickTracker voice).
+local function MigrateV37(savedDb)
+	if not savedDb or (savedDb.Version and savedDb.Version >= 37) then return end
+	savedDb.DisabledEnemyKickSpells = savedDb.DisabledEnemyKickSpells or {}
+	savedDb.Version = 37
+end
+
 local function EnsureSysCastDefaults(savedDb)
 	savedDb.SysCast = savedDb.SysCast or {}
 	local mode = tonumber(savedDb.SysCast.PreferredMode)
@@ -638,6 +646,11 @@ local function EnsureSelfCcDefaults(savedDb)
 	NormalizeSpellIdKeys(savedDb.SelfCcSpells)
 	NormalizeSpellIdKeys(savedDb.DisabledSelfCcSpells)
 	MigrateLegacySpellMapsToDisabled(savedDb)
+end
+
+local function EnsureEnemyKickDefaults(savedDb)
+	savedDb.DisabledEnemyKickSpells = savedDb.DisabledEnemyKickSpells or {}
+	NormalizeSpellIdKeys(savedDb.DisabledEnemyKickSpells)
 end
 
 local function CopyDisableMap(src)
@@ -923,6 +936,7 @@ local function BuildHomeTab(content)
 				dbDefaults.SelfCcSpells = {}
 				dbDefaults.DisabledEnemySpells = {}
 				dbDefaults.DisabledSelfCcSpells = {}
+				dbDefaults.DisabledEnemyKickSpells = {}
 				mini:ResetSavedVars(dbDefaults)
 				db = mini:GetSavedVars()
 				SeedDefaultOffSelfCc(db)
@@ -932,6 +946,7 @@ local function BuildHomeTab(content)
 				end
 				EnsureSpellDefaults(db)
 				EnsureSelfCcDefaults(db)
+				EnsureEnemyKickDefaults(db)
 				EnsureZoneDefaults(db)
 				voicePack:Init()
 				if addon.Modules.AuraSoundModule and addon.Modules.AuraSoundModule.InitDb then
@@ -1916,6 +1931,29 @@ local function IsSelfCcSpellEnabled(spellId)
 	return true
 end
 
+local function IsEnemyKickSpellEnabled(spellId)
+	spellId = tonumber(spellId) or spellId
+	if not db then return true end
+	if db.DisabledEnemyKickSpells and db.DisabledEnemyKickSpells[spellId] then
+		return false
+	end
+	return true
+end
+
+local function SetEnemyKickSpellEnabled(spellId, enabled)
+	db = db or mini:GetSavedVars()
+	_G.PVPSoundDB = _G.PVPSoundDB or db
+	db = _G.PVPSoundDB
+	spellId = tonumber(spellId) or spellId
+	if not spellId then return end
+	db.DisabledEnemyKickSpells = db.DisabledEnemyKickSpells or {}
+	if enabled then
+		db.DisabledEnemyKickSpells[spellId] = nil
+	else
+		db.DisabledEnemyKickSpells[spellId] = true
+	end
+end
+
 local function IsMergedSpellEnabled(spell)
 	local ok = true
 	local ids = SpellIdList(spell)
@@ -2161,7 +2199,104 @@ end
 
 ---@param parent Frame
 ---@param anchor Region
+---@return Region bottom
+local function BuildEnemyKickSection(parent, anchor)
+	local data = addon.Data.EnemyKicks
+	local list = data and data.List
+	if not list or #list == 0 then
+		return anchor
+	end
 
+	local divider = mini:Divider({
+		Parent = parent,
+		Text = L["spell_group_kicks"],
+	})
+	divider:SetPoint("LEFT", parent, "LEFT")
+	divider:SetPoint("RIGHT", parent, "RIGHT")
+	divider:SetPoint("TOP", anchor, "BOTTOM", 0, -verticalSpacing * 2)
+
+	local selectAll = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+	selectAll:SetSize(100, 22)
+	selectAll:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -verticalSpacing)
+	selectAll:SetText(L["Select All"])
+	selectAll:SetScript("OnClick", function()
+		for i = 1, #list do
+			SetEnemyKickSpellEnabled(list[i].Id, true)
+		end
+		if parent.MiniRefresh then parent:MiniRefresh() end
+	end)
+
+	local selectNone = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+	selectNone:SetSize(100, 22)
+	selectNone:SetPoint("LEFT", selectAll, "RIGHT", horizontalSpacing, 0)
+	selectNone:SetText(L["Select None"])
+	selectNone:SetScript("OnClick", function()
+		for i = 1, #list do
+			SetEnemyKickSpellEnabled(list[i].Id, false)
+		end
+		if parent.MiniRefresh then parent:MiniRefresh() end
+	end)
+
+	local columns = 2
+	local columnWidth = mini:ColumnWidth(columns, 0, 0)
+	local lastLeft, lastRight = selectAll, selectAll
+
+	for i, spell in ipairs(list) do
+		local spellId = spell.Id
+		local file = spell.File
+		local col = (i - 1) % columns
+		local row = math.floor((i - 1) / columns)
+
+		local chk = mini:Checkbox({
+			Parent = parent,
+			LabelText = SpellLabel(spellId, spell.Name, spell.Label),
+			Tooltip = string.format(L["spell_toggle_tooltip"], tostring(spellId), file),
+			GetValue = function()
+				return IsEnemyKickSpellEnabled(spellId)
+			end,
+			SetValue = function(value)
+				SetEnemyKickSpellEnabled(spellId, value and true or false)
+				if value then
+					local path = voicePack:Path(file)
+					if path then
+						pcall(PlaySoundFile, path, db.Sound and db.Sound.Channel or "Master")
+					end
+				end
+			end,
+		})
+
+		chk:HookScript("OnEnter", function(self)
+			if C_Spell and C_Spell.GetSpellLink then
+				local link = C_Spell.GetSpellLink(spellId)
+				if link then
+					GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+					GameTooltip:SetHyperlink(link)
+					GameTooltip:AddLine(" ")
+					GameTooltip:AddLine(L["spell_group_kicks_tooltip"], 1, 0.82, 0, true)
+					GameTooltip:Show()
+				end
+			end
+		end)
+
+		if col == 0 then
+			if row == 0 then
+				chk:SetPoint("TOPLEFT", selectAll, "BOTTOMLEFT", 0, -verticalSpacing)
+			else
+				chk:SetPoint("TOPLEFT", lastLeft, "BOTTOMLEFT", 0, -4)
+			end
+			lastLeft = chk
+		else
+			if row == 0 then
+				chk:SetPoint("TOPLEFT", selectAll, "BOTTOMLEFT", columnWidth + horizontalSpacing, -verticalSpacing)
+			else
+				chk:SetPoint("TOPLEFT", lastRight, "BOTTOMLEFT", 0, -4)
+			end
+			lastRight = chk
+		end
+	end
+
+	return lastLeft
+end
 
 local function LocaleConsumableName(entry)
 	if not entry then return "" end
@@ -2361,6 +2496,7 @@ local function MigrateSettingsSnapshot(savedDb)
 	MigrateV34(savedDb)
 	MigrateV35(savedDb)
 	MigrateV36(savedDb)
+	MigrateV37(savedDb)
 end
 
 local function RefreshFrameTree(frame)
@@ -2382,6 +2518,7 @@ local function AfterSettingsMutated(notifyMsg)
 	_G.PVPSoundDB = db
 	EnsureSpellDefaults(db)
 	EnsureSelfCcDefaults(db)
+	EnsureEnemyKickDefaults(db)
 	EnsureZoneDefaults(db)
 	EnsureSysCastDefaults(db)
 	EnsureCustomAuras(db)
@@ -2419,6 +2556,7 @@ local function ApplySettingsSnapshot(snap, notifyMsg)
 	-- not wipe DefaultOff seeding (e.g. Feral Frenzy) or other sparse-map migrations.
 	local keepDisabledEnemy = CopyDisableMap(copy.DisabledEnemySpells)
 	local keepDisabledSelfCc = CopyDisableMap(copy.DisabledSelfCcSpells)
+	local keepDisabledKicks = CopyDisableMap(copy.DisabledEnemyKickSpells)
 	local keepCustomAuras = nil
 	if type(copy.CustomAuras) == "table" then
 		keepCustomAuras = profiles:DeepCopy(copy.CustomAuras)
@@ -2427,12 +2565,14 @@ local function ApplySettingsSnapshot(snap, notifyMsg)
 	mini:CopyTable(dbDefaults, copy)
 	copy.DisabledEnemySpells = keepDisabledEnemy
 	copy.DisabledSelfCcSpells = keepDisabledSelfCc
+	copy.DisabledEnemyKickSpells = keepDisabledKicks
 	if keepCustomAuras then
 		copy.CustomAuras = keepCustomAuras
 	end
 	profiles:ApplySettings(db, copy)
 	db.DisabledEnemySpells = CopyDisableMap(keepDisabledEnemy)
 	db.DisabledSelfCcSpells = CopyDisableMap(keepDisabledSelfCc)
+	db.DisabledEnemyKickSpells = CopyDisableMap(keepDisabledKicks)
 	if keepCustomAuras then
 		db.CustomAuras = keepCustomAuras
 	end
@@ -3830,15 +3970,18 @@ function M:Init()
 	MigrateV34(rawDb)
 	MigrateV35(rawDb)
 	MigrateV36(rawDb)
+	MigrateV37(rawDb)
 
 	-- Spells defaults stay empty; Disabled* sparse maps are the source of truth.
 	dbDefaults.Spells = {}
 	dbDefaults.SelfCcSpells = {}
 	dbDefaults.DisabledEnemySpells = {}
 	dbDefaults.DisabledSelfCcSpells = {}
+	dbDefaults.DisabledEnemyKickSpells = {}
 	db = mini:GetSavedVars(dbDefaults)
 	EnsureSpellDefaults(db)
 	EnsureSelfCcDefaults(db)
+	EnsureEnemyKickDefaults(db)
 	EnsureZoneDefaults(db)
 	EnsureSysCastDefaults(db)
 	EnsureCustomAuras(db)
@@ -3865,6 +4008,7 @@ function M:Init()
 	local savedActiveProfile = db.ActiveProfileName
 	local savedDisabledEnemy = CopyDisableMap(db.DisabledEnemySpells)
 	local savedDisabledSelfCc = CopyDisableMap(db.DisabledSelfCcSpells)
+	local savedDisabledKicks = CopyDisableMap(db.DisabledEnemyKickSpells)
 	local savedVoicePack = db.VoicePack
 	local savedHealerCcSound = db.HealerCcSoundFile
 	local savedInterruptSound = db.InterruptSoundFile
@@ -3891,6 +4035,7 @@ function M:Init()
 	end
 	db.DisabledEnemySpells = savedDisabledEnemy
 	db.DisabledSelfCcSpells = savedDisabledSelfCc
+	db.DisabledEnemyKickSpells = savedDisabledKicks
 	db.Spells = {}
 	db.SelfCcSpells = {}
 	-- Rehydrate legacy maps from disable maps so any leftover readers stay consistent.
@@ -3913,6 +4058,7 @@ function M:Init()
 	db.WaSoundFiles = savedWaSoundFiles
 	EnsureSpellDefaults(db)
 	EnsureSelfCcDefaults(db)
+	EnsureEnemyKickDefaults(db)
 	EnsureZoneDefaults(db)
 	EnsureSysCastDefaults(db)
 	EnsureCustomAuras(db)
@@ -3930,6 +4076,14 @@ function M:Init()
 	SLASH_PVPSOUND2 = "/ps"
 	SlashCmdList.PVPSOUND = function(msg)
 		msg = msg and msg:lower():match("^%s*(.-)%s*$") or ""
+		if msg == "kickdebug" or msg == "kickdbg" then
+			if addon.Modules.EnemyKickModule and addon.Modules.EnemyKickModule.DebugProbeToggle then
+				addon.Modules.EnemyKickModule:DebugProbeToggle()
+			else
+				print("|cffff3333[PVP Sound]|r " .. L["debug_module_missing_kick"])
+			end
+			return
+		end
 		if msg == "casttest" or msg == "cast" then
 			if addon.Modules.SoundModule and addon.Modules.SoundModule.DebugCastTest then
 				addon.Modules.SoundModule:DebugCastTest()
@@ -4130,6 +4284,7 @@ function M:Init()
 		if generalEntry then
 			last = BuildClassSection(content, intro, generalEntry, { showDivider = false })
 		end
+		last = BuildEnemyKickSection(content, last)
 		BuildConsumableWatchSection(content, last)
 	end
 

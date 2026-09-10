@@ -33,6 +33,7 @@ Data\CcSpellIds.lua
 Data\CastSounds.lua
 Data\CastSuccessSounds.lua
 Data\Consumables.lua
+Data\EnemyKicks.lua
 Data\VoicePackManifest.lua
 
 Core\VoicePack.lua
@@ -44,6 +45,7 @@ Modules\AuraSoundModule.lua
 Modules\TrinketModule.lua
 Modules\SoundModule.lua
 Modules\ConsumableModule.lua
+Modules\EnemyKickModule.lua
 
 Config\Config.lua
 
