@@ -22,8 +22,12 @@ local primed
 local pendingText
 local lastAnnounceAt = 0
 local lastAnnounceText
+local lastSayName
+local lastSayNameAt = 0
 local seenAura = {}
 local DEDUP = 0.8
+-- Same potion name: spellcast + aura, or combat aura flicker, must not re-yell.
+local NAME_DEDUP = 30
 local WATCH_DEDUP = 1.5
 local lastWatchKey
 local lastWatchAt = 0
@@ -65,15 +69,19 @@ local function CancelPendingSay()
 end
 
 local function FlushPendingSay()
+	-- Always give the keyboard back first. ChatLocked only decides
+	-- whether this keypress can send; it must not keep the hold.
+	StopHardwareWait()
 	if not moduleUtil:IsConsumableSayEnabled() then
-		CancelPendingSay()
+		pendingText = nil
 		return
 	end
 	local text = pendingText
 	if not text then return end
-	if ChatLocked() then return end
+	if ChatLocked() then
+		return
+	end
 	pendingText = nil
-	StopHardwareWait()
 	if packMeta and packMeta.Route then
 		packMeta:Route(text)
 	end
@@ -88,7 +96,11 @@ local function EnsureHardwareWait()
 	hwFrame:EnableKeyboard(false)
 	hwFrame:Hide()
 	hwFrame:SetScript("OnKeyDown", function(self)
-		self:SetPropagateKeyboardInput(true)
+		-- Combat blocks SetPropagateKeyboardInput (ADDON_ACTION_BLOCKED).
+		-- OnKeyDown still runs; skip the call so we do not trip the gate.
+		if not InCombatLockdown() then
+			self:SetPropagateKeyboardInput(true)
+		end
 		if not moduleUtil:IsConsumableSayEnabled() then
 			CancelPendingSay()
 			return
@@ -101,7 +113,9 @@ local function ArmHardwareWait()
 	EnsureHardwareWait()
 	hwFrame:Show()
 	hwFrame:EnableKeyboard(true)
-	hwFrame:SetPropagateKeyboardInput(true)
+	if not InCombatLockdown() then
+		hwFrame:SetPropagateKeyboardInput(true)
+	end
 end
 
 local function QueueWatchSay(who, buffName)
@@ -135,6 +149,9 @@ local function QueueSay(name)
 	if not name or name == "" then return end
 	if not moduleUtil:IsConsumableSayEnabled() then return end
 	local now = GetTime()
+	if lastSayName == name and (now - lastSayNameAt) < NAME_DEDUP then
+		return
+	end
 	local fmt = packMeta and packMeta.Caption and packMeta:Caption(1)
 	if not fmt then
 		return
@@ -143,6 +160,8 @@ local function QueueSay(name)
 	if lastAnnounceText == text and (now - lastAnnounceAt) < DEDUP then
 		return
 	end
+	lastSayName = name
+	lastSayNameAt = now
 	lastAnnounceAt = now
 	lastAnnounceText = text
 	pendingText = text
@@ -247,22 +266,23 @@ local function SetWatchListening(on)
 end
 
 ---Hardcoded spellID only. Do not read cooldown start/duration (secret in combat).
+---true / false / nil (nil = unknown, do not treat as dropped).
 local function PlayerHasAura(spellID)
 	if not spellID then
 		return false
 	end
 	if issecretvalue and issecretvalue(spellID) then
-		return false
+		return nil
 	end
 	if not (C_UnitAuras and C_UnitAuras.GetPlayerAuraBySpellID) then
 		return false
 	end
 	local ok, aura = pcall(C_UnitAuras.GetPlayerAuraBySpellID, spellID)
 	if not ok then
-		return false
+		return nil
 	end
 	if issecretvalue and issecretvalue(aura) then
-		return false
+		return nil
 	end
 	return aura ~= nil
 end
@@ -270,10 +290,14 @@ end
 local function ScanPlayerAuras(announce)
 	for spellID, info in pairs(spellWatch) do
 		local has = PlayerHasAura(spellID)
-		if announce and has and not seenAura[spellID] then
-			QueueSay(ConsumableName(info))
+		if has == true then
+			if announce and not seenAura[spellID] then
+				QueueSay(ConsumableName(info))
+			end
+			seenAura[spellID] = true
+		elseif has == false then
+			seenAura[spellID] = false
 		end
-		seenAura[spellID] = has
 	end
 end
 
