@@ -273,12 +273,24 @@ local function UnregisterToken(unitToken)
 	enemyByToken[unitToken] = nil
 end
 
+local function CommitHandles(map, unitToken, ids)
+	if ids and #ids > 0 then
+		map[unitToken] = ids
+	elseif ids then
+		auraSounds:RemoveSet(ids)
+	end
+end
+
 local function RegisterEnemyToken(unitToken, basePath, channel)
 	if enemyByToken[unitToken] then return end
 	if not next(enabledEnemySounds) then return end
 	if not ShouldWatchToken(unitToken) then return end
+	if not auraSounds:CanRegister() then
+		auraSounds:NoteSkipped()
+		return
+	end
 
-	enemyByToken[unitToken] = auraSounds:RegisterMappedSet(nil, unitToken, enabledEnemySounds, basePath, channel)
+	CommitHandles(enemyByToken, unitToken, auraSounds:RegisterMappedSet(nil, unitToken, enabledEnemySounds, basePath, channel))
 end
 
 local function UnregisterSelfCcToken(unitToken)
@@ -293,7 +305,11 @@ local function RegisterSelfCcToken(unitToken, basePath, channel)
 	if not next(enabledSelfCcSounds) then return end
 	if unitToken ~= "player" and not UnitExistsSafe(unitToken) then return end
 
-	selfCcByToken[unitToken] = auraSounds:RegisterMappedSet(nil, unitToken, enabledSelfCcSounds, basePath, channel)
+	if not auraSounds:CanRegister() then
+		auraSounds:NoteSkipped()
+		return
+	end
+	CommitHandles(selfCcByToken, unitToken, auraSounds:RegisterMappedSet(nil, unitToken, enabledSelfCcSounds, basePath, channel))
 end
 
 local function RefreshSelfCc(basePath, channel, active)
@@ -440,6 +456,10 @@ local function RegisterCustomToken(unitToken, channel)
 	if customByToken[unitToken] then
 		return
 	end
+	if not auraSounds:CanRegister() then
+		auraSounds:NoteSkipped()
+		return
+	end
 	if unitToken ~= "player" and not UnitExistsSafe(unitToken) then
 		return
 	end
@@ -565,7 +585,11 @@ local function RegisterHealerCcToken(unitToken, soundPath, channel)
 	if not ccSpellIds or not next(ccSpellIds) then return end
 	if not UnitExistsSafe(unitToken) then return end
 
-	healerCcByToken[unitToken] = auraSounds:RegisterSet(nil, unitToken, ccSpellIds, soundPath, channel)
+	if not auraSounds:CanRegister() then
+		auraSounds:NoteSkipped()
+		return
+	end
+	CommitHandles(healerCcByToken, unitToken, auraSounds:RegisterSet(nil, unitToken, ccSpellIds, soundPath, channel))
 end
 
 ---MiniAuras HealerCC: register full CC list on each party/raid healer (not the player).

@@ -7,9 +7,42 @@ local _, addon = ...
 local M = {}
 addon.Core.AuraSounds = M
 
+-- MiniCC: combat does not block registration in the open world / BGs / arena.
+-- Instanced PvE combat turns AddAuraSound into ADDON_ACTION_BLOCKED.
+local COMBAT_SAFE_PLACES = {
+	none = true,
+	pvp = true,
+	arena = true,
+}
+
 local infoScratch = { unitToken = nil, spellID = nil, soundFileName = nil, outputChannel = nil }
 local idListPool = {}
 local signatureScratch = {}
+local skipped = false
+
+---Raw instance type from the client: "none", "pvp", "arena", "party", "raid", ...
+---@return string
+local function InstanceType()
+	local _, instanceType = IsInInstance()
+	return instanceType or "none"
+end
+
+---Whether AddAuraSound is safe right now (MiniCC CanRegister).
+---@return boolean
+function M:CanRegister()
+	return COMBAT_SAFE_PLACES[InstanceType()] == true or not InCombatLockdown()
+end
+
+function M:NoteSkipped()
+	skipped = true
+end
+
+---@return boolean
+function M:ConsumeSkipped()
+	local refused = skipped
+	skipped = false
+	return refused
+end
 
 ---@param kind string|nil added | removed | stacks
 ---@return number?
@@ -32,6 +65,10 @@ end
 ---@return number?
 local function AddOne(info, trigger)
 	if not C_UnitAuras or not C_UnitAuras.AddAuraSound then
+		return nil
+	end
+	if not M:CanRegister() then
+		M:NoteSkipped()
 		return nil
 	end
 	trigger = trigger or (Enum and Enum.UnitAuraSoundTrigger and Enum.UnitAuraSoundTrigger.Added)
@@ -58,6 +95,10 @@ end
 ---@return number[] ids
 function M:RegisterMappedSet(ids, unitToken, filesBySpellId, basePath, channel)
 	ids = ids or table.remove(idListPool) or {}
+	if not self:CanRegister() then
+		self:NoteSkipped()
+		return ids
+	end
 
 	local info = infoScratch
 	info.unitToken = unitToken
@@ -87,6 +128,10 @@ end
 ---@return number[] ids
 function M:RegisterSet(ids, unitToken, spellIds, soundFile, channel)
 	ids = ids or table.remove(idListPool) or {}
+	if not self:CanRegister() then
+		self:NoteSkipped()
+		return ids
+	end
 
 	local info = infoScratch
 	info.unitToken = unitToken
@@ -114,6 +159,10 @@ end
 ---@return number[] ids
 function M:RegisterOne(ids, unitToken, spellID, soundFile, channel, triggerKind)
 	ids = ids or table.remove(idListPool) or {}
+	if not self:CanRegister() then
+		self:NoteSkipped()
+		return ids
+	end
 	local trigger = self:ResolveTrigger(triggerKind)
 	if not trigger or not spellID or not soundFile or soundFile == "" then
 		return ids
