@@ -305,5 +305,9 @@ addon.Data.EnemyBuffSounds = {
 	[1235568] = "lightsPreservation.ogg", -- 圣光之护
 	[1295132] = "viscousGloss.ogg", -- 浓态光泽
 	[1238009] = "algariHealingPotion.ogg", -- 治疗药水
+	[431416] = "algariHealingPotion.ogg", -- 治疗药水 / 阿加治疗药水
 	[431941] = "rebornCheetahPotion.ogg", -- 猎豹药水
+	[1236551] = "invisibilityPotion.ogg", -- 隐形药水 / 虚空蔽体
+	[431424] = "invisibilityPotion.ogg", -- 隐形药水 / 踏雪无痕
+	[371224] = "invisibilityPotion.ogg", -- 隐形药水 / 沉静西风
 }
