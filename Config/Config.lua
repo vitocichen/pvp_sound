@@ -303,7 +303,7 @@ local function MigrateLegacySpellMapsToDisabled(savedDb)
 			if enabled == false then
 				savedDb.DisabledSelfCcSpells[spellId] = true
 			end
-		end
+			end
 		end
 	end
 
@@ -525,8 +525,8 @@ local function MigrateV35(savedDb)
 				local id = tonumber(r.spellID)
 				if id == 110909 or id == 342246 then
 					r.spellID = 342245
-				end
 			end
+		end
 		end
 	end
 	savedDb.Version = 35
@@ -1018,8 +1018,8 @@ local function BuildHomeTab(content)
 		end,
 		SetValue = function(value)
 			customScratch = value or ""
-		end,
-	})
+			end,
+		})
 	customBox:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
 	customBox:SetPoint("TOP", customLabel, "TOP", 0, 4)
 	customBox:SetWidth(160)
@@ -1106,7 +1106,7 @@ local function BuildZonesTab(content)
 	for _, z in ipairs(zoneOrder) do
 		local zoneKey = z.Key
 		local divider = mini:Divider({
-			Parent = content,
+		Parent = content,
 			Text = z.Label,
 		})
 		divider:SetPoint("LEFT", content, "LEFT")
@@ -1121,12 +1121,12 @@ local function BuildZonesTab(content)
 			GetValue = function()
 				return db.Zones[zoneKey] and db.Zones[zoneKey].Enabled
 			end,
-			SetValue = function(value)
+		SetValue = function(value)
 				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
 				db.Zones[zoneKey].Enabled = value and true or false
-				M:Apply()
-			end,
-		})
+			M:Apply()
+		end,
+	})
 		buffChk:SetPoint("TOPLEFT", divider, "BOTTOMLEFT", 0, -verticalSpacing)
 
 		PlaceRangeRow(
@@ -1204,22 +1204,22 @@ local function BuildZonesTab(content)
 
 		-- Row 3: healer-in-CC (MiniAuras-style; always watches group healers)
 		local healerChk = mini:Checkbox({
-		Parent = content,
+			Parent = content,
 			LabelText = L["Enable Healer CC Alerts"],
 			Tooltip = L["Enable healer-in-CC voice alerts in this zone."],
-		GetValue = function()
+			GetValue = function()
 				local zone = db.Zones[zoneKey]
 				return zone and zone.HealerCcEnabled ~= false
-		end,
-		SetValue = function(value)
+			end,
+			SetValue = function(value)
 				db.Zones[zoneKey] = db.Zones[zoneKey] or {}
 				db.Zones[zoneKey].HealerCcEnabled = value and true or false
-			M:Apply()
+				M:Apply()
 				if value then
 					PreviewHealerCcSound(db.HealerCcSoundFile)
-			end
-		end,
-	})
+				end
+			end,
+		})
 		healerChk:SetPoint("TOPLEFT", ccChk, "BOTTOMLEFT", 0, -verticalSpacing)
 
 		PlaceRangeRow(
@@ -1251,7 +1251,7 @@ local function BuildZonesTab(content)
 				db.Zones[zoneKey].CastBar = value and true or false
 			M:Apply()
 		end,
-		})
+	})
 		castChk:SetPoint("TOPLEFT", healerChk, "BOTTOMLEFT", 0, -verticalSpacing)
 
 		local castHint = content:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
@@ -1302,7 +1302,7 @@ local function BuildZonesTab(content)
 		-- Enemy kick-name: Arena / World / BG only. PvE has no control and stays off.
 		if zoneKey ~= "PvE" then
 			local enemyKickChk = mini:Checkbox({
-				Parent = content,
+		Parent = content,
 				LabelText = L["Enable Enemy Kick Alerts"],
 				Tooltip = L["Enable enemy kick voice alerts in this zone."],
 				GetValue = function()
@@ -2306,9 +2306,9 @@ local function BuildEnemyKickSection(parent, anchor)
 					if path then
 						pcall(PlaySoundFile, path, db.Sound and db.Sound.Channel or "Master")
 					end
-				end
-			end,
-		})
+			end
+		end,
+	})
 
 		chk:HookScript("OnEnter", function(self)
 			if C_Spell and C_Spell.GetSpellLink then
@@ -2637,7 +2637,7 @@ end
 
 local function BuildProfilesTab(content)
 	local intro = mini:TextBlock({
-			Parent = content,
+		Parent = content,
 		Lines = {
 			L["profiles_intro_1"],
 			L["profiles_intro_2"],
@@ -2655,7 +2655,7 @@ local function BuildProfilesTab(content)
 	end
 
 	local schemeDivider = mini:Divider({
-			Parent = content,
+		Parent = content,
 		Text = L["profiles_section_schemes"],
 	})
 	schemeDivider:SetPoint("LEFT", content, "LEFT")
@@ -2663,7 +2663,7 @@ local function BuildProfilesTab(content)
 	schemeDivider:SetPoint("TOP", intro, "BOTTOM", 0, -verticalSpacing)
 
 	local activeLabel = mini:TextLine({
-			Parent = content,
+		Parent = content,
 		Text = L["profiles_active"],
 	})
 	activeLabel:SetPoint("TOPLEFT", schemeDivider, "BOTTOMLEFT", 0, -verticalSpacing)
@@ -2674,29 +2674,29 @@ local function BuildProfilesTab(content)
 	end
 
 	local profileDropdown = mini:Dropdown({
-			Parent = content,
+		Parent = content,
 		Items = profileItems,
 		Width = 200,
-			GetValue = function()
+		GetValue = function()
 			return selectedName
-			end,
-			SetValue = function(value)
+		end,
+		SetValue = function(value)
 			selectedName = value or ""
 			nameScratch = selectedName
-			end,
-			GetText = function(value)
+		end,
+		GetText = function(value)
 			if value and value ~= "" then
 				return value
-				end
+			end
 			return L["profiles_none"]
-			end,
-		})
+		end,
+	})
 	profileDropdown:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
 	profileDropdown:SetPoint("TOP", activeLabel, "TOP", 0, 8)
 	profileDropdown:SetWidth(200)
 
 	local nameLabel = mini:TextLine({
-			Parent = content,
+		Parent = content,
 		Text = L["profiles_name"],
 		})
 	nameLabel:SetPoint("TOPLEFT", activeLabel, "BOTTOMLEFT", 0, -verticalSpacing)
@@ -2707,10 +2707,10 @@ local function BuildProfilesTab(content)
 			GetValue = function()
 			return nameScratch
 			end,
-			SetValue = function(value)
+		SetValue = function(value)
 			nameScratch = value or ""
-			end,
-		})
+		end,
+	})
 	nameBox:SetPoint("LEFT", content, "LEFT", columnWidth, 0)
 	nameBox:SetPoint("TOP", nameLabel, "TOP", 0, 4)
 	nameBox:SetWidth(200)
@@ -3374,7 +3374,7 @@ local function BuildCustomWaTab(content)
 			local r = SelectedRule()
 			return r and r.enabled ~= false
 		end,
-		SetValue = function(value)
+			SetValue = function(value)
 			local r = SelectedRule()
 			if r then
 				r.enabled = value and true or false
@@ -3383,8 +3383,8 @@ local function BuildCustomWaTab(content)
 					iconCells[selectedIndex].EnableChk:SetChecked(value and true or false)
 				end
 			end
-		end,
-	})
+			end,
+		})
 	enableChk:SetPoint("TOPLEFT", editor, "TOPLEFT", 8, -10)
 
 	local idLabel = EditorLabel(editor, L["wa_spell_id"])
@@ -3437,19 +3437,19 @@ local function BuildCustomWaTab(content)
 	local unitDd = mini:Dropdown({
 		Parent = editor,
 		Items = unitItems,
-		GetValue = function()
+			GetValue = function()
 			local r = SelectedRule()
 			return (r and r.unit) or "enemy"
-		end,
-		SetValue = function(value)
+			end,
+			SetValue = function(value)
 			local r = SelectedRule()
 			if r then
 				r.unit = value
 				M:Apply()
 				UpdateEnemyScopeShown()
 			end
-		end,
-		GetText = function(value)
+			end,
+			GetText = function(value)
 			return L["wa_unit_" .. tostring(value)] or tostring(value)
 		end,
 	})
@@ -3471,8 +3471,8 @@ local function BuildCustomWaTab(content)
 			if r then
 				r.trigger = value
 				M:Apply()
-			end
-		end,
+				end
+			end,
 		GetText = function(value)
 			return L["wa_trigger_" .. tostring(value)] or tostring(value)
 		end,
@@ -3548,14 +3548,14 @@ local function BuildCustomWaTab(content)
 			return (sounds and sounds.BUILTIN) or { "PS_Ping.ogg" }
 		end,
 		GridMode = true,
-		GetValue = function()
+			GetValue = function()
 			local r = SelectedRule()
 			if r and type(r.file) == "string" and r.file ~= "" then
 				return r.file
 			end
 			return "PS_Ping.ogg"
-		end,
-		SetValue = function(value)
+			end,
+			SetValue = function(value)
 			local r = SelectedRule()
 			if r then
 				r.soundSource = "builtin"
@@ -3565,8 +3565,8 @@ local function BuildCustomWaTab(content)
 		end,
 		GetText = function(value)
 			return tostring(value or "")
-		end,
-	})
+			end,
+		})
 	fileDd:SetPoint("LEFT", sourceDd, "RIGHT", 8, 0)
 	fileDd:SetWidth(150)
 
@@ -3718,21 +3718,21 @@ local function BuildCustomWaTab(content)
 	local enemyScopeDd = mini:Dropdown({
 		Parent = editor,
 		Items = enemyScopeItems,
-		GetValue = function()
+			GetValue = function()
 			local r = SelectedRule()
 			return (r and r.enemyScope) or "all"
-		end,
-		SetValue = function(value)
+			end,
+			SetValue = function(value)
 			local r = SelectedRule()
 			if r then
 				r.enemyScope = value == "targetfocus" and "targetfocus" or "all"
 				M:Apply()
 			end
-		end,
-		GetText = function(value)
+			end,
+			GetText = function(value)
 			return L["wa_enemy_scope_" .. tostring(value)] or tostring(value)
-		end,
-	})
+			end,
+		})
 	enemyScopeDd:SetPoint("LEFT", editor, "LEFT", 12 + LABEL_COL, 0)
 	enemyScopeDd:SetPoint("TOP", enemyScopeLabel, "TOP", 0, 4)
 	enemyScopeDd:SetWidth(170)
@@ -3936,6 +3936,8 @@ local function BuildChangelogTab(content)
 	local block = mini:TextBlock({
 		Parent = content,
 		Lines = {
+			L["changelog_v3.1.2"],
+			" ",
 			L["changelog_v3.1.1"],
 			" ",
 			L["changelog_v3.1.0"],
@@ -4452,12 +4454,12 @@ function M:Init()
 					msg:SetPoint("TOPLEFT", content, "TOPLEFT", 0, 0)
 				end
 			end,
-		},
-		{
-			Key = "Changelog",
+			},
+			{
+				Key = "Changelog",
 			Title = L["tab_changelog"],
-			Build = function(content) BuildChangelogTab(content) end,
-		},
+				Build = function(content) BuildChangelogTab(content) end,
+			},
 	}
 
 	M.TabController = mini:CreateTabs({

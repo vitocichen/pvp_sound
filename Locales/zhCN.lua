@@ -259,6 +259,7 @@ L:SetStrings({
 	["wa_delete"] = "删除",
 	["PVP Sound - What's New?"] = "PVP Sound — 更新内容",
 	["changelog_v3.0.5"] = "|cFFFFD100v3.0.5|r — 打断提示改为仅在你成功打断时播放，不再把敌人自己取消读条当成打断；修正「适应」法术ID；新增部分技能（天灾契约、项链护盾、鲜红符文、消失）。",
+	["changelog_v3.1.2"] = "|cFFFFD100v3.1.2|r — 修复了报错BUG，添加了部分Buff。",
 	["changelog_v3.1.1"] = "|cFFFFD100v3.1.1|r — 支持敌方打断技能播放，仅在敌方成功打断我方时生效。",
 	["changelog_v3.1.0"] = "|cFFFFD100v3.1.0|r — 重大更新：支持 WA 音效自定义，可任意添加 buff/debuff 语音监控；添加了部分缺失的 BUFF。",
 	["changelog_v3.0.15"] = "|cFFFFD100v3.0.15|r — 添加了discord交流网站，欢迎反馈插件问题；新增萨满[掘地三尺]buff监控。",

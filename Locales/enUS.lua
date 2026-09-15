@@ -255,6 +255,7 @@ L:SetDefaultStrings({
 	["wa_delete"] = "Delete",
 	["PVP Sound - What's New?"] = "PVP Sound - What's New?",
 	["changelog_v3.0.5"] = "|cFFFFD100v3.0.5|r — Interrupt alert now plays only when you land the kick (no more false positives from cancelled casts); fixed Adaptation spell ID; added some spells (Death Pact, Necklace Shield, Crimson Rune, Vanish).",
+	["changelog_v3.1.2"] = "|cFFFFD100v3.1.2|r — Fixed errors and added some buffs.",
 	["changelog_v3.1.1"] = "|cFFFFD100v3.1.1|r — Play the enemy interrupt's name when they successfully kick you or a teammate.",
 	["changelog_v3.1.0"] = "|cFFFFD100v3.1.0|r — Major update: custom WA-style aura sounds — add voice alerts for any buff/debuff. Added some missing buffs.",
 	["changelog_v3.0.15"] = "|cFFFFD100v3.0.15|r — Added a Discord community link. Feedback on addon issues is welcome. Added Shaman Burrow buff tracking.",

@@ -351,7 +351,7 @@ addon.Data.EnemyBuffCatalog = {
 				{ Id = 23920, File = "SpellReflection.ogg" },
 				{ Id = 236273, File = "duel.ogg" },
 				{ Id = 260708, File = "sweepingStrikes.ogg" },
-				{ Id = 351077, File = "secondWind.ogg" },
+				{ Id = 458245, File = "secondWind.ogg", Label = "复苏之风", Ids = { [458245] = true, [351077] = true } },
 				{ Id = 12975, File = "lastStand.ogg" },
 				{ Id = 223658, File = "safeguard.ogg" },
 				{ Id = 199086, File = "warpath.ogg" },

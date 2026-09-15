@@ -1,5 +1,11 @@
 # PVP Sound
 
+## [v3.1.2](https://github.com/vitocichen/pvp_sound/tree/v3.1.2) (2026-09-15)
+[Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.1.2)
+
+- 修复了报错BUG
+- 添加了部分Buff
+
 ## [v3.1.1](https://github.com/vitocichen/pvp_sound/tree/v3.1.1) (2026-09-10)
 [Full Changelog](https://github.com/vitocichen/pvp_sound/commits/v3.1.1)
 
